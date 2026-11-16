@@ -1,3 +1,9 @@
+<!doctype html>
+<html lang="pt-BR">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover, interactive-widget=resizes-content">
+<meta name="theme-color" content="#040914">
 <title>Atlas Central de Inteligência</title>
 <meta name="claude:viewport-fit-sides" content="cover">
 <link rel="preconnect" href="https://fonts.googleapis.com">
@@ -5,6 +11,9 @@
 <style>
 /* Layout: HUD de tela única. Celular em pé: orb no centro, painel abaixo. Tela larga: orb à esquerda, painel à direita (como no tablet do vídeo). */
 :root{
+  /* margens seguras: o app Android injeta --safe-area-inset-*; no navegador vale env() */
+  --sat:var(--safe-area-inset-top,env(safe-area-inset-top,0px));--sab:var(--safe-area-inset-bottom,env(safe-area-inset-bottom,0px));
+  --sal:var(--safe-area-inset-left,env(safe-area-inset-left,0px));--sar:var(--safe-area-inset-right,env(safe-area-inset-right,0px));
   --void:#040914; --deep:#081428; --panel:rgba(12,30,58,.55); --line:rgba(90,180,255,.18); --line-hi:rgba(90,200,255,.45);
   --cyan:#43d9ff; --blue:#2f6bff; --violet:#9a6bff; --green:#3dff8a; --amber:#ffb547; --red:#ff5d6c;
   --fg:#e6f3ff; --fg-dim:#8fb0cf; --fg-faint:#56708c;
@@ -15,7 +24,7 @@
 }
 [hidden]{display:none!important}
 *,*::before,*::after{box-sizing:border-box}
-html,body{height:100%}
+html,body{height:100%;margin:0;background:#040914}
 body{background:var(--void);color:var(--fg);font-family:var(--f-body);overflow:hidden;-webkit-tap-highlight-color:transparent}
 #bg{position:fixed;inset:0;width:100%;height:100%;z-index:0;pointer-events:none}
 #fx{position:fixed;inset:0;width:100%;height:100%;z-index:15;pointer-events:none}
@@ -29,7 +38,7 @@ button{cursor:pointer}
 :focus-visible{outline:2px solid var(--cyan);outline-offset:2px}
 
 .app{position:relative;z-index:1;height:100%;display:flex;flex-direction:column;
-  padding-left:max(16px,env(safe-area-inset-left,0px));padding-right:max(16px,env(safe-area-inset-right,0px));padding-block:12px 0}
+  padding-left:max(16px,var(--sal));padding-right:max(16px,var(--sar));padding-block:calc(12px + var(--sat)) 0}
 
 /* Header */
 .top{display:flex;align-items:center;justify-content:space-between;gap:12px;padding-bottom:10px;border-bottom:1px solid var(--line)}
@@ -112,7 +121,7 @@ button{cursor:pointer}
 .send{height:100%;background:transparent;border:0;border-left:1px solid var(--line);padding:0 14px;font-family:var(--f-hud);font-size:11px;letter-spacing:.2em;color:var(--cyan)}
 
 /* Ticker */
-.ticker{display:flex;align-items:center;gap:10px;margin-top:10px;margin-inline:calc(-1*max(16px,env(safe-area-inset-left,0px))) calc(-1*max(16px,env(safe-area-inset-right,0px)));padding:8px max(16px,env(safe-area-inset-right,0px)) calc(8px + env(safe-area-inset-bottom,0px)) max(16px,env(safe-area-inset-left,0px));border-top:1px solid var(--line);background:rgba(4,9,20,.85);overflow:hidden}
+.ticker{display:flex;align-items:center;gap:10px;margin-top:10px;margin-inline:calc(-1*max(16px,var(--sal))) calc(-1*max(16px,var(--sar)));padding:8px max(16px,var(--sar)) calc(8px + var(--sab)) max(16px,var(--sal));border-top:1px solid var(--line);background:rgba(4,9,20,.85);overflow:hidden}
 .live{flex:0 0 auto;background:var(--cyan);color:var(--void);font-family:var(--f-hud);font-weight:700;font-size:10px;letter-spacing:.18em;padding:3px 8px}
 .track{flex:1;min-width:0;overflow:hidden;white-space:nowrap;mask-image:linear-gradient(90deg,transparent,#000 4%,#000 96%,transparent)}
 .track span{display:inline-block;padding-left:100%;animation:tick 40s linear infinite;font-family:var(--f-hud);font-size:12px;color:var(--fg-dim)}
@@ -132,7 +141,7 @@ button{cursor:pointer}
 
 /* Login / boot overlays */
 .overlay{position:fixed;inset:0;z-index:20;display:flex;align-items:center;justify-content:center;background:rgba(4,9,20,.78);backdrop-filter:blur(3px);
-  padding:max(16px,env(safe-area-inset-top,0px)) max(16px,env(safe-area-inset-right,0px)) max(16px,env(safe-area-inset-bottom,0px)) max(16px,env(safe-area-inset-left,0px));overflow:auto}
+  padding:max(16px,var(--sat)) max(16px,var(--sar)) max(16px,var(--sab)) max(16px,var(--sal));overflow:auto}
 .login{width:100%;max-width:420px;display:flex;flex-direction:column;gap:18px}
 .login .brand{flex-direction:column;align-items:flex-start;gap:6px}
 .login .brand b{font-size:26px}
@@ -181,6 +190,191 @@ button{cursor:pointer}
 .hist{display:flex;flex-direction:column;gap:10px;font-size:13px;line-height:1.45}
 .hist div b{font-family:var(--f-hud);font-size:10px;letter-spacing:.2em;color:var(--fg-faint);display:block}
 @media (prefers-reduced-motion:reduce){.track span{animation:none;padding-left:0}.dot{animation:none}}
+
+/* ---------- conexão com a IA ---------- */
+.connect{display:flex;flex-direction:column;gap:14px;border:1px solid var(--line-hi);background:rgba(6,16,34,.82);padding:18px 16px}
+.connect .sub{margin:0;font-size:13px;line-height:1.55}
+.connect .sub b{color:var(--fg)}
+.keyrow{display:flex;gap:8px}.keyrow .inp{flex:1;min-width:0;font-family:var(--f-hud);letter-spacing:.04em}
+.row2{display:flex;gap:10px;justify-content:space-between}
+.btn-solid{background:var(--cyan);color:var(--void);border:0;padding:11px 22px;font-family:var(--f-hud);font-weight:700;font-size:12px;letter-spacing:.2em;text-transform:uppercase}
+.btn-solid:disabled{opacity:.6}
+.note.bad{border-left-color:var(--red);color:#ffb3ba}
+.fine{margin:0;font-size:11px;color:var(--fg-faint);line-height:1.5}
+.login{max-height:100%}
+
+/* ---------- layout responsivo (retrato e paisagem) ---------- */
+.core{container-type:size;overflow:hidden}
+.orb-wrap,.core:has(.qchips:not([hidden])) .orb-wrap{flex:0 0 auto;width:max(0px,min(86cqw, calc(100cqh - 8.5em), 420px))}
+.core:has(.qchips:not([hidden])) .orb-wrap{width:max(0px,min(80cqw, calc(100cqh - 12.5em), 420px))}
+.caption{flex:0 1 auto;min-height:0}
+@media (min-width:860px) and (min-height:621px){
+  .orb-wrap{width:max(0px,min(92cqw, calc(100cqh - 9em), 520px))}
+  .core:has(.qchips:not([hidden])) .orb-wrap{width:max(0px,min(86cqw, calc(100cqh - 13em), 480px))}
+}
+/* celular deitado (ou qualquer tela baixa e larga): núcleo à esquerda, painel à direita */
+@media (orientation:landscape) and (max-height:620px){
+  .app{padding-top:max(6px,var(--sat))}
+  .top{padding-bottom:4px}
+  .brand b{font-size:15px}.brand span{display:none}
+  .status{font-size:10px;gap:8px}
+  .main{grid-template-columns:minmax(0,1fr) minmax(0,1.05fr);grid-template-rows:minmax(0,1fr);gap:14px;padding-top:6px}
+  .side{min-height:0}
+  .app .card,.app:has(.qchips:not([hidden])) .card{flex:1 1 auto;min-height:0;max-height:none}
+  .tabs button{padding:6px 8px}
+  .orb-wrap,.core:has(.qchips:not([hidden])) .orb-wrap{width:max(0px,min(70cqw, calc(100cqh - 7.5em), 360px))}
+  .caption,.app:has(.qchips:not([hidden])) .caption{font-size:13px;line-height:1.4;max-height:4.3em;margin-top:4px}
+  .state{font-size:10px;margin-top:2px}
+  .qchips{margin-top:4px}.qchips button{padding:5px 8px!important;font-size:10px}
+  .composer{padding-top:6px;padding-bottom:max(6px,var(--sab))}
+  .field{height:40px}.mic{width:40px;height:40px}.mic.clip,.mic.wake{width:36px;height:36px}
+  .ticker{display:none}
+  .login{max-width:640px}
+  .overlay{align-items:flex-start}
+}
+
+
+/* ---------- configuração inicial ---------- */
+.steps{list-style:none;margin:0;padding:0;display:flex;gap:6px;counter-reset:st}
+.steps li{flex:1;counter-increment:st;font-family:var(--f-hud);font-size:10px;letter-spacing:.14em;text-transform:uppercase;color:var(--fg-faint);border-top:2px solid var(--line);padding-top:6px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.steps li::before{content:counter(st) " · "}
+.steps li.on{color:var(--cyan);border-top-color:var(--cyan);box-shadow:0 -6px 12px -8px var(--cyan)}
+.steps li.ok{color:var(--fg-dim);border-top-color:var(--green)}
+.onb section{display:flex;flex-direction:column;gap:14px}
+.onb-h{margin:0;font-family:var(--f-hud);font-weight:700;font-size:22px;line-height:1.2}
+.onb .sub{margin:0}
+.pick{display:flex;flex-wrap:wrap;gap:8px}
+.pick button{border:1px solid var(--line-hi);background:rgba(8,20,40,.7);padding:9px 12px;font-family:var(--f-hud);font-size:13px;color:var(--fg-dim);display:inline-flex;gap:8px;align-items:center}
+.pick button i{font-style:normal;width:14px;height:14px;border:1px solid var(--fg-faint);display:inline-grid;place-items:center;font-size:10px;color:transparent}
+.pick button[aria-pressed="true"]{border-color:var(--cyan);color:var(--fg);background:rgba(67,217,255,.12);box-shadow:0 0 14px rgba(67,217,255,.18)}
+.pick button[aria-pressed="true"] i{background:var(--cyan);color:var(--void);border-color:var(--cyan)}
+textarea.inp{height:auto;padding:8px 12px;resize:vertical;font:inherit}
+.check{display:flex;gap:10px;align-items:center;font-size:14px;color:var(--fg-dim)}
+.check input{width:20px;height:20px;accent-color:var(--cyan)}
+.login.onb{max-width:520px}
+
+/* ---------- respostas visuais: placar e gráficos ---------- */
+.card.rich{max-height:48vh}
+@media (min-width:860px){.card.rich{max-height:none}}
+.score{display:grid;grid-template-columns:1fr auto 1fr;align-items:center;gap:8px;margin:6px 0 4px}
+.team{display:flex;flex-direction:column;align-items:center;gap:6px;text-align:center;min-width:0}
+.team b{font-family:var(--f-hud);font-size:14px;line-height:1.15;overflow-wrap:anywhere}
+.crest{width:64px;height:72px;filter:drop-shadow(0 0 10px rgba(67,217,255,.25));animation:pop .6s cubic-bezier(.2,1.6,.4,1) both}
+.team:last-child .crest{animation-delay:.12s}
+.sc{display:flex;flex-direction:column;align-items:center}
+.sc .nums{display:flex;align-items:center;gap:10px;font-family:var(--f-hud);font-weight:700;font-size:52px;line-height:1;font-variant-numeric:tabular-nums;color:var(--fg);text-shadow:0 0 22px rgba(67,217,255,.45)}
+.sc .nums i{font-style:normal;font-size:24px;color:var(--fg-faint)}
+.sc .nums .win{color:var(--green);text-shadow:0 0 22px rgba(61,255,138,.45)}
+.sc small{font-family:var(--f-hud);font-size:10px;letter-spacing:.2em;text-transform:uppercase;color:var(--fg-dim);margin-top:6px}
+.sc small.live{color:var(--red)}.sc small.live::before{content:"";display:inline-block;width:7px;height:7px;border-radius:50%;background:var(--red);margin-right:6px;animation:pulse 1s infinite}
+.goals{list-style:none;margin:8px 0 0;padding:0;display:grid;grid-template-columns:1fr 1fr;gap:3px 12px;font-size:12px;color:var(--fg-dim)}
+.goals li{animation:rise .5s both}.goals li.v{text-align:right;grid-column:2}.goals li.m{grid-column:1}
+.stats{margin-top:12px;display:flex;flex-direction:column;gap:9px}
+.stat{display:grid;grid-template-columns:auto 1fr auto;gap:2px 10px;align-items:center;font-family:var(--f-hud);font-size:13px;font-variant-numeric:tabular-nums;animation:rise .5s both}
+.stat em{font-style:normal;text-align:center;font-size:10px;letter-spacing:.14em;text-transform:uppercase;color:var(--fg-faint)}
+.stat .bar2{grid-column:1/-1;display:flex;gap:3px;height:6px}
+.stat .bar2 span{flex:1;display:flex;background:rgba(90,180,255,.08)}
+.stat .bar2 span:first-child{justify-content:flex-end}
+.stat .bar2 i{display:block;height:100%;width:var(--w);animation:grow 1s cubic-bezier(.2,.8,.2,1) both;animation-delay:inherit}
+.stat .bar2 span:first-child i{background:linear-gradient(90deg,transparent,var(--c1));box-shadow:0 0 8px var(--c1)}
+.stat .bar2 span:last-child i{background:linear-gradient(90deg,var(--c2),transparent);box-shadow:0 0 8px var(--c2)}
+.chart-h{display:flex;flex-direction:column;gap:9px;margin-top:8px}
+.hb{display:grid;grid-template-columns:minmax(0,38%) 1fr auto;gap:10px;align-items:center;font-size:13px;animation:rise .5s both}
+.hb span{overflow:hidden;text-overflow:ellipsis;white-space:nowrap;color:var(--fg-dim)}
+.hb .tr2{height:14px;background:rgba(90,180,255,.07);position:relative}
+.hb .tr2 i{position:absolute;inset:0 auto 0 0;width:var(--w);background:linear-gradient(90deg,var(--c),color-mix(in srgb,var(--c) 40%,#fff));box-shadow:0 0 12px var(--c);animation:grow 1.1s cubic-bezier(.2,.8,.2,1) both;animation-delay:inherit}
+.hb b{font-family:var(--f-hud);font-size:14px;color:var(--fg);font-variant-numeric:tabular-nums}
+.chart{width:100%;height:auto;display:block;margin-top:6px;overflow:visible}
+.chart .ln{fill:none;stroke-width:2.5;stroke-linejoin:round;stroke-linecap:round;stroke-dasharray:1000;stroke-dashoffset:1000;animation:draw 1.6s ease-out forwards;filter:drop-shadow(0 0 4px var(--cyan))}
+.chart .ar{opacity:0;animation:fade .8s .9s forwards}
+.chart .pt{opacity:0;animation:fade .3s forwards}
+.chart text{font-family:var(--f-hud);font-size:10px;fill:var(--fg-dim)}
+.donut{display:grid;grid-template-columns:auto 1fr;gap:14px;align-items:center;margin-top:6px}
+.donut svg{width:132px;height:132px;transform:rotate(-90deg)}
+.donut circle.sg{fill:none;stroke-width:16;stroke-dasharray:0 999;animation:seg 1s ease-out forwards}
+.donut ul{list-style:none;margin:0;padding:0;display:flex;flex-direction:column;gap:6px;font-size:13px}
+.donut li{display:flex;gap:8px;align-items:center;animation:rise .5s both}
+.donut li i{width:10px;height:10px;flex:0 0 auto;box-shadow:0 0 8px currentColor}
+.donut li b{margin-left:auto;font-family:var(--f-hud);font-variant-numeric:tabular-nums}
+.mini-score{display:flex;align-items:center;justify-content:center;gap:10px;margin:6px 0;font-family:var(--f-hud)}
+.mini-score .crest{width:34px;height:38px}
+.mini-score strong{font-size:26px;font-variant-numeric:tabular-nums;text-shadow:0 0 14px rgba(67,217,255,.4)}
+.mini-score span{font-size:12px;color:var(--fg-dim);max-width:30%;text-align:center}
+.src{margin-top:10px;font-size:11px;color:var(--fg-faint)}
+@keyframes grow{from{width:0}}
+@keyframes rise{from{opacity:0;transform:translateY(6px)}}
+@keyframes pop{from{opacity:0;transform:scale(.4) rotate(-8deg)}}
+@keyframes draw{to{stroke-dashoffset:0}}
+@keyframes fade{to{opacity:1}}
+@keyframes seg{to{stroke-dasharray:var(--len) 999}}
+
+/* ---------- apresentação: cartões que entram, passam e saem ---------- */
+.slide{animation:sIn .6s cubic-bezier(.2,.8,.2,1) both}
+.slide>*{animation:rise .55s cubic-bezier(.2,.8,.2,1) both}
+.slide>*:nth-child(2){animation-delay:.07s}.slide>*:nth-child(3){animation-delay:.14s}.slide>*:nth-child(4){animation-delay:.21s}
+.slide>*:nth-child(5){animation-delay:.28s}.slide>*:nth-child(6){animation-delay:.35s}.slide>*:nth-child(n+7){animation-delay:.42s}
+.slide.still,.slide.still>*{animation:none}
+.slide.out{animation:sOut .24s ease-in forwards}
+.slide.out>*{animation:none}
+@keyframes sIn{from{opacity:0;transform:translateX(28px) scale(.97);filter:blur(5px)}}
+@keyframes sOut{to{opacity:0;transform:translateX(-28px) scale(.97)}}
+.lite .slide{animation-name:sInLite}
+.lite .slide.out{animation-name:sOut}
+@keyframes sInLite{from{opacity:0;transform:translateX(24px)}}
+.story-bar{display:flex;gap:4px;margin:0 0 10px}
+.story-bar button{flex:1;height:14px;padding:5px 0;border:0;background:none;cursor:pointer}
+.story-bar button i{display:block;height:3px;border-radius:2px;background:rgba(90,180,255,.18);overflow:hidden}
+.story-bar button i b{display:block;height:100%;width:0;background:var(--cyan);box-shadow:0 0 8px var(--cyan)}
+.story-bar button.done i b{width:100%}
+.story-bar button.on i b{width:100%}
+.story-bar.playing button.on i b{width:0;animation:fill var(--d,6s) linear forwards}
+@keyframes fill{to{width:100%}}
+.story-nav{display:flex;align-items:center;justify-content:space-between;gap:8px;margin-top:12px;font-family:var(--f-hud);font-size:12px;color:var(--fg-dim);letter-spacing:.1em}
+.story-nav button{min-width:44px;min-height:36px;border:1px solid var(--line);background:rgba(67,217,255,.05);color:var(--cyan);font:inherit;cursor:pointer}
+.kpis{display:grid;grid-template-columns:repeat(auto-fit,minmax(96px,1fr));gap:8px;margin-top:8px}
+.kpi{position:relative;border:1px solid var(--line);padding:10px 12px;background:linear-gradient(160deg,rgba(67,217,255,.08),rgba(67,217,255,.01));animation:pop .55s cubic-bezier(.2,1.4,.4,1) both;overflow:hidden}
+.kpi::after{content:"";position:absolute;inset:0;background:linear-gradient(100deg,transparent 30%,rgba(255,255,255,.08) 50%,transparent 70%);transform:translateX(-100%);animation:shine 2.4s 1s ease-in-out}
+.lite .kpi::after{display:none}
+.kpi small{display:block;font-size:11px;color:var(--fg-dim);text-transform:uppercase;letter-spacing:.08em;line-height:1.3}
+.kpi b{display:block;font-family:var(--f-hud);font-size:28px;line-height:1.1;color:var(--cyan);font-variant-numeric:tabular-nums;margin-top:4px;white-space:nowrap}
+.kpi b.long{font-size:21px}
+.kpi b.xl{font-size:16px;white-space:normal;overflow-wrap:anywhere}
+.kpi em{font-style:normal;font-size:12px;font-family:var(--f-hud)}
+.kpi em.up{color:var(--green)}.kpi em.down{color:var(--red)}
+.timeline{list-style:none;margin:10px 0 0 6px;padding:0 0 0 16px;border-left:2px solid rgba(67,217,255,.25)}
+.timeline li{position:relative;padding:7px 0 7px 4px;animation:rise .5s both;display:flex;gap:10px;align-items:baseline}
+.timeline li::before{content:"";position:absolute;left:-23px;top:13px;width:10px;height:10px;border-radius:50%;background:var(--deep);border:2px solid var(--cyan)}
+.timeline li.next::before{background:var(--green);border-color:var(--green);box-shadow:0 0 12px var(--green);animation:pulse 1.4s infinite}
+.timeline li.feito{opacity:.5;text-decoration:line-through}
+.timeline time{font-family:var(--f-hud);color:var(--cyan);min-width:46px}
+.timeline small{display:block;color:var(--fg-dim);font-size:12px}
+.clima{display:flex;align-items:center;gap:16px;margin-top:6px}
+.clima svg{width:92px;height:92px;flex:0 0 auto;overflow:visible}
+.clima .sol{transform-origin:46px 46px;animation:spin 18s linear infinite}
+.clima .nuvem{animation:drift 4s ease-in-out infinite alternate}
+.clima .gota{animation:drop 1.1s linear infinite}
+.clima .temp{font-family:var(--f-hud);font-weight:700;font-size:54px;line-height:1;color:var(--fg)}
+.clima .mm{font-family:var(--f-hud);font-size:13px;color:var(--fg-dim);margin-top:4px}
+.clima .mm b{color:var(--cyan)}
+@keyframes spin{to{transform:rotate(360deg)}}
+@keyframes drift{to{transform:translateX(6px)}}
+@keyframes drop{from{transform:translateY(-4px);opacity:0}30%{opacity:1}to{transform:translateY(14px);opacity:0}}
+.lite .clima .sol,.lite .clima .nuvem{animation:none}
+.news li{animation:rise .5s both}
+.news li:nth-child(2){animation-delay:.12s}.news li:nth-child(3){animation-delay:.24s}
+@media (prefers-reduced-motion:reduce){.crest,.goals li,.stat,.hb,.donut li,.stat .bar2 i,.hb .tr2 i{animation:none}.chart .ln{animation:none;stroke-dashoffset:0}.chart .ar,.chart .pt{animation:none;opacity:1}}
+/* abas sempre inteiras na tela, sem rolar de lado */
+.tabs{gap:2px}
+.tabs button{flex:1 1 0;min-width:0;padding:8px 2px;letter-spacing:.12em;white-space:nowrap;overflow:hidden;text-overflow:clip}
+@media (max-width:430px){.tabs button{font-size:9px;letter-spacing:.06em}}
+
+/* ---------- modo leve (aparelhos médios) ---------- */
+.lite .card,.lite .overlay,.lite .overlay.setup{backdrop-filter:none;-webkit-backdrop-filter:none}
+.lite .card{background:rgba(9,24,48,.88)}
+.lite .overlay{background:rgba(4,9,20,.9)}
+.lite .track{mask-image:none;-webkit-mask-image:none}
+.lite .bar::after{display:none}
+.lite body::before{background:radial-gradient(120% 70% at 30% 35%,rgba(47,107,255,.14),transparent 60%)}
 </style>
 
 <canvas id="bg" aria-hidden="true"></canvas>
@@ -203,8 +397,8 @@ button{cursor:pointer}
       <div class="wakebar" id="wakebar" hidden><i></i><span id="wakeTxt">Diga "Atlas"</span></div>
       <div class="caption" id="caption" aria-live="polite"></div>
       <div class="qchips" id="qchips" hidden>
-        <button type="button" data-q="Preciso de ajuda com a faculdade.">Ajuda na faculdade</button>
-        <button type="button" data-q="Tenho uma atividade e quero ajuda.">Tenho uma atividade</button>
+        <button type="button" data-q="Quero que você pesquise uma coisa para mim.">Pesquisar algo</button>
+        <button type="button" data-q="Preciso de ajuda com os estudos.">Ajuda nos estudos</button>
         <button type="button" data-q="">Agora não</button>
       </div>
     </section>
@@ -242,19 +436,63 @@ button{cursor:pointer}
 <div class="overlay" id="loginView" hidden>
   <div class="login">
     <div class="brand"><b>ATLAS</b><span>Central de inteligência</span></div>
+    <ol class="steps" aria-label="Configuração inicial"><li class="on">Você</li><li id="stIA">IA</li><li>Interesses</li><li>Rotina</li></ol>
     <div class="two">
       <div><label class="lbl" for="uName">Como devo te chamar?</label><input class="inp" id="uName" placeholder="Seu nome"></div>
       <div><label class="lbl" for="aName">Nome do agente</label><input class="inp" id="aName" placeholder="ATLAS"></div>
     </div>
-    <p>Escolha com qual inteligência artificial o seu agente vai ser criado.</p>
+    <p id="provTitle">Escolha com qual inteligência artificial o seu agente vai ser criado.</p>
     <div class="prov" id="prov">
       <button type="button" data-p="gpt" aria-pressed="false"><span class="logo">GPT</span><span><strong>ChatGPT</strong><small>OpenAI</small></span><span class="arrow">›</span></button>
       <button type="button" data-p="claude" aria-pressed="false"><span class="logo">C</span><span><strong>Claude</strong><small>Anthropic</small></span><span class="arrow">›</span></button>
     </div>
-    <p class="note">Protótipo: aqui as respostas vêm do Claude da sua conta, qualquer que seja a escolha. No app Android, cada opção vai usar o login ou a chave de API do provedor escolhido.</p>
+    <div id="connect" hidden><form class="connect" id="cnForm" autocomplete="off">
+      <div class="eyebrow" id="cnTitle">Conectar</div>
+      <p class="sub" id="cnHelp"></p>
+      <button type="button" class="btn-line" id="cnOpen">Abrir página de chaves ↗</button>
+      <div>
+        <label class="lbl" for="cnKey">Cole sua chave de API</label>
+        <div class="keyrow"><input class="inp" id="cnKey" type="password" spellcheck="false" autocapitalize="off" autocomplete="off"><button type="button" class="btn-line" id="cnPaste">Colar</button></div>
+      </div>
+      <p class="note" id="cnMsg" hidden></p>
+      <div class="row2"><button type="button" class="btn-line" id="cnBack">‹ Voltar</button><button type="submit" class="btn-solid" id="cnGo">Conectar</button></div>
+      <p class="fine">A chave fica salva só neste aparelho e é enviada apenas para a empresa da IA escolhida.</p>
+    </form></div>
   </div>
 </div>
 
+
+<div class="overlay" id="onbView" hidden>
+  <div class="login onb">
+    <div class="brand"><b id="onbBrand">ATLAS</b><span>Configuração inicial</span></div>
+    <ol class="steps" aria-hidden="true"><li class="ok">Você</li><li class="ok">IA</li><li id="stInt" class="on">Interesses</li><li id="stRot">Rotina</li></ol>
+
+    <section id="onbInt">
+      <h2 class="onb-h">O que você quer acompanhar?</h2>
+      <p class="sub">Escolha os assuntos. Eu vou pesquisar sobre eles todos os dias e te contar o que importa.</p>
+      <div class="pick" id="pick"></div>
+      <div class="two">
+        <div><label class="lbl" for="oCity">Sua cidade</label><input class="inp" id="oCity" placeholder="Ex.: Recife - PE"></div>
+        <div id="oTeamBox" hidden><label class="lbl" for="oTeam">Seu time</label><input class="inp" id="oTeam" placeholder="Ex.: Sport"></div>
+      </div>
+      <div><label class="lbl" for="oMore">Pessoas ou assuntos específicos (um por linha)</label><textarea class="inp" id="oMore" rows="3" placeholder="Ex.: um político, uma empresa, um artista"></textarea></div>
+      <p class="note bad" id="oIntMsg" hidden></p>
+      <div class="row2"><span></span><button type="button" class="btn-solid" id="oIntNext">Continuar</button></div>
+    </section>
+
+    <section id="onbRot" hidden>
+      <h2 class="onb-h">Monte sua rotina</h2>
+      <p class="sub">Todo dia, a partir do horário escolhido, a primeira vez que você abrir o app eu faço o briefing: notícias dos seus assuntos e seus compromissos.</p>
+      <div class="two">
+        <div><label class="lbl" for="oHora">Horário do briefing</label><input class="inp" id="oHora" type="time" value="07:00"></div>
+        <div><label class="lbl" for="oDias">Dias</label><select class="inp" id="oDias"><option value="todos">Todos os dias</option><option value="uteis">Segunda a sexta</option></select></div>
+      </div>
+      <label class="check"><input type="checkbox" id="oLembrete" checked> <span>Me avisar no celular nesse horário</span></label>
+      <label class="check"><input type="checkbox" id="oVoz" checked> <span>Ler as respostas em voz alta</span></label>
+      <div class="row2"><button type="button" class="btn-line" id="oRotBack">‹ Voltar</button><button type="button" class="btn-solid" id="oRotGo">Criar meu agente</button></div>
+    </section>
+  </div>
+</div>
 <div class="overlay setup" id="setupView" hidden>
   <div class="su-box">
     <div class="eyebrow" id="suProv">Conectando</div>
@@ -290,20 +528,33 @@ const store = {
 /* ---------- state ---------- */
 let cfg = store.get("cfg", null); // {provider, user, name, voice, speak}
 let tasks = store.get("tasks", null);
-if (!tasks) {
-  tasks = [
-    {id:1, hora:"09:30", titulo:"Revisar e-mails", nota:"exemplo", feito:false},
-    {id:2, hora:"14:00", titulo:"Reunião com a equipe", nota:"exemplo", feito:false},
-    {id:3, hora:"17:00", titulo:"Gravação de conteúdo", nota:"exemplo", feito:false},
-  ];
-}
+if (!tasks) tasks = [];
 let highlight = store.get("hl", {categoria:"Sistema", titulo:"Pronto para começar", valor:"100%", legenda:"Todos os módulos online. Peça algo por voz ou texto."});
-let history = []; // {role, content}
+let history = store.get("conversa", []); // conversa dedicada do agente, salva no aparelho
+const saveHist = () => { if (history.length>80) history.splice(0, history.length-80); store.set("conversa", history); };
 let tab = "agenda";
 let mode = "idle"; // idle | listening | thinking | speaking
 let sample = null, tts = null, dict = null;
 
 const PROV = {gpt:"GPT", claude:"CLAUDE"};
+/* app Android (Capacitor) ou navegador/claude.ai */
+const NATIVE = !!window.Capacitor?.isNativePlatform?.();
+const plugin = name => (NATIVE && window.Capacitor?.registerPlugin) ? window.Capacitor.registerPlugin(name) : null;
+function openExternal(url){
+  const B = plugin("Browser");
+  if (B) B.open({url}).catch(()=>{ location.href=url; });
+  else window.open(url, "_blank", "noopener");
+}
+/* efeitos: "leve" por padrão no app e em aparelhos modestos; "completo" opcional em Ajustes */
+let fxReady=false;
+const FX = {lite:true, fps:30, bgEvery:3, orbDpr:1.25, bgDpr:.75, fxDpr:1};
+function applyFx(){
+  const weak = NATIVE || (navigator.hardwareConcurrency||8) <= 6 || (navigator.deviceMemory||8) <= 4;
+  FX.lite = cfg?.fx ? cfg.fx!=="completo" : weak;
+  Object.assign(FX, FX.lite ? {fps:30, bgEvery:3, orbDpr:1.25, bgDpr:.75, fxDpr:1} : {fps:60, bgEvery:1, orbDpr:2, bgDpr:1.5, fxDpr:2});
+  document.documentElement.classList.toggle("lite", FX.lite);
+  if (fxReady){ resize(); bgResize(); fxResize(); }
+}
 const saveTasks = () => store.set("tasks", tasks);
 
 /* ---------- clock ---------- */
@@ -337,7 +588,7 @@ const segs = Array.from({length:24}, () => ({on:Math.random()<.6, t:Math.random(
 let voiceKick = 0;
 
 function resize(){
-  const r=cv.getBoundingClientRect(); const dpr=Math.min(devicePixelRatio||1,2); W=r.width;
+  const r=cv.getBoundingClientRect(); const dpr=Math.min(devicePixelRatio||1,FX.orbDpr); W=r.width;
   cv.width=r.width*dpr; cv.height=r.height*dpr; cx.setTransform(dpr,0,0,dpr,0,0);
 }
 new ResizeObserver(resize).observe(cv);
@@ -436,7 +687,7 @@ function drawOrb(t){
 
   // particles (sucked in while listening, blown out while speaking)
   const flow = mode==="listening"? -1 : mode==="speaking" ? 1 : 0;
-  for(const p of parts){
+  for(let pi=0, pn=FX.lite?60:parts.length; pi<pn; pi++){ const p=parts[pi];
     p.a += p.s*.01*(1+energy*3);
     p.r += flow*.004*(1+p.z);
     if(p.r<.28) p.r=1; if(p.r>1) p.r=.3;
@@ -526,7 +777,7 @@ function drawOrb(t){
 let BW=0, BH=0, hexImg=null, hexCells=[], nodes=[], streams=[], active=[];
 const HEX="0123456789ABCDEF";
 function bgResize(){
-  const dpr=Math.min(devicePixelRatio||1,1.5); BW=innerWidth; BH=innerHeight;
+  const dpr=Math.min(devicePixelRatio||1,FX.bgDpr); BW=innerWidth; BH=innerHeight;
   bg.width=BW*dpr; bg.height=BH*dpr; bx.setTransform(dpr,0,0,dpr,0,0);
   // hex grid prerender
   const r=Math.max(16, Math.min(26, BW/40)), hw=Math.sqrt(3)*r; hexCells=[];
@@ -535,7 +786,7 @@ function bgResize(){
   for(let row=0, y=0; y<BH+r*2; row++, y+=r*1.5){ for(let x=(row%2? hw/2:0); x<BW+hw; x+=hw){ hexCells.push([x,y]);
     for(let k=0;k<6;k++){ const a=Math.PI/6+k*Math.PI/3, px=x+Math.cos(a)*r, py=y+Math.sin(a)*r; k?h.lineTo(px,py):h.moveTo(px,py);} h.closePath(); } }
   h.stroke(); hexImg._r=r;
-  const n=Math.round(Math.min(70, BW*BH/18000));
+  const n=Math.round(Math.min(FX.lite?34:70, BW*BH/(FX.lite?26000:18000)));
   nodes=Array.from({length:n},()=>({x:rnd(0,BW),y:rnd(0,BH),vx:rnd(-.25,.25),vy:rnd(-.25,.25),p:rnd(0,TAU)}));
   const cols=Math.floor(BW/120);
   streams=Array.from({length:Math.max(4,cols)},(_,i)=>({x:(i+.5)*BW/Math.max(4,cols)+rnd(-30,30), y:rnd(-BH,0), v:rnd(.6,1.8), chars:Array.from({length:18},()=>HEX[Math.random()*16|0])}));
@@ -602,7 +853,7 @@ function drawBg(t){
 /* ---------- touch / mouse interaction ---------- */
 const fxc = $("#fx"), fx = fxc.getContext("2d");
 let ptr={x:-9999,y:-9999,on:false,last:0}, trail=[], ripples=[], sparks=[], lastRip=0, hover=0;
-function fxResize(){ const dpr=Math.min(devicePixelRatio||1,2); fxc.width=innerWidth*dpr; fxc.height=innerHeight*dpr; fx.setTransform(dpr,0,0,dpr,0,0); }
+function fxResize(){ const dpr=Math.min(devicePixelRatio||1,FX.fxDpr); fxc.width=innerWidth*dpr; fxc.height=innerHeight*dpr; fx.setTransform(dpr,0,0,dpr,0,0); }
 addEventListener("resize", fxResize); fxResize();
 function burst(x,y,n,pow){ for(let i=0;i<n;i++){ const a=rnd(0,TAU), v=rnd(.5,pow); sparks.push({x,y,vx:Math.cos(a)*v,vy:Math.sin(a)*v,life:1,sz:rnd(1,2.6)}); } if(sparks.length>400) sparks.splice(0,sparks.length-400); }
 function addRipple(x,y,big){ ripples.push({x,y,r:0,a:big?1:.45,big}); if(ripples.length>40) ripples.shift(); }
@@ -654,8 +905,12 @@ function drawRipples(){
 }
 
 // trail + sparks on top layer
+let fxIdle=false;
 function drawFx(now){
   const w=innerWidth, h=innerHeight;
+  const active = trail.length>0 || sparks.length>0 || (ptr.on && now-ptr.last<1500);
+  if(!active){ if(!fxIdle){ fx.clearRect(0,0,w,h); fxIdle=true; } hover=lerp(hover,0,.08); return; }
+  fxIdle=false;
   fx.clearRect(0,0,w,h);
   fx.globalCompositeOperation="lighter";
   trail=trail.filter(p=>now-p.t<420);
@@ -681,7 +936,12 @@ function drawFx(now){
   hover=lerp(hover, ptr.on && now-ptr.last<1500 && d<r.width*.5 ? 1-d/(r.width*.5) : 0, .08);
 }
 
+let lastFrame=0, frameN=0;
 function frame(now){
+  requestAnimationFrame(frame);
+  if (document.hidden) return;
+  if (now-lastFrame < 1000/FX.fps - 3) return;
+  const dt = Math.min(3, lastFrame ? (now-lastFrame)/(1000/60) : 1); lastFrame=now; frameN++;
   const t=(now-t0)/1000*(reduce?.35:1);
   if (mode==="speaking") target=.45+.55*Math.abs(Math.sin(t*9.3)*Math.sin(t*3.1+1))*(0.6+Math.random()*.4);
   else if (mode==="listening") target=Math.max(.25,voiceKick);
@@ -695,28 +955,36 @@ function frame(now){
   if ((energy-lastE>.06 && energy>.55 && waveCool<=0) || (mode==="idle" && Math.random()<.004)) { waves.push({r:W*.24,a:mode==="idle"?.4:1}); waveCool=10; }
   lastE=energy;
   const P=PAL[mode]; for(const k of ["a","b","c"]) for(let i=0;i<3;i++) col[k][i]=lerp(col[k][i],P[k][i],.05);
-  spin+=(mode==="thinking"?.045:mode==="speaking"?.02:.006)*(reduce?.3:1);
-  drawBg(t); drawOrb(t); drawFx(now);
-  requestAnimationFrame(frame);
+  spin+=(mode==="thinking"?.045:mode==="speaking"?.02:.006)*(reduce?.3:1)*dt;
+  if (frameN % FX.bgEvery === 0) drawBg(t);
+  drawOrb(t); drawFx(now);
 }
+applyFx(); fxReady=true; applyFx();
 requestAnimationFrame(frame);
 
 function setMode(m){ mode=m; $("#state").textContent=PAL[m].label; $("#state").style.color = m==="listening"?"var(--green)": m==="thinking"?"var(--violet)":"var(--cyan)"; $("#mic").classList.toggle("on", m==="listening"); }
 
 /* ---------- panel ---------- */
 const esc = s => String(s??"").replace(/[&<>"]/g, c=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;"}[c]));
+let shown={h:null,i:null}, swapT=null;
 function renderCard(){
   const el=$("#card");
+  el.classList.toggle("rich", tab==="destaque" && ["placar","grafico","briefing","apresentacao"].includes(highlight?.tipo));
   document.querySelectorAll(".tabs button").forEach(b=>b.setAttribute("aria-selected", String(b.dataset.tab===tab)));
   if (tab==="agenda"){
     const list=[...tasks].sort((a,b)=>(a.hora||"99").localeCompare(b.hora||"99"));
     el.innerHTML = `<div class="eyebrow">Agenda do dia</div>` + (list.length ? `<ul class="rows">${list.map(x=>`<li class="${x.feito?"done":""}"><span class="time">${esc(x.hora||"--:--")}</span><span class="t">${esc(x.titulo)}${x.nota?`<small>${esc(x.nota)}</small>`:""}</span><button class="chk" data-id="${x.id}" aria-label="Marcar ${esc(x.titulo)} como feito">${x.feito?"✓":""}</button></li>`).join("")}</ul>` : `<p class="empty">Nada na agenda. Diga "me lembra de ligar para o João às 15h".</p>`);
   } else if (tab==="destaque"){
-    el.innerHTML = renderHighlight(highlight);
+    const novo = shown.h!==highlight || shown.i!==highlight.i;
+    const atual = el.querySelector(".slide:not(.out)");
+    if (novo && atual && !reduce){ atual.classList.add("out"); clearTimeout(swapT); swapT=setTimeout(renderCard, 230); return; }
+    clearTimeout(swapT); shown={h:highlight, i:highlight.i};
+    el.innerHTML = `<div class="slide${novo?"":" still"}">${renderHighlight(highlight)}</div>`;
+    if (novo){ el.scrollTop=0; animateCounts(el); }
   } else if (tab==="pdf"){
     el.innerHTML = renderPdfCard();
   } else if (tab==="historico"){
-    el.innerHTML = `<div class="eyebrow">Conversa</div>` + (history.length ? `<div class="hist">${history.slice(-10).map(m=>`<div><b>${m.role==="user"?esc(cfg?.user||"VOCÊ").toUpperCase():esc(cfg?.name||"ATLAS")}</b>${esc(m.content)}</div>`).join("")}</div>` : `<p class="empty">A conversa desta sessão aparece aqui.</p>`);
+    el.innerHTML = `<div class="eyebrow">Conversa</div>` + (history.length ? `<div class="hist">${history.slice(-30).map(m=>`<div><b>${m.role==="user"?esc(cfg?.user||"VOCÊ").toUpperCase():esc(cfg?.name||"ATLAS")}</b>${esc(m.content)}</div>`).join("")}</div>` : `<p class="empty">A conversa desta sessão aparece aqui.</p>`);
     el.scrollTop = el.scrollHeight;
   } else {
     el.innerHTML = `<div class="eyebrow">Ajustes</div><div class="set">
@@ -725,9 +993,12 @@ function renderCard(){
       <div class="row"><label class="lbl" for="sVoice" style="margin:0">Voz</label><select class="inp" id="sVoice" style="width:auto">${["buttery","airy","glassy","rounded"].map(v=>`<option ${cfg.voice===v?"selected":""}>${v}</option>`).join("")}</select></div>
       <div class="row"><label class="lbl" for="sSpeak" style="margin:0">Responder em voz alta</label><input type="checkbox" id="sSpeak" ${cfg.speak?"checked":""}></div>
       <div><label class="lbl" for="sTopics">Assuntos do briefing (um por linha)</label><textarea class="inp" id="sTopics" rows="4" style="height:auto;padding:8px 12px;resize:vertical">${esc(topics().map(t=>t.nome).join("\n"))}</textarea></div>
-      <div><span class="lbl">Skills instaladas</span><div class="chips">${["Agenda","Destaques","Tradução EN/ES","PDF: ler e padronizar","Pesquisa avançada","Briefing de notícias","Tutor da faculdade"].map(x=>`<span>${x}</span>`).join("")}</div></div>
-      ${cfg.agent?`<div class="sub">Agente: <b style="color:var(--fg)">${esc(cfg.agent.id)}</b><br>Criado em ${new Date(cfg.agent.criadoEm).toLocaleString("pt-BR")}</div>`:""}
-      <div class="row"><span class="sub">Conectado: <b style="color:var(--cyan)">${PROV[cfg.provider]}</b></span><button class="btn-line warn" id="logout" type="button">Trocar IA</button></div>
+      <div class="row"><span class="sub">Rotina: ${cfg.rotina?`briefing às <b style="color:var(--fg)">${esc(cfg.rotina.hora)}</b>${cfg.rotina.dias==="uteis"?", seg a sex":", todos os dias"}${cfg.rotina.lembrete?" · com aviso":""}`:"não configurada"}</span><button class="btn-line" data-act="onboarding" type="button">Refazer configuração</button></div>
+      <div><span class="lbl">Skills instaladas</span><div class="chips">${(cfg.agent?.skills||["Agenda","Destaques","Tradução PT/EN/ES","PDF: ler e padronizar","Pesquisa avançada","Briefing de notícias","Tutor de estudos"]).map(x=>`<span>✓ ${x}</span>`).join("")}</div></div>
+      <div class="row"><span class="sub">Conversa salva: ${history.length} mensagens</span><button class="btn-line" data-act="limpar" type="button">Limpar conversa</button></div>
+      <div class="row"><label class="lbl" for="sFx" style="margin:0">Efeitos visuais</label><select class="inp" id="sFx" style="width:auto"><option value="leve" ${FX.lite?"selected":""}>Leve (recomendado)</option><option value="completo" ${FX.lite?"":"selected"}>Completo</option></select></div>
+      ${cfg.agent?`<div class="sub">Modelo: <b style="color:var(--fg)">${esc(cfg.model?.[cfg.provider]||cfg.agent.id)}</b><br>Conectado em ${new Date(cfg.agent.criadoEm).toLocaleString("pt-BR")}</div>`:""}
+      <div class="row"><span class="sub">Conectado: <b style="color:var(--cyan)">${sample?PROV[cfg.provider]:"nenhuma IA"}</b></span><button class="btn-line warn" id="logout" type="button">Trocar IA</button></div>
     </div>`;
   }
 }
@@ -740,18 +1011,35 @@ $("#card").addEventListener("click", e=>{
   if(act==="desfazer" && pdfUndo.length){ const u=pdfUndo.pop(); Object.assign(pdf,{bytes:u.bytes,pages:u.pages,ops:u.ops}); renderCard(); renderThumbs(); }
   if(act==="baixar") pdfDownload();
   if(act==="briefing") runBriefing();
+  if(highlight.tipo==="apresentacao"){
+    const k=e.target.closest("[data-story]")?.dataset.story;
+    if(k!=null) storyManual(+k);
+    if(act==="story-prev") storyManual((highlight.i||0)-1);
+    if(act==="story-next") storyManual((highlight.i||0)+1);
+    if(act==="story-replay"){ highlight.i=0; storyPlay(); }
+  }
+  if(act==="limpar"){ history.length=0; saveHist(); renderCard(); caption("Conversa apagada. Podemos começar do zero."); }
+  if(act==="onboarding") onboarding().then(()=>{ renderCard(); renderTicker(); runBriefing({abertura:true}); });
   if(act==="resumir") ask("Leia o PDF aberto e me faça um resumo.");
   if(act==="ouvir" && highlight.tipo==="traducao") speakIn(highlight.traducao, highlight.para);
   if(act==="copiar" && highlight.tipo==="traducao"){ navigator.clipboard?.writeText(highlight.traducao).then(()=>{ e.target.textContent="Copiado"; }).catch(()=>{}); }
-  if (e.target.id==="logout"){ cfg.provider=null; store.set("cfg",cfg); showLogin(); }
+  if (e.target.id==="logout"){ cfg.provider=null; store.set("cfg",cfg); sample=null; showLogin(); }
 });
+let toque=null;
+$("#card").addEventListener("touchstart", e=>{ toque=e.touches[0] ? {x:e.touches[0].clientX, y:e.touches[0].clientY} : null; }, {passive:true});
+$("#card").addEventListener("touchend", e=>{
+  if(!toque || tab!=="destaque" || highlight.tipo!=="apresentacao") return;
+  const t=e.changedTouches[0], dx=t.clientX-toque.x, dy=t.clientY-toque.y; toque=null;
+  if(Math.abs(dx)>50 && Math.abs(dx)>Math.abs(dy)*1.5) storyManual((highlight.i||0)+(dx<0?1:-1));
+}, {passive:true});
 $("#card").addEventListener("change", e=>{
   const id=e.target.id;
   if(id==="sName"){ cfg.name=(e.target.value.trim()||"ATLAS").toUpperCase(); applyName(); }
   if(id==="sUser") cfg.user=e.target.value.trim();
   if(id==="sVoice") cfg.voice=e.target.value;
   if(id==="sSpeak") cfg.speak=e.target.checked;
-  if(id==="sTopics"){ const old=topics(); cfg.interesses=e.target.value.split("\n").map(x=>x.trim()).filter(Boolean).slice(0,8).map(n=>old.find(o=>o.nome===n)||{nome:n,q:n}); }
+  if(id==="sFx"){ cfg.fx=e.target.value; store.set("cfg",cfg); applyFx(); }
+  if(id==="sTopics"){ setTimeout(agendarLembrete,0); const old=topics(); cfg.interesses=e.target.value.split("\n").map(x=>x.trim()).filter(Boolean).slice(0,8).map(n=>old.find(o=>o.nome===n)||{nome:n,q:n}); }
   store.set("cfg",cfg);
 });
 function renderTicker(){
@@ -778,11 +1066,12 @@ O usuário pode te chamar pelo nome por voz ("${cfg.name}, ..."); a mensagem del
 Você controla um painel (HUD). Use as ferramentas quando fizer sentido:
 - adicionar_tarefa / concluir_tarefa / remover_tarefa para a agenda do dia.
 - mostrar_destaque para exibir um cartão com título, um valor grande (número, porcentagem, horário) e itens curtos. Use sempre que a resposta tiver um número ou dado-chave, um resumo, ou uma lista.
+O USUÁRIO É MUITO VISUAL, EM QUALQUER ASSUNTO (não só esporte): quase toda resposta deve aparecer no painel além de ser falada, da mais simples à mais complexa. Resposta com mais de uma parte (o dia de hoje, resumo, comparação, passo a passo, notícias, finanças, saúde, viagem) → apresentar, com 2 a 6 cartões variados (numeros, grafico, agenda, clima, noticias, placar, destaque). "O que temos para hoje?", "bom dia" ou "novidades" → briefing_noticias. Placar ou resultado de jogo → mostrar_placar (com cores dos uniformes, gols e estatísticas que encontrar). Três ou mais números comparáveis ou uma evolução no tempo → mostrar_grafico. Um único dado-chave → mostrar_destaque. Para fatos atuais (placares, tabela, cotações, clima, resultados) use a busca na web antes, quando disponível. Nunca invente placar, estatística ou número: se não encontrar, diga que não achou.
 SKILLS:
 1. Tradução (português, inglês, espanhol): quando pedirem para traduzir, ou perguntarem como se diz algo em outro idioma, chame mostrar_traducao com o texto completo traduzido de forma natural. Na sua resposta falada diga só uma frase curta em português (ex.: "Aqui está em inglês."); o app lê a tradução em voz alta no idioma certo.
 2. PDF: o usuário anexa PDFs pelo clipe. Use pdf_info para ver tamanhos e orientação das páginas, pdf_ler_texto para ler o conteúdo, pdf_padronizar para deixar todas as páginas no mesmo tamanho (A4 por padrão), pdf_girar, pdf_excluir_paginas e pdf_reordenar para alterar. Páginas fora do padrão são um problema recorrente do usuário: quando um PDF tiver formatos misturados, ofereça padronizar. Depois de alterar, diga que ele pode baixar pelo botão Baixar PDF no painel. Se não houver PDF aberto, peça para anexar pelo clipe.
 3. Pesquisa avançada: para QUALQUER pedido de informação, explicação, comparação, recomendação, dados ou "pesquise", chame pesquisa_avancada antes de responder. Depois resuma o resultado em até 3 frases e diga que o relatório completo está no painel. Não use para conversa casual, agenda, tradução ou PDF.
-5. Faculdade e atividades: você também é o tutor do usuário. Quando ele pedir ajuda com a faculdade, um trabalho, prova ou atividade: pergunte a matéria, o tema e o prazo se faltar; explique passo a passo, de forma didática; use pesquisa_avancada para conteúdo; use mostrar_destaque para um plano de estudo ou roteiro em itens; e ofereça salvar prazos e etapas na agenda com adicionar_tarefa. Se ele anexar um PDF da atividade, leia com pdf_ler_texto antes de ajudar.
+5. Tutor de estudos: quando o usuário pedir ajuda com estudos, faculdade, escola, concurso, um trabalho, prova ou atividade: pergunte a matéria, o tema e o prazo se faltar; explique passo a passo, de forma didática; use pesquisa_avancada para conteúdo; use plano_de_estudo para mostrar o plano ou roteiro em etapas no painel (com salvar_na_agenda=true se ele pedir para lembrar ou agendar); e ofereça salvar os prazos na agenda. Se ele anexar um PDF da atividade, leia com pdf_ler_texto antes de ajudar.
 4. Briefing de notícias: quando pedirem notícias, novidades ou "o que está acontecendo", chame briefing_noticias (busca os assuntos de interesse do usuário: ${topics().map(t=>t.nome).join("; ")}). Depois diga só uma frase curta, porque o briefing já é falado.
 A pesquisa e o briefing usam a web ao vivo quando o app está aberto no Claude para desktop; senão usam seu conhecimento e apontam o que conferir.
 ${context()}`;
@@ -871,13 +1160,7 @@ async function pdfDownload(){
 /* ---------- web ao vivo (navegador do app Claude) + briefing de notícias ---------- */
 let mcp=null, browserState="?"; // "?" | "on" | "off"
 let browserLock=Promise.resolve();
-const DEFAULT_TOPICS=[
-  {nome:"Sport Club do Recife", q:'"Sport Club do Recife" OR "Sport Recife"'},
-  {nome:"Política e atualidades de Recife e Pernambuco", q:"Recife Pernambuco política"},
-  {nome:"Jarbas Vasconcelos (Jarbinhas)", q:'"Jarbas Vasconcelos" OR Jarbinhas'},
-  {nome:"Raquel Lyra", q:'"Raquel Lyra"'},
-];
-const topics = () => (cfg.interesses && cfg.interesses.length ? cfg.interesses : DEFAULT_TOPICS);
+const topics = () => (cfg?.interesses || []);
 const bingNews = q => `https://www.bing.com/news/search?q=${encodeURIComponent(q)}&qft=${encodeURIComponent('interval="7"')}&setlang=pt-br&cc=br`;
 const bingWeb = q => `https://www.bing.com/search?q=${encodeURIComponent(q)}&setlang=pt-br&cc=br`;
 function textOf(r){ const p=r?.payload; let t=typeof p==="string"? p : (r?.content||[]).filter(b=>b.type==="text").map(b=>b.text).join("\n"); return String(t||"").split("\nTab Context:")[0]; }
@@ -912,6 +1195,7 @@ async function runBriefing({abertura=false}={}){
     helloP = (cfg.speak&&tts) ? tts.speak(hello,{voice:cfg.voice||"buttery",language:"pt-BR"}).catch(()=>{}) : sleep(1500);
   }
   const ts=topics();
+  if(!ts.length){ briefingBusy=false; return ask("", {greeting:true}); }
   highlight={tipo:"briefing", run:true, topicos:ts.map(t=>({assunto:t.nome, status:"na fila"}))};
   tab="destaque"; renderCard();
   setMode("thinking"); $("#state").textContent="Buscando notícias…";
@@ -926,28 +1210,51 @@ async function runBriefing({abertura=false}={}){
       if(tab==="destaque") renderCard();
     }
   }
-  const aoVivo = textos.length>0;
+  const webBusca = !textos.length && !!sample?.web;
+  const aoVivo = textos.length>0 || webBusca;
   try{
     if(!sample) throw {code:"offline"};
     const next=tasks.filter(t=>!t.feito).sort((a,b)=>(a.hora||"").localeCompare(b.hora||""));
+    const cidade = cfg.perfil?.cidade || "";
     const prompt = `Você é ${cfg.name}, assistente pessoal estilo J.A.R.V.I.S. do ${cfg.user||"usuário"}. Português do Brasil.
 Agora: ${new Date().toLocaleString("pt-BR",{weekday:"long",day:"2-digit",month:"long",hour:"2-digit",minute:"2-digit"})}.
 Agenda pendente de hoje: ${JSON.stringify(next.map(t=>({hora:t.hora,titulo:t.titulo})))}
-${aoVivo ? `Resultados de busca de notícias de hoje (texto bruto de páginas de busca; ignore itens que não sejam sobre o assunto, como esportes internacionais ou anúncios; quando fontes divergirem num dado, como um placar, diga isso):
+${webBusca ? `Use a ferramenta de busca na web para encontrar as notícias de HOJE (ou das últimas 48 horas) de cada assunto abaixo. Faça uma busca por assunto. Ignore resultados que não sejam sobre o assunto. Quando fontes divergirem num dado, como um placar, diga isso.` : textos.length ? `Resultados de busca de notícias de hoje (texto bruto de páginas de busca; ignore itens que não sejam sobre o assunto, como esportes internacionais ou anúncios; quando fontes divergirem num dado, como um placar, diga isso):
 ${textos.map(t=>`### ${t.assunto}\n${t.resultados}`).join("\n\n")}` : `Não há acesso a notícias ao vivo agora. Não invente notícias: para cada assunto, diga que as notícias ao vivo aparecem quando o app estiver aberto no Claude para desktop.`}
 Assuntos de interesse: ${ts.map(t=>t.nome).join("; ")}.
 
-Monte o briefing de abertura. Responda SOMENTE com JSON:
-{"fala": "texto para ser lido em voz alta, sem a saudação inicial (ela já foi dita), 4 a 7 frases curtas: a manchete mais importante de cada assunto, depois o próximo compromisso da agenda, e TERMINE perguntando de forma natural se ele precisa de ajuda com a faculdade ou com alguma atividade", "topicos": [{"assunto": "...", "resumo": "1 frase", "manchetes": [{"titulo": "...", "fonte": "...", "quando": "ex.: há 8 h"}]}]}
+${cidade && webBusca ? `Cidade do usuário: ${cidade}. Busque também a previsão do tempo de hoje nela.` : ""}
+Monte o briefing de abertura. Ele vira uma apresentação animada, cartão por cartão, e cada "fala" é lida enquanto o cartão aparece. Responda SOMENTE com JSON:
+{"abertura": "1 frase sem saudação (ela já foi dita) dando o panorama do dia, ex.: Hoje você tem 3 compromissos e boas notícias do Sport.",
+ "clima": "SOMENTE se encontrou a previsão de hoje: {\"cidade\": \"...\", \"temperatura\": 29, \"minima\": 24, \"maxima\": 31, \"condicao\": \"ensolarado\", \"chuva\": 20, \"fala\": \"1 frase\"}; senão omita",
+ "agenda_fala": "1 frase sobre a agenda: quantos compromissos e o próximo (ou que a agenda está livre)",
+ "topicos": [{"assunto": "...", "fala": "1 a 2 frases curtas com a manchete mais importante", "resumo": "1 frase", "manchetes": [{"titulo": "...", "fonte": "...", "quando": "ex.: há 8 h"}],
+   "numeros": "opcional, SOMENTE com números presentes nos resultados (cotação, pesquisa, tabela, preço): [{\"rotulo\": \"...\", \"valor\": \"...\", \"unidade\": \"...\", \"variacao\": \"+1,2%\"}], até 4",
+   "placar": "SOMENTE se o assunto for um time e houver jogo recente nos resultados: {\"competicao\": \"...\", \"status\": \"encerrado\", \"mandante\": {\"nome\": \"...\", \"sigla\": \"3 letras\", \"gols\": 0, \"cor_primaria\": \"#hex\", \"cor_secundaria\": \"#hex\"}, \"visitante\": {...}, \"estatisticas\": [{\"nome\": \"Posse de bola\", \"mandante\": 55, \"visitante\": 45, \"unidade\": \"%\"}]}; senão omita"}],
+ "encerramento": "1 frase perguntando de forma natural se pode ajudar com mais alguma coisa"}
 No máximo 3 manchetes por assunto. Use só informação presente nos resultados.`;
-    const r = await sample.json(prompt,{modelTier:"quick"});
-    highlight={tipo:"briefing", run:false, aoVivo, em:new Date().toISOString(), topicos:(r.topicos||[]).slice(0,8).map(t=>({assunto:String(t.assunto||""), resumo:String(t.resumo||""), manchetes:(t.manchetes||[]).slice(0,3).map(m=>({titulo:String(m.titulo||""), fonte:String(m.fonte||""), quando:String(m.quando||"")}))}))};
-    store.set("hl",highlight); if(tab==="destaque") renderCard(); renderTicker();
+    const r = await sample.json(prompt,{modelTier:"quick", web:webBusca});
+    const tops=(r.topicos||[]).slice(0,8).map(t=>({assunto:String(t.assunto||""), fala:String(t.fala||""), resumo:String(t.resumo||""), manchetes:(Array.isArray(t.manchetes)?t.manchetes:[]).slice(0,3).map(m=>({titulo:String(m.titulo||""), fonte:String(m.fonte||""), quando:String(m.quando||"")})), numeros:Array.isArray(t.numeros)?t.numeros.slice(0,4):null, placar:(t.placar&&typeof t.placar==="object"&&t.placar.mandante&&t.placar.visitante)?t.placar:null}));
+    const next2=tasks.filter(t=>!t.feito);
+    const slides=[];
+    slides.push({tipo:"numeros", categoria:new Date().toLocaleDateString("pt-BR",{weekday:"long", day:"2-digit", month:"long"}), titulo:`${per}, ${cfg.user||""}`.trim(), legenda:String(r.abertura||""), fala:String(r.abertura||""),
+      numeros:[{rotulo:"Compromissos", valor:next2.length}, ...(r.clima?.temperatura!=null?[{rotulo:r.clima.cidade||"Agora", valor:Math.round(num(r.clima.temperatura)), unidade:"°"}]:[]), {rotulo:"Assuntos", valor:tops.length}]});
+    if(r.clima && typeof r.clima==="object" && r.clima.temperatura!=null) slides.push(Object.assign({}, r.clima, {tipo:"clima", fala:String(r.clima.fala||"")}));
+    slides.push({tipo:"agenda", fala:String(r.agenda_fala||"")});
+    tops.forEach(t=>{
+      if(t.placar) slides.push(Object.assign({}, t.placar, {tipo:"placar", competicao:t.placar.competicao||t.assunto, fala:t.fala, legenda:t.resumo}));
+      slides.push({tipo:"noticias", categoria:t.placar?"Mais notícias":"Notícias", titulo:t.assunto, resumo:t.resumo, manchetes:t.manchetes, numeros:t.numeros, fala:t.placar?"":t.fala});
+    });
+    slides.push({tipo:"destaque", categoria:"Resumo do briefing", titulo:"Seus assuntos de hoje", itens:tops.map(t=>`${t.assunto}: ${t.resumo}`), legenda:aoVivo?"":"Sem notícias ao vivo agora. Confira a conexão e a chave em Ajustes.", fala:String(r.encerramento||"Posso ajudar com mais alguma coisa?")});
+    highlight={tipo:"apresentacao", briefing:true, titulo:"Briefing do dia", aoVivo, em:new Date().toISOString(), slides, i:0};
+    store.set("hl",highlight); renderTicker();
     await helloP;
-    const fala=String(r.fala||"");
-    caption(esc(fala)); history.push({role:"assistant",content:(abertura?`${per}, ${cfg.user||""}. `:"")+fala});
+    const fala=slides.map(c=>c.fala).filter(Boolean).join(" ");
+    history.push({role:"assistant",content:(abertura?`${per}, ${cfg.user||""}. `:"")+fala}); saveHist();
+    marcarBriefing();
+    tab="destaque";
+    await storyPlay({narrar:true});
     if(abertura) showChips();
-    await speak(fala);
   }catch(e){
     highlight.run=false; renderCard();
     await helloP;
@@ -960,9 +1267,177 @@ function renderBriefing(h){
   const head=`<div class="eyebrow">Briefing de notícias${h.run?"":h.aoVivo?` · <span style="color:var(--green)">ao vivo</span>`:` · <span style="color:var(--amber)">sem notícias ao vivo</span>`}</div>`;
   if(h.run) return head+`<h3>Buscando seus assuntos</h3><ul class="su-steps">${h.topicos.map(t=>`<li class="${t.status==="ok"?"ok":t.status==="buscando"?"run":""}">${esc(t.assunto)}${t.status!=="ok"&&t.status!=="buscando"?` <small style="opacity:.7">· ${esc(t.status)}</small>`:""}</li>`).join("")}</ul>`;
   return head+(h.em?`<p class="sub">Atualizado ${new Date(h.em).toLocaleTimeString("pt-BR",{hour:"2-digit",minute:"2-digit"})}</p>`:"")+
-    h.topicos.map(t=>`<div class="topic"><h4>${esc(t.assunto)}</h4>${t.resumo?`<p class="sub">${esc(t.resumo)}</p>`:""}${t.manchetes?.length?`<ul class="rows">${t.manchetes.map(m=>`<li><span class="time">›</span><span class="t">${esc(m.titulo)}<small>${esc([m.fonte,m.quando].filter(Boolean).join(" · "))}</small></span><span></span></li>`).join("")}</ul>`:""}</div>`).join("")+
+    h.topicos.map(t=>`<div class="topic"><h4>${esc(t.assunto)}</h4>${miniPlacar(t.placar)}${t.resumo?`<p class="sub">${esc(t.resumo)}</p>`:""}${t.manchetes?.length?`<ul class="rows">${t.manchetes.map(m=>`<li><span class="time">›</span><span class="t">${esc(m.titulo)}<small>${esc([m.fonte,m.quando].filter(Boolean).join(" · "))}</small></span><span></span></li>`).join("")}</ul>`:""}</div>`).join("")+
     `<div class="acts"><button class="btn-line" data-act="briefing" type="button">Atualizar notícias</button></div>`+
-    (h.aoVivo?"":`<p class="note" style="margin-top:10px">As notícias ao vivo usam o navegador do app Claude para desktop. Abra este protótipo por lá e permita o acesso quando ele pedir.</p>`);
+    (h.aoVivo?"":`<p class="note" style="margin-top:10px">${NATIVE?"Não consegui buscar notícias ao vivo agora. Confira a conexão e a chave em Ajustes.":"As notícias ao vivo usam o navegador do app Claude para desktop. Abra este protótipo por lá e permita o acesso quando ele pedir."}</p>`);
+}
+
+
+/* ---------- visual: escudos, placar e gráficos ---------- */
+const PALETA = ["#43d9ff","#9a6bff","#3dff8a","#ffb547","#2f6bff","#ff5d6c","#e6f3ff","#56d6b0"];
+const hexOk = (c, d) => /^#[0-9a-f]{3,8}$/i.test(String(c||"").trim()) ? String(c).trim() : d;
+const num = v => { const n = typeof v==="number" ? v : parseFloat(String(v??"").replace(/\./g,"").replace(",",".")); return isFinite(n) ? n : 0; };
+function crest(t={}){
+  // escudo desenhado pelo app com as cores e a sigla do time (sem usar imagens de terceiros)
+  const c1 = hexOk(t.cor_primaria, "#2f6bff"), c2 = hexOk(t.cor_secundaria, "#0b1530");
+  const sig = esc(String(t.sigla || (t.nome||"?").replace(/[^A-Za-zÀ-ú ]/g,"").split(/\s+/).filter(Boolean).map(w=>w[0]).join("").slice(0,3) || "?").toUpperCase().slice(0,3));
+  const id = "cr"+Math.random().toString(36).slice(2,8);
+  return `<svg class="crest" viewBox="0 0 64 72" aria-label="Escudo ${esc(t.nome||"")}"><defs><clipPath id="${id}"><path d="M32 2 L60 10 V34 C60 52 47 64 32 70 C17 64 4 52 4 34 V10 Z"/></clipPath><linearGradient id="${id}g" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#fff" stop-opacity=".35"/><stop offset=".5" stop-color="#fff" stop-opacity="0"/></linearGradient></defs>
+    <g clip-path="url(#${id})"><rect width="64" height="72" fill="${c1}"/>${[0,1,2,3,4].map(k=>`<rect x="${k*14-2}" y="0" width="7" height="72" fill="${c2}" transform="skewX(-18)"/>`).join("")}<rect width="64" height="72" fill="url(#${id}g)"/>
+    <rect x="0" y="27" width="64" height="20" fill="rgba(4,9,20,.72)"/></g>
+    <path d="M32 2 L60 10 V34 C60 52 47 64 32 70 C17 64 4 52 4 34 V10 Z" fill="none" stroke="#e6f3ff" stroke-opacity=".85" stroke-width="2"/>
+    <text x="32" y="42" text-anchor="middle" font-family="Chakra Petch,sans-serif" font-weight="700" font-size="${sig.length>2?14:17}" fill="#fff" letter-spacing="1">${sig}</text></svg>`;
+}
+function statusTag(st){ const s=String(st||"").toLowerCase(); return s.includes("vivo")||s.includes("andamento") ? `<small class="live">ao vivo</small>` : s ? `<small>${esc(st)}</small>` : ""; }
+function renderPlacar(h){
+  const m=h.mandante||{}, v=h.visitante||{}, gm=num(m.gols), gv=num(v.gols), enc=!String(h.status||"").toLowerCase().includes("agend");
+  const c1=hexOk(m.cor_primaria,"#43d9ff"), c2=hexOk(v.cor_primaria,"#9a6bff");
+  const stats=(h.estatisticas||[]).slice(0,7);
+  return `<div class="eyebrow">${esc(h.competicao||"Futebol")}${h.data?` · ${esc(h.data)}`:""}</div>
+    <div class="score"><div class="team">${crest(m)}<b>${esc(m.nome||"Mandante")}</b></div>
+      <div class="sc"><div class="nums">${enc?`<span class="${gm>gv?"win":""}" data-count="${gm}">0</span><i>×</i><span class="${gv>gm?"win":""}" data-count="${gv}">0</span>`:`<i>×</i>`}</div>${statusTag(h.status)}</div>
+      <div class="team">${crest(v)}<b>${esc(v.nome||"Visitante")}</b></div></div>
+    ${(h.gols||[]).length?`<ul class="goals">${h.gols.slice(0,10).map((g,i)=>`<li class="${g.time==="visitante"?"v":"m"}" style="animation-delay:${.5+i*.08}s">⚽ ${esc(g.minuto?String(g.minuto).replace(/'?$/,"'"):"")} ${esc(g.jogador||"")}</li>`).join("")}</ul>`:""}
+    ${stats.length?`<div class="stats" style="--c1:${c1};--c2:${c2}">${stats.map((st,i)=>{ const a=num(st.mandante), b=num(st.visitante), t=(a+b)||1, u=esc(st.unidade||"");
+      return `<div class="stat" style="animation-delay:${.3+i*.1}s"><span>${esc(String(st.mandante??""))}${u}</span><em>${esc(st.nome||"")}</em><span>${esc(String(st.visitante??""))}${u}</span><div class="bar2"><span><i style="--w:${(a/t*100).toFixed(1)}%"></i></span><span><i style="--w:${(b/t*100).toFixed(1)}%"></i></span></div></div>`; }).join("")}</div>`:""}
+    ${h.legenda?`<p class="sub" style="margin-top:10px">${esc(h.legenda)}</p>`:""}${h.fonte?`<p class="src">Fonte: ${esc(h.fonte)}</p>`:""}`;
+}
+function renderGrafico(h){
+  const dados=(h.dados||[]).slice(0,12).map((d,i)=>({r:String(d.rotulo??""), v:num(d.valor), c:PALETA[i%PALETA.length]}));
+  const u=esc(h.unidade||""), fmt=v=>`${v.toLocaleString("pt-BR",{maximumFractionDigits:2})}${u}`;
+  const head=`<div class="eyebrow">${esc(h.categoria||"Gráfico")}</div><h3>${esc(h.titulo||"")}</h3>`;
+  const foot=`${h.legenda?`<p class="sub" style="margin-top:8px">${esc(h.legenda)}</p>`:""}${h.fonte?`<p class="src">Fonte: ${esc(h.fonte)}</p>`:""}`;
+  if(!dados.length) return head+foot;
+  if(h.forma==="linha"){
+    const W=300,H=130,P=18, max=Math.max(...dados.map(d=>d.v)), lo=Math.min(...dados.map(d=>d.v)), min=(lo>0 && (max-lo)<max*.5) ? lo-(max-lo||max*.1)*.4 : Math.min(0,lo), sp=(max-min)||1;
+    const pts=dados.map((d,i)=>[P+i*(W-2*P)/Math.max(1,dados.length-1), H-P-(d.v-min)/sp*(H-2*P)]);
+    const line=pts.map(p=>p.map(n=>n.toFixed(1)).join(",")).join(" ");
+    const gid="lg"+Math.random().toString(36).slice(2,7);
+    return head+`<svg class="chart" viewBox="0 0 ${W} ${H+14}"><defs><linearGradient id="${gid}" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#43d9ff" stop-opacity=".35"/><stop offset="1" stop-color="#43d9ff" stop-opacity="0"/></linearGradient></defs>
+      ${[0,.5,1].map(k=>`<line x1="${P}" x2="${W-P}" y1="${(P+k*(H-2*P)).toFixed(1)}" y2="${(P+k*(H-2*P)).toFixed(1)}" stroke="rgba(90,180,255,.12)"/>`).join("")}
+      <polygon class="ar" points="${P},${H-P} ${line} ${W-P},${H-P}" fill="url(#${gid})"/><polyline class="ln" points="${line}" stroke="#43d9ff"/>
+      ${pts.map((p,i)=>`<circle class="pt" cx="${p[0].toFixed(1)}" cy="${p[1].toFixed(1)}" r="3.5" fill="#fff" style="animation-delay:${.3+i*1.2/dados.length}s"/>`).join("")}
+      <text x="${pts[pts.length-1][0].toFixed(1)}" y="${(pts[pts.length-1][1]-8).toFixed(1)}" text-anchor="end" style="fill:#fff;font-size:12px">${esc(fmt(dados[dados.length-1].v))}</text>
+      ${dados.map((d,i)=> (dados.length<=7 || i%Math.ceil(dados.length/6)===0 || i===dados.length-1) ? `<text x="${pts[i][0].toFixed(1)}" y="${H+10}" text-anchor="middle">${esc(d.r.slice(0,8))}</text>` : "").join("")}</svg>`+foot;
+  }
+  if(h.forma==="pizza"){
+    const tot=dados.reduce((a,d)=>a+Math.max(0,d.v),0)||1, R=52, C=2*Math.PI*R; let acc=0;
+    const segs=dados.map((d,i)=>{ const len=Math.max(0,d.v)/tot*C; const el=`<circle class="sg" cx="66" cy="66" r="${R}" stroke="${d.c}" style="--len:${len.toFixed(1)};stroke-dashoffset:${(-acc).toFixed(1)};animation-delay:${i*.12}s"/>`; acc+=len; return el; }).join("");
+    return head+`<div class="donut"><svg viewBox="0 0 132 132"><circle cx="66" cy="66" r="${R}" fill="none" stroke="rgba(90,180,255,.08)" stroke-width="16"/>${segs}</svg>
+      <ul>${dados.map((d,i)=>`<li style="animation-delay:${.2+i*.08}s"><i style="background:${d.c};color:${d.c}"></i>${esc(d.r)}<b>${Math.round(Math.max(0,d.v)/tot*100)}%</b></li>`).join("")}</ul></div>`+foot;
+  }
+  const max=Math.max(...dados.map(d=>Math.abs(d.v)))||1;
+  return head+`<div class="chart-h">${dados.map((d,i)=>`<div class="hb" style="animation-delay:${i*.08}s"><span>${esc(d.r)}</span><div class="tr2"><i style="--w:${(Math.abs(d.v)/max*100).toFixed(1)}%;--c:${d.c}"></i></div><b data-count="${d.v}" data-unit="${u}">${esc(fmt(d.v))}</b></div>`).join("")}</div>`+foot;
+}
+function miniPlacar(p){
+  if(!p?.mandante || !p?.visitante) return "";
+  return `<div class="mini-score"><span>${esc(p.mandante.nome||"")}</span>${crest(p.mandante)}<strong>${num(p.mandante.gols)} × ${num(p.visitante.gols)}</strong>${crest(p.visitante)}<span>${esc(p.visitante.nome||"")}</span></div>`;
+}
+function animateCounts(root){
+  root.querySelectorAll("[data-count]").forEach(el=>{
+    const target=num(el.dataset.count), unit=el.dataset.unit||"", t0=performance.now(), dur=900, dec=Math.abs(target%1)>0?1:0;
+    if (reduce){ el.textContent=target.toLocaleString("pt-BR",{maximumFractionDigits:2})+unit; return; }
+    const step=now=>{ const k=Math.min(1,(now-t0)/dur), e=1-Math.pow(1-k,3); el.textContent=(target*e).toLocaleString("pt-BR",{minimumFractionDigits:k<1?dec:0,maximumFractionDigits:k<1?dec:2})+unit; if(k<1) requestAnimationFrame(step); };
+    requestAnimationFrame(step);
+  });
+}
+
+/* ---------- apresentação: vários cartões em sequência ---------- */
+const sinal = v => { const t=String(v??"").trim(); return /^\+/.test(t)?"up":/^[-−]/.test(t)?"down":""; };
+function kpiTiles(lista){
+  return `<div class="kpis">${(lista||[]).slice(0,6).map((k,i)=>{ const v=k.valor, isNum=typeof v==="number" || /^[-+]?\d[\d.,]*$/.test(String(v??"").trim());
+    const txt=String(v??"")+(isNum?(k.unidade||""):""), cls=txt.length>10?"xl":txt.length>5?"long":"";
+    return `<div class="kpi" style="animation-delay:${.1+i*.09}s"><small>${esc(k.rotulo||"")}</small><b class="${cls}" ${isNum?`data-count="${num(v)}" data-unit="${esc(k.unidade||"")}"`:""}>${esc(String(v??"")+(isNum?(k.unidade||""):""))}</b>${k.variacao?`<em class="${sinal(k.variacao)}">${sinal(k.variacao)==="down"?"▼":sinal(k.variacao)==="up"?"▲":""} ${esc(k.variacao)}</em>`:""}</div>`; }).join("")}</div>`;
+}
+function renderNumeros(s){
+  return `<div class="eyebrow">${esc(s.categoria||"Em números")}</div>${s.titulo?`<h3>${esc(s.titulo)}</h3>`:""}${kpiTiles(s.numeros)}${s.legenda?`<p class="sub" style="margin-top:10px">${esc(s.legenda)}</p>`:""}${s.fonte?`<p class="src">Fonte: ${esc(s.fonte)}</p>`:""}`;
+}
+function agendaHoje(s){
+  if (Array.isArray(s.compromissos) && s.compromissos.length) return s.compromissos.slice(0,8).map(c=>({hora:String(c.hora||""), titulo:String(c.titulo||""), nota:String(c.nota||""), feito:false}));
+  return [...tasks].sort((a,b)=>(a.hora||"99").localeCompare(b.hora||"99")).slice(0,8);
+}
+function renderAgendaSlide(s){
+  const lista=agendaHoje(s), pend=lista.filter(x=>!x.feito), agora=new Date().toTimeString().slice(0,5);
+  const prox=pend.find(x=>!x.hora || x.hora>=agora) || pend[0];
+  return `<div class="eyebrow">${esc(s.categoria||"Agenda de hoje")}</div>
+    <h3>${pend.length?`<span data-count="${pend.length}">${pend.length}</span> ${pend.length===1?"compromisso":"compromissos"} ${esc(s.titulo||"para hoje")}`:esc(s.titulo||"Agenda livre hoje")}</h3>
+    ${lista.length?`<ul class="timeline">${lista.map((x,i)=>`<li class="${x.feito?"feito":x===prox?"next":""}" style="animation-delay:${.15+i*.1}s"><time>${esc(x.hora||"--:--")}</time><span>${esc(x.titulo)}${x.nota?`<small>${esc(x.nota)}</small>`:""}</span></li>`).join("")}</ul>`:`<p class="sub">Nenhum compromisso marcado. Diga "me lembra de ligar para o João às 15h".</p>`}
+    ${s.legenda?`<p class="sub" style="margin-top:8px">${esc(s.legenda)}</p>`:""}`;
+}
+function iconeClima(c){
+  const t=String(c||"").toLowerCase(), chuva=/chuv|tempest|garoa|trovo/.test(t), nub=chuva||/nubl|nuve|encob/.test(t), sol=!chuva && (/sol|limpo|claro|ensol/.test(t) || !nub);
+  return `<svg viewBox="0 0 92 92" aria-hidden="true">
+    ${sol?`<g class="sol"><circle cx="46" cy="46" r="17" fill="#ffb547" style="filter:drop-shadow(0 0 12px #ffb547)"/>${[...Array(8)].map((_,k)=>`<rect x="44" y="12" width="4" height="10" rx="2" fill="#ffb547" transform="rotate(${k*45} 46 46)"/>`).join("")}</g>`:""}
+    ${nub?`<g class="nuvem"><path d="M24 64h42a13 13 0 0 0 0-26 18 18 0 0 0-34 4 11 11 0 0 0-8 22z" fill="#cfe6ff" opacity=".92"/></g>`:""}
+    ${chuva?[30,44,58].map((x,k)=>`<line class="gota" x1="${x}" y1="70" x2="${x-3}" y2="78" stroke="#43d9ff" stroke-width="3" stroke-linecap="round" style="animation-delay:${k*.3}s"/>`).join(""):""}
+  </svg>`;
+}
+function renderClima(s){
+  return `<div class="eyebrow">${esc(s.categoria||"Clima")}${s.cidade?` · ${esc(s.cidade)}`:""}</div>${s.titulo?`<h3>${esc(s.titulo)}</h3>`:""}
+    <div class="clima">${iconeClima(s.condicao)}<div><div class="temp"><span data-count="${num(s.temperatura)}">${esc(String(s.temperatura??"--"))}</span>°</div>
+    <div class="mm">${s.minima!=null?`mín <b>${esc(String(s.minima))}°</b>`:""}${s.maxima!=null?` · máx <b>${esc(String(s.maxima))}°</b>`:""}${s.chuva!=null?` · chuva <b>${esc(String(s.chuva))}%</b>`:""}</div>
+    ${s.condicao?`<p class="sub" style="margin:6px 0 0">${esc(s.condicao)}</p>`:""}</div></div>${s.legenda?`<p class="sub" style="margin-top:8px">${esc(s.legenda)}</p>`:""}`;
+}
+function renderNoticias(s){
+  return `<div class="eyebrow">${esc(s.categoria||"Notícias")}</div><h3>${esc(s.titulo||s.assunto||"")}</h3>${miniPlacar(s.placar)}
+    ${s.resumo?`<p class="sub" style="color:var(--fg)">${esc(s.resumo)}</p>`:""}${s.numeros?.length?kpiTiles(s.numeros):""}
+    ${s.manchetes?.length?`<ul class="rows news">${s.manchetes.slice(0,3).map(m=>`<li><span class="time">›</span><span class="t">${esc(m.titulo||"")}<small>${esc([m.fonte,m.quando].filter(Boolean).join(" · "))}</small></span><span></span></li>`).join("")}</ul>`:""}`;
+}
+function slideHtml(c){
+  switch(c.tipo){
+    case "placar": return renderPlacar(c);
+    case "grafico": return renderGrafico(Object.assign({}, c, {forma:c.forma||"barras"}));
+    case "agenda": return renderAgendaSlide(c);
+    case "numeros": return renderNumeros(c);
+    case "clima": return renderClima(c);
+    case "noticias": return renderNoticias(c);
+    default: return renderHighlight(Object.assign({}, c, {tipo:"destaque"}));
+  }
+}
+const slideDur = c => c._dur || Math.min(14000, Math.max(5500, 3500 + String(c.fala||"").length*55 + JSON.stringify(c).length*6));
+let story=null;
+function renderStory(h){
+  const n=h.slides.length, i=Math.min(h.i||0,n-1), c=h.slides[i], tocando=story&&!story.dead&&story.h===h;
+  const passou = tocando && story.i===i ? Date.now()-story.t0 : 0;
+  const bar = n>1 ? `<div class="story-bar${tocando?" playing":""}" style="--d:${slideDur(c)}ms">${h.slides.map((_,k)=>`<button type="button" data-story="${k}" aria-label="Cartão ${k+1}" class="${k<i?"done":k===i?"on":""}"><i><b ${k===i&&passou?`style="animation-delay:-${passou}ms"`:""}></b></i></button>`).join("")}</div>` : "";
+  const nav = n>1 ? `<div class="story-nav"><button type="button" data-act="story-prev" aria-label="Anterior">‹</button><span>${i+1} / ${n}</span>${i===n-1&&!tocando?`<button type="button" data-act="story-replay" aria-label="Ver de novo">↻</button>`:`<button type="button" data-act="story-next" aria-label="Próximo">›</button>`}</div>` : "";
+  const extra = h.briefing && i===n-1 ? `<div class="acts"><button class="btn-line" data-act="briefing" type="button">Atualizar notícias</button></div>` : "";
+  return bar + slideHtml(c) + extra + nav;
+}
+function storyStop(){ if(!story) return; story.dead=true; clearTimeout(story.t); story.wake?.(); story=null; }
+function storyGo(i){
+  const h=highlight; if(h.tipo!=="apresentacao") return;
+  h.i=Math.max(0,Math.min(h.slides.length-1,i)); store.set("hl",h);
+  if(tab==="destaque") renderCard();
+}
+function storyPlay({narrar=false, de=0}={}){
+  storyStop(); const h=highlight; if(h.tipo!=="apresentacao"||!h.slides?.length) return Promise.resolve();
+  const me={h, dead:false, i:de, t0:Date.now()}; story=me;
+  return (async()=>{
+    for(let i=de;i<h.slides.length;i++){
+      if(me.dead) return;
+      me.i=i; me.t0=Date.now();
+      if(h.i!==i) storyGo(i); else if(tab==="destaque") renderCard();
+      const c=h.slides[i];
+      if(narrar && c.fala){
+        caption(esc(c.fala));
+        await Promise.all([speak(c.fala), new Promise(r=>{ me.wake=r; me.t=setTimeout(r, (cfg.speak&&tts) ? 3000 : slideDur(c)); })]);
+      } else {
+        await new Promise(r=>{ me.wake=r; me.t=setTimeout(r, slideDur(c)); });
+      }
+    }
+    if(!me.dead){ story=null; if(tab==="destaque") renderCard(); }
+  })();
+}
+function storyManual(i){ if(story){ storyStop(); try{ tts?.stop(); }catch{} synth?.cancel(); } storyGo(i); }
+function limparCartao(c){
+  const tiposOk=["destaque","lista","numeros","grafico","agenda","clima","noticias","placar"];
+  const o=Object.assign({}, c||{}); o.tipo=tiposOk.includes(o.tipo)?o.tipo:"destaque";
+  if(o.tipo==="lista") o.tipo="destaque";
+  if(o.tipo==="grafico" && !Array.isArray(o.dados)) o.tipo="destaque";
+  if(o.tipo==="placar" && !(o.mandante&&o.visitante)) o.tipo="destaque";
+  if(o.tipo==="numeros" && !Array.isArray(o.numeros)) o.tipo="destaque";
+  return o;
 }
 
 const RESEARCH_STEPS = ["Decompondo a pergunta","Levantando dados e fontes","Cruzando informações","Verificando consistência","Escrevendo o relatório"];
@@ -976,14 +1451,14 @@ async function research(pergunta, signal){
     try{ const [a,b]=[await browse(bingWeb(pergunta),3500), await browse(bingNews(pergunta),2000)]; web=`RESULTADOS DA WEB DE HOJE (busca):\n${a}\n\nNOTÍCIAS RECENTES:\n${b}`; highlight.etapa=Math.max(highlight.etapa,2); renderCard(); }catch{}
   }
   const prompt = `Você é um analista de pesquisa sênior. Faça uma pesquisa aprofundada e rigorosa sobre o pedido abaixo, usando todo o seu conhecimento: decomponha a pergunta, considere diferentes ângulos e fontes, compare dados, aponte divergências e limitações. Escreva em português do Brasil.
-Data de hoje: ${new Date().toLocaleDateString("pt-BR")}. ${web ? `Use os resultados de busca abaixo como fonte principal para fatos recentes, citando os sites em "fontes", e complete com seu conhecimento.\n${web.slice(0,6000)}` : `Você não tem acesso à internet agora: deixe claro em "verificar" o que pode ter mudado depois do seu conhecimento e onde conferir.`}
+Data de hoje: ${new Date().toLocaleDateString("pt-BR")}. ${!web && sample?.web ? `Use a ferramenta de busca na web para checar fatos recentes (2 a 4 buscas), cite os sites usados em "fontes" e complete com seu conhecimento.` : web ? `Use os resultados de busca abaixo como fonte principal para fatos recentes, citando os sites em "fontes", e complete com seu conhecimento.\n${web.slice(0,6000)}` : `Você não tem acesso à internet agora: deixe claro em "verificar" o que pode ter mudado depois do seu conhecimento e onde conferir.`}
 Pedido: ${pergunta}
 
 Responda SOMENTE com JSON neste formato:
 {"titulo": "título curto", "resumo": "2 a 3 frases com a resposta direta", "pontos": ["3 a 6 pontos-chave objetivos"], "secoes": [{"titulo": "...", "texto": "1 parágrafo"}], "fontes": ["tipos de fontes ou referências conhecidas onde isso pode ser conferido"], "verificar": ["o que conferir em fonte atualizada"], "confianca": "alta | média | baixa"}`;
   try{
-    const r = await sample.json(prompt, {modelTier:"default", signal});
-    highlight = {tipo:"pesquisa", web:!!web, titulo:String(r.titulo||pergunta).slice(0,120), pergunta, resumo:String(r.resumo||""), pontos:(r.pontos||[]).slice(0,6).map(String), secoes:(r.secoes||[]).slice(0,5), fontes:(r.fontes||[]).slice(0,6).map(String), verificar:(r.verificar||[]).slice(0,4).map(String), confianca:String(r.confianca||""), em:new Date().toISOString()};
+    const r = await sample.json(prompt, {modelTier:"default", signal, web:!web && !!sample?.web});
+    highlight = {tipo:"pesquisa", web:!!web || !!sample?.web, titulo:String(r.titulo||pergunta).slice(0,120), pergunta, resumo:String(r.resumo||""), pontos:(r.pontos||[]).slice(0,6).map(String), secoes:(r.secoes||[]).slice(0,5), fontes:(r.fontes||[]).slice(0,6).map(String), verificar:(r.verificar||[]).slice(0,4).map(String), confianca:String(r.confianca||""), em:new Date().toISOString()};
     store.set("hl",highlight); tab="destaque"; renderCard(); renderTicker();
     return {resumo:highlight.resumo, pontos:highlight.pontos, confianca:highlight.confianca};
   } finally { clearInterval(researchTimer); if(highlight.run){ highlight.run=false; } }
@@ -996,6 +1471,9 @@ function renderHighlight(h){
     return `<div class="eyebrow">Tradução · ${a.tag} → ${b.tag}</div><p class="sub">${esc(h.original)}</p><p class="tr">${esc(h.traducao)}</p>${h.observacao?`<p class="sub">${esc(h.observacao)}</p>`:""}<div class="acts"><button class="btn-line" data-act="ouvir" type="button">Ouvir em ${esc(b.nome.toLowerCase())}</button><button class="btn-line" data-act="copiar" type="button">Copiar</button></div>`;
   }
   if(h.tipo==="briefing") return renderBriefing(h);
+  if(h.tipo==="placar") return renderPlacar(h);
+  if(h.tipo==="grafico") return renderGrafico(h);
+  if(h.tipo==="apresentacao" && h.slides?.length) return renderStory(h);
   if(h.tipo==="pesquisa"){
     if(h.run) return `<div class="eyebrow">Pesquisa avançada</div><h3>${esc(h.titulo)}</h3><ul class="su-steps">${RESEARCH_STEPS.map((s,i)=>`<li class="${i<h.etapa?"ok":i===h.etapa?"run":""}">${s}</li>`).join("")}</ul>`;
     const conf={alta:"var(--green)", "média":"var(--amber)", media:"var(--amber)", baixa:"var(--red)"}[h.confianca?.toLowerCase()]||"var(--fg-dim)";
@@ -1019,7 +1497,44 @@ function renderPdfCard(){
 }
 
 let nextId = Math.max(0,...tasks.map(t=>t.id))+1;
+const CARTAO_SCHEMA = {type:"object", properties:{
+  tipo:{type:"string", enum:["destaque","numeros","grafico","agenda","clima","noticias","placar","lista"], description:"destaque: um dado-chave grande; numeros: 2 a 6 indicadores lado a lado; grafico: barras/linha/pizza; agenda: compromissos do dia (sem 'compromissos' usa a agenda do app); clima: tempo de uma cidade; noticias: manchetes de um assunto; placar: jogo (mesmos campos de mostrar_placar); lista: tópicos curtos"},
+  categoria:{type:"string"}, titulo:{type:"string"}, valor:{type:"string"}, legenda:{type:"string"}, fonte:{type:"string"},
+  fala:{type:"string", description:"opcional: 1 frase curta que combina com este cartão"},
+  itens:{type:"array", items:{type:"string"}},
+  numeros:{type:"array", items:{type:"object", properties:{rotulo:{type:"string"}, valor:{type:"string", description:"número ou texto curto"}, unidade:{type:"string"}, variacao:{type:"string", description:"ex.: +2,3% ou -1,1%"}}}},
+  forma:{type:"string", enum:["barras","linha","pizza"]}, unidade:{type:"string"},
+  dados:{type:"array", items:{type:"object", properties:{rotulo:{type:"string"}, valor:{type:"number"}}}},
+  compromissos:{type:"array", items:{type:"object", properties:{hora:{type:"string"}, titulo:{type:"string"}, nota:{type:"string"}}}},
+  cidade:{type:"string"}, temperatura:{type:"number"}, minima:{type:"number"}, maxima:{type:"number"}, condicao:{type:"string"}, chuva:{type:"number", description:"chance de chuva em %"},
+  resumo:{type:"string"}, manchetes:{type:"array", items:{type:"object", properties:{titulo:{type:"string"}, fonte:{type:"string"}, quando:{type:"string"}}}},
+  competicao:{type:"string"}, status:{type:"string"}, mandante:{type:"object"}, visitante:{type:"object"}, gols:{type:"array", items:{type:"object"}}, estatisticas:{type:"array", items:{type:"object"}}
+}, required:["tipo"]};
 const tools = [
+  {name:"apresentar", description:"Mostra no painel uma apresentação animada: cartões que entram, passam sozinhos um depois do outro e saem, como num telejornal. Use para QUALQUER resposta com mais de uma parte, de qualquer assunto: o dia de hoje, resumo, comparação, explicação passo a passo, notícias, finanças, saúde, viagem, receita. Misture tipos de cartão (números, gráfico, agenda, clima, notícias, placar, destaque). Só use números que você tem certeza ou encontrou na busca.",
+   inputSchema:{type:"object", properties:{titulo:{type:"string"}, cartoes:{type:"array", minItems:1, maxItems:8, items:CARTAO_SCHEMA}}, required:["cartoes"]},
+   execute(i){ const slides=(Array.isArray(i.cartoes)?i.cartoes:[]).slice(0,8).map(limparCartao); if(!slides.length) throw new Error("Nenhum cartão.");
+     highlight={tipo:"apresentacao", titulo:String(i.titulo||slides[0].titulo||"Apresentação"), slides, i:0}; store.set("hl",highlight); tab="destaque"; renderCard(); renderTicker(); storyPlay();
+     return {ok:true, cartoes:slides.length, nota:"os cartões já estão passando na tela; na fala, não repita tudo, comente o principal"}; }},
+  {name:"mostrar_placar", description:"Mostra no painel um placar de jogo animado, com escudos nas cores dos times, gols e estatísticas da partida. Use para qualquer resultado ou jogo em andamento. Só use dados encontrados na busca; não invente estatísticas.", inputSchema:{type:"object",properties:{
+      competicao:{type:"string"}, data:{type:"string"}, status:{type:"string",enum:["encerrado","ao vivo","intervalo","agendado"]},
+      mandante:{type:"object",properties:{nome:{type:"string"},sigla:{type:"string",description:"3 letras"},gols:{type:"number"},cor_primaria:{type:"string",description:"cor do uniforme em hex, ex.: #d40000"},cor_secundaria:{type:"string"}},required:["nome"]},
+      visitante:{type:"object",properties:{nome:{type:"string"},sigla:{type:"string"},gols:{type:"number"},cor_primaria:{type:"string"},cor_secundaria:{type:"string"}},required:["nome"]},
+      gols:{type:"array",items:{type:"object",properties:{time:{type:"string",enum:["mandante","visitante"]},jogador:{type:"string"},minuto:{type:"string"}}}},
+      estatisticas:{type:"array",description:"ex.: posse de bola, finalizações, escanteios, cartões",items:{type:"object",properties:{nome:{type:"string"},mandante:{type:"number"},visitante:{type:"number"},unidade:{type:"string",description:"ex.: %"}},required:["nome","mandante","visitante"]}},
+      legenda:{type:"string"}, fonte:{type:"string"}},required:["mandante","visitante"]},
+   execute(i){ highlight=Object.assign({tipo:"placar"}, i, {titulo:`${i.mandante?.nome||""} ${num(i.mandante?.gols)} × ${num(i.visitante?.gols)} ${i.visitante?.nome||""}`}); store.set("hl",highlight); tab="destaque"; renderCard(); renderTicker(); return {ok:true}; }},
+  {name:"mostrar_grafico", description:"Mostra no painel um gráfico animado. tipo barras: comparar valores (rankings, preços, tabelas); linha: evolução no tempo (cotação, temperatura da semana); pizza: partes de um todo (percentuais). Use sempre que a resposta tiver 3 ou mais números comparáveis.", inputSchema:{type:"object",properties:{
+      titulo:{type:"string"}, categoria:{type:"string",description:"rótulo curto, ex.: Economia, Clima, Futebol"}, tipo:{type:"string",enum:["barras","linha","pizza"]}, unidade:{type:"string",description:"ex.: %, °C, R$ (vai depois do número)"},
+      dados:{type:"array",items:{type:"object",properties:{rotulo:{type:"string"},valor:{type:"number"}},required:["rotulo","valor"]}},
+      legenda:{type:"string"}, fonte:{type:"string"}},required:["titulo","tipo","dados"]},
+   execute(i){ highlight=Object.assign({}, i, {tipo:"grafico", forma:i.tipo||"barras"}); store.set("hl",highlight); tab="destaque"; renderCard(); renderTicker(); return {ok:true}; }},
+  {name:"plano_de_estudo", description:"Skill Tutor de estudos: monta um plano de estudo ou roteiro de atividade (faculdade, escola, concurso, curso) e mostra no painel; opcionalmente salva as etapas e o prazo na agenda.", inputSchema:{type:"object",properties:{materia:{type:"string"},tema:{type:"string"},prazo:{type:"string",description:"data ou prazo, ex.: 25/11 ou sexta-feira"},resumo:{type:"string",description:"1 frase sobre como estudar"},etapas:{type:"array",items:{type:"object",properties:{titulo:{type:"string"},hora:{type:"string",description:"HH:MM opcional"}},required:["titulo"]}},salvar_na_agenda:{type:"boolean"}},required:["materia","tema","etapas"]},
+   execute(i){ const et=(Array.isArray(i.etapas)?i.etapas:[]).slice(0,8).map(e=>typeof e==="string"?{titulo:e}:e);
+     highlight={categoria:("Tutor · "+String(i.materia||"Estudos")).slice(0,30), titulo:String(i.tema||"Plano de estudo").slice(0,90), valor:i.prazo?String(i.prazo).slice(0,16):"", legenda:i.resumo?String(i.resumo).slice(0,200):"", itens:et.map((e,k)=>`${k+1}. ${String(e.titulo).slice(0,70)}`)};
+     store.set("hl",highlight); tab="destaque";
+     let salvos=0; if(i.salvar_na_agenda){ for(const e of et){ tasks.push({id:nextId++, titulo:`${String(i.materia||"Estudo").slice(0,20)}: ${String(e.titulo).slice(0,55)}`, hora:e.hora?String(e.hora).slice(0,5):"", nota:i.prazo?("prazo "+String(i.prazo).slice(0,20)):"", feito:false}); salvos++; } saveTasks(); }
+     renderCard(); renderTicker(); return {ok:true, etapas:et.length, salvos_na_agenda:salvos}; }},
   {name:"adicionar_tarefa", description:"Adiciona um compromisso ou lembrete à agenda do dia.", inputSchema:{type:"object",properties:{titulo:{type:"string"},hora:{type:"string",description:"HH:MM, opcional"},nota:{type:"string"}},required:["titulo"]},
    execute(i){ const x={id:nextId++, titulo:String(i.titulo).slice(0,80), hora:i.hora?String(i.hora).slice(0,5):"", nota:i.nota?String(i.nota).slice(0,60):"", feito:false}; tasks.push(x); saveTasks(); tab="agenda"; renderCard(); renderTicker(); return {ok:true, id:x.id}; }},
   {name:"concluir_tarefa", description:"Marca um item da agenda como feito, pelo id.", inputSchema:{type:"object",properties:{id:{type:"number"}},required:["id"]},
@@ -1032,7 +1547,7 @@ const tools = [
    execute(i){ const para=LANG[i.para]?i.para:"en", de=LANG[i.de]?i.de:"pt"; highlight={tipo:"traducao", de, para, titulo:`Tradução ${LANG[de].tag} → ${LANG[para].tag}`, original:String(i.original).slice(0,1500), traducao:String(i.traducao).slice(0,1500), observacao:i.observacao?String(i.observacao).slice(0,200):""}; store.set("hl",highlight); pendingSpeak={text:highlight.traducao, lang:para}; tab="destaque"; renderCard(); renderTicker(); return {ok:true, nota:"a tradução será lida em voz alta pelo app"}; }},
   {name:"pesquisa_avancada", description:"Pesquisa aprofundada sobre o pedido do usuário; mostra um relatório completo no painel e devolve o resumo.", inputSchema:{type:"object",properties:{pergunta:{type:"string",description:"o pedido do usuário, completo e específico"}},required:["pergunta"]},
    execute(i,ctx){ return research(String(i.pergunta).slice(0,600), ctx?.signal); }},
-  {name:"briefing_noticias", description:"Busca e lê em voz alta as notícias de hoje dos assuntos de interesse do usuário, mostrando o briefing no painel.",
+  {name:"briefing_noticias", description:"Briefing do dia em apresentação animada: resumo do dia, clima, agenda e as notícias de hoje dos assuntos de interesse, lido em voz alta cartão por cartão. Use para 'o que temos para hoje', 'bom dia', 'novidades', 'notícias'.",
    execute(){ pendingBriefing=true; return {ok:true, nota:"o briefing vai começar logo depois da sua resposta; responda só 'Buscando suas notícias.'"}; }},
   {name:"pdf_info", description:"Mostra as páginas do PDF aberto: total, formatos (tamanho e orientação) e alterações feitas.",
    execute(){ if(!pdf) throw new Error("Nenhum PDF aberto."); tab="pdf"; renderCard(); return pdfInfo(); }},
@@ -1051,22 +1566,23 @@ const tools = [
 let busy=null;
 async function ask(userText, {greeting=false}={}){
   if (busy) busy.abort();
+  storyStop();
   const ctl = new AbortController(); busy = ctl;
   if (tts) try{ tts.stop(); }catch{}
   synth?.cancel();
-  if (!greeting){ history.push({role:"user",content:userText}); caption(`<span class="you">${esc(userText)}</span>`); }
+  if (!greeting){ history.push({role:"user",content:userText}); saveHist(); caption(`<span class="you">${esc(userText)}</span>`); }
   setMode("thinking");
   if (tab==="historico") renderCard();
   if (!sample){ return offline(userText, greeting); }
   const turns = greeting
-    ? [{role:"user", content: rules()+"\n\nO usuário acabou de abrir o app. Cumprimente pelo período do dia e faça um briefing de no máximo 3 frases sobre a agenda de hoje (o que vem a seguir) e termine perguntando se ele precisa de ajuda com a faculdade ou com alguma atividade. Use mostrar_destaque com o próximo compromisso."}]
+    ? [{role:"user", content: rules()+"\n\nO usuário acabou de abrir o app. Cumprimente pelo período do dia e faça um briefing de no máximo 3 frases sobre a agenda de hoje (o que vem a seguir) e termine perguntando se pode ajudar com alguma coisa. Use apresentar com 2 cartões: um numeros com o resumo do dia (compromissos, próximo horário) e um agenda."}]
     : [{role:"user", content: rules()+"\n\nResponda à conversa a seguir."},{role:"assistant",content:"Entendido."}, ...history.slice(-12)];
   let shown = "";
   try{
-    const {text} = await sample(turns, {signal:ctl.signal, tools, modelTier:"quick",
+    const {text} = await sample(turns, {signal:ctl.signal, tools, modelTier:"quick", web:!!sample.web,
       onText:({text})=>{ shown=text; if(mode==="thinking" && !(cfg.speak&&tts)) setMode("speaking"); caption(esc(text)); }});
     if (ctl!==busy) return;
-    history.push({role:"assistant",content:text});
+    history.push({role:"assistant",content:text}); saveHist();
     caption(esc(text));
     if (tab==="historico") renderCard();
     if (greeting) showChips();
@@ -1074,9 +1590,9 @@ async function ask(userText, {greeting=false}={}){
     if(pendingBriefing){ pendingBriefing=false; setTimeout(()=>runBriefing(),0); }
   }catch(e){
     if (e?.code==="cancelled") return;
-    const msg = {not_granted:"Preciso da sua permissão para usar o Claude. Toque no núcleo e permita.", rate_limited:"Muitas solicitações seguidas. Aguarde alguns segundos.", sampling_disabled:"O acesso ao Claude está desativado nesta conta."}[e?.code] || "Não consegui completar a resposta. Tente de novo.";
+    const msg = e?.userMsg || {not_granted:"Preciso da sua permissão para usar o Claude. Toque no núcleo e permita.", rate_limited:"Muitas solicitações seguidas. Aguarde alguns segundos.", sampling_disabled:"O acesso ao Claude está desativado nesta conta."}[e?.code] || "Não consegui completar a resposta. Tente de novo.";
     caption(esc(e?.text || shown) + (e?.text||shown ? "<br>" : "") + `<em>${esc(msg)}</em>`);
-    if (!greeting && !(e?.text||shown)) history.pop();
+    if (!greeting && !(e?.text||shown)) { history.pop(); saveHist(); }
   }finally{
     if (ctl===busy){ busy=null; if (mode!=="listening") setMode("idle"); }
   }
@@ -1091,10 +1607,10 @@ async function speak(text){
 async function offline(userText, greeting){
   const h=new Date().getHours(), per=h<12?"Bom dia":h<18?"Boa tarde":"Boa noite";
   const next=tasks.filter(t=>!t.feito).sort((a,b)=>(a.hora||"").localeCompare(b.hora||""))[0];
-  const text = greeting ? `${per}, ${cfg.user||"senhor"}. Todos os sistemas online.${next?` Seu próximo compromisso é ${next.titulo}${next.hora?" às "+next.hora:""}.`:""} Precisa de ajuda com a faculdade ou com alguma atividade?`
-    : "Estou em modo offline nesta visualização. Abra o protótipo no claude.ai para conversar comigo de verdade.";
+  const text = greeting ? `${per}, ${cfg.user||"senhor"}. Todos os sistemas online.${next?` Seu próximo compromisso é ${next.titulo}${next.hora?" às "+next.hora:""}.`:""} Posso ajudar com alguma coisa?`
+    : "Ainda não estou conectado a uma inteligência artificial. Vá em Ajustes, toque em Trocar IA e conecte sua chave do ChatGPT ou do Claude.";
   await new Promise(r=>setTimeout(r,700));
-  caption(esc(text)); history.push({role:"assistant",content:text});
+  caption(esc(text)); history.push({role:"assistant",content:text}); saveHist();
   if(greeting) showChips();
   await speak(text); setMode("idle"); busy=null;
 }
@@ -1203,30 +1719,158 @@ document.addEventListener("drop", e=>{ const f=[...(e.dataTransfer?.files||[])].
 $("#orb").addEventListener("click", toggleMic);
 
 /* ---------- login / boot ---------- */
-function showLogin(){ $("#loginView").hidden=false; $("#bootView").hidden=true; $("#uName").value=cfg?.user||""; $("#aName").value=cfg?.name&&cfg.name!=="ATLAS"?cfg.name:""; }
-$("#prov").addEventListener("click", async e=>{
+function showLogin(){ document.querySelectorAll("#loginView .steps li").forEach((li,i)=>li.className=i===0?"on":""); $("#onbView").hidden=true; $("#loginView").hidden=false; $("#bootView").hidden=true; $("#connect").hidden=true; $("#prov").hidden=false; $("#provTitle").hidden=false; $("#uName").value=cfg?.user||""; $("#aName").value=cfg?.name&&cfg.name!=="ATLAS"?cfg.name:""; }
+$("#prov").addEventListener("click", e=>{
   const b=e.target.closest("button"); if(!b) return;
-  cfg = Object.assign({voice:"buttery", speak:true}, cfg||{}, {provider:b.dataset.p, user:$("#uName").value.trim(), name:($("#aName").value.trim()||"ATLAS").toUpperCase()});
+  const p=b.dataset.p, info=AI.INFO[p];
+  document.querySelectorAll("#prov button").forEach(x=>x.setAttribute("aria-pressed", String(x===b)));
+  $("#prov").hidden=true; $("#provTitle").hidden=true; $("#connect").hidden=false;
+  $("#connect").dataset.p=p;
+  const st=document.querySelectorAll("#loginView .steps li"); st[0].className="ok"; st[1].className="on";
+  $("#cnTitle").textContent=`Conectar ${info.nome}`;
+  $("#cnHelp").innerHTML=info.ajuda;
+  $("#cnOpen").textContent=`Abrir ${info.pagina} ↗`;
+  $("#cnKey").placeholder=info.prefixo+"…";
+  $("#cnKey").value = (cfg?.keys?.[p]) || "";
+  $("#cnMsg").hidden=true;
+  setTimeout(()=>$("#cnKey").focus(), 50);
+});
+$("#cnBack").addEventListener("click", ()=>{ $("#connect").hidden=true; $("#prov").hidden=false; $("#provTitle").hidden=false; });
+$("#cnOpen").addEventListener("click", ()=>openExternal(AI.INFO[$("#connect").dataset.p].url));
+$("#cnPaste").addEventListener("click", async ()=>{ try{ const t=await navigator.clipboard.readText(); if(t) $("#cnKey").value=t.trim(); }catch{ $("#cnKey").focus(); } });
+$("#cnForm").addEventListener("submit", async e=>{
+  e.preventDefault();
+  const p=$("#connect").dataset.p, key=$("#cnKey").value.trim().replace(/\s+/g,"");
+  const msgEl=$("#cnMsg"), go=$("#cnGo");
+  const fail = t => { msgEl.hidden=false; msgEl.className="note bad"; msgEl.textContent=t; go.disabled=false; go.textContent="Conectar"; };
+  if(!key) return fail("Cole a chave de API antes de conectar.");
+  go.disabled=true; go.textContent="Verificando…"; msgEl.hidden=false; msgEl.className="note"; msgEl.textContent="Verificando a chave com "+AI.INFO[p].empresa+"…";
+  let check;
+  try{ check = await AI.validate(p, key); }
+  catch(err){ return fail(err?.userMsg || "Não consegui verificar a chave. Confira a internet e tente de novo."); }
+  cfg = Object.assign({voice:"buttery", speak:true}, cfg||{}, {provider:p, user:$("#uName").value.trim(), name:($("#aName").value.trim()||"ATLAS").toUpperCase()});
+  cfg.keys = Object.assign({}, cfg.keys, {[p]:key});
+  cfg.model = Object.assign({}, cfg.model, {[p]:check.model});
   delete cfg.agent;
   store.set("cfg", cfg); applyName(); renderTicker();
+  go.disabled=false; go.textContent="Conectar";
+  connectAI();
   $("#loginView").hidden=true;
-  await createAgent();
-  activate(); // the original click still counts as the gesture that unlocks voice
+  await onboarding();
+  await createAgent(check);
+  activate({primeira:true});
 });
 
+
+/* ---------- configuração inicial: interesses e rotina ---------- */
+const INTERESSES = [
+  {id:"cidade", nome:"Minha cidade", q:c=>`${c.cidade||"minha cidade"} notícias`, titulo:c=>`Notícias de ${c.cidade||"sua cidade"}`},
+  {id:"politica", nome:"Política", q:c=>`política ${c.cidade?c.cidade+" e ":""}Brasil`, titulo:c=>c.cidade?`Política (${c.cidade} e Brasil)`:"Política no Brasil"},
+  {id:"economia", nome:"Economia e finanças", q:()=>"economia Brasil dólar juros inflação", titulo:()=>"Economia e finanças"},
+  {id:"futebol", nome:"Futebol", q:c=>c.time?`${c.time} futebol`:"futebol brasileiro", titulo:c=>c.time?c.time:"Futebol"},
+  {id:"tecnologia", nome:"Tecnologia", q:()=>"tecnologia inteligência artificial novidades", titulo:()=>"Tecnologia"},
+  {id:"saude", nome:"Saúde e bem-estar", q:()=>"saúde bem-estar Brasil", titulo:()=>"Saúde e bem-estar"},
+  {id:"ciencia", nome:"Ciência", q:()=>"ciência descobertas", titulo:()=>"Ciência"},
+  {id:"cultura", nome:"Cultura e entretenimento", q:()=>"cultura entretenimento cinema música Brasil", titulo:()=>"Cultura e entretenimento"},
+  {id:"fe", nome:"Religião e fé", q:()=>"religião igreja notícias Brasil", titulo:()=>"Religião e fé"},
+  {id:"clima", nome:"Clima e tempo", q:c=>`previsão do tempo ${c.cidade||"Brasil"}`, titulo:c=>c.cidade?`Tempo em ${c.cidade}`:"Clima e tempo"},
+  {id:"agro", nome:"Agronegócio", q:()=>"agronegócio Brasil safra", titulo:()=>"Agronegócio"},
+  {id:"concursos", nome:"Educação e concursos", q:()=>"concursos educação Brasil inscrições", titulo:()=>"Educação e concursos"},
+];
+let onbDone = null;
+function onboarding(){
+  const pf = cfg.perfil || {};
+  $("#onbBrand").textContent = cfg.name || "ATLAS";
+  $("#pick").innerHTML = INTERESSES.map(x=>`<button type="button" data-id="${x.id}" aria-pressed="${(pf.escolhas||[]).includes(x.id)}"><i>✓</i>${esc(x.nome)}</button>`).join("");
+  $("#oCity").value = pf.cidade||""; $("#oTeam").value = pf.time||""; $("#oMore").value = (pf.extras||[]).join("\n");
+  $("#oTeamBox").hidden = !(pf.escolhas||[]).includes("futebol");
+  const r = cfg.rotina || {};
+  $("#oHora").value = r.hora || "07:00"; $("#oDias").value = r.dias || "todos";
+  $("#oLembrete").checked = r.lembrete ?? true; $("#oVoz").checked = cfg.speak ?? true;
+  $("#oIntMsg").hidden = true;
+  onbStep("int");
+  $("#onbView").hidden = false; $("#loginView").hidden = true; $("#bootView").hidden = true;
+  return new Promise(res => { onbDone = res; });
+}
+function onbStep(st){
+  $("#onbInt").hidden = st!=="int"; $("#onbRot").hidden = st!=="rot";
+  $("#stInt").className = st==="int" ? "on" : "ok"; $("#stRot").className = st==="rot" ? "on" : "";
+  $("#onbView").scrollTop = 0;
+}
+$("#pick").addEventListener("click", e=>{
+  const b=e.target.closest("button"); if(!b) return;
+  b.setAttribute("aria-pressed", String(b.getAttribute("aria-pressed")!=="true"));
+  $("#oIntMsg").hidden = true;
+  if (b.dataset.id==="futebol") $("#oTeamBox").hidden = b.getAttribute("aria-pressed")!=="true";
+  if (b.dataset.id==="cidade" && b.getAttribute("aria-pressed")==="true" && !$("#oCity").value) $("#oCity").focus();
+});
+$("#oIntNext").addEventListener("click", ()=>{
+  const escolhas = [...document.querySelectorAll('#pick button[aria-pressed="true"]')].map(b=>b.dataset.id);
+  const extras = $("#oMore").value.split(/\n|;/).map(x=>x.trim()).filter(Boolean).slice(0,6);
+  const c = {cidade:$("#oCity").value.trim(), time:$("#oTeam").value.trim()};
+  if (!escolhas.length && !extras.length){ $("#oIntMsg").hidden=false; $("#oIntMsg").textContent="Escolha pelo menos um assunto, ou escreva um no campo de baixo."; return; }
+  const lista = [...INTERESSES.filter(x=>escolhas.includes(x.id)).map(x=>({nome:x.titulo(c), q:x.q(c)})), ...extras.map(n=>({nome:n, q:n}))];
+  cfg.perfil = {escolhas, extras, ...c};
+  cfg.interesses = lista.slice(0,8);
+  store.set("cfg", cfg);
+  onbStep("rot");
+});
+$("#oRotBack").addEventListener("click", ()=>onbStep("int"));
+$("#oRotGo").addEventListener("click", async ()=>{
+  cfg.rotina = {hora:$("#oHora").value||"07:00", dias:$("#oDias").value, lembrete:$("#oLembrete").checked};
+  cfg.speak = $("#oVoz").checked;
+  cfg.onboarded = true;
+  store.set("cfg", cfg);
+  $("#onbView").hidden = true;
+  agendarLembrete();
+  const f = onbDone; onbDone = null; f?.();
+});
+
+/* rotina: briefing uma vez por dia a partir do horário escolhido */
+const hojeISO = () => { const d=new Date(); return `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,"0")}-${String(d.getDate()).padStart(2,"0")}`; };
+function briefingDevido(){
+  const r = cfg?.rotina; if (!r || !topics().length) return false;
+  if (cfg.ultimoBriefing === hojeISO()) return false;
+  const d = new Date(), dia = d.getDay();
+  if (r.dias==="uteis" && (dia===0 || dia===6)) return false;
+  const [h,m] = String(r.hora||"07:00").split(":").map(Number);
+  return d.getHours()*60+d.getMinutes() >= h*60+(m||0);
+}
+function marcarBriefing(){ cfg.ultimoBriefing = hojeISO(); store.set("cfg", cfg); }
+setInterval(()=>{ if (!document.hidden && cfg?.onboarded && sample && !busy && !briefingBusy && mode==="idle" && $("#loginView").hidden && $("#onbView").hidden && briefingDevido()) runBriefing({abertura:true}); }, 60000);
+async function agendarLembrete(){
+  const LN = plugin("LocalNotifications"); if (!LN) return;
+  try{
+    const ids = [100,101,102,103,104,105,106,107];
+    await LN.cancel({notifications:ids.map(id=>({id}))}).catch(()=>{});
+    const r = cfg.rotina; if (!r?.lembrete) return;
+    let perm = await LN.checkPermissions();
+    if (perm.display!=="granted") perm = await LN.requestPermissions();
+    if (perm.display!=="granted") return;
+    const [hour, minute] = String(r.hora||"07:00").split(":").map(Number);
+    const assuntos = topics().slice(0,3).map(t=>t.nome).join(", ");
+    const base = {title:`${cfg.name||"ATLAS"} · seu briefing`, body:`${cfg.user?cfg.user+", ":""}as novidades de ${assuntos} estão esperando. Toque para ouvir.`};
+    const dias = r.dias==="uteis" ? [2,3,4,5,6] : [null];
+    await LN.schedule({notifications: dias.map((wd,i)=>({id:100+i, ...base, schedule:{on: wd ? {weekday:wd, hour, minute} : {hour, minute}}}))});
+  }catch(e){ console.warn("lembrete", e); }
+}
 /* ---------- agent creation (setup screen) ---------- */
 const sleep = ms => new Promise(r=>setTimeout(r,ms));
 const hexId = n => Array.from({length:n},()=>"0123456789abcdef"[Math.random()*16|0]).join("");
-async function createAgent(){
+async function createAgent(check={}){
   const gpt = cfg.provider==="gpt", vendor = gpt?"OpenAI":"Anthropic";
-  const id = (gpt?"asst_":"agt_")+hexId(20);
+  const id = check.model || cfg.model?.[cfg.provider] || "—";
+  // instalação real: envia a personalidade + todas as skills para o modelo e confirma que ele aceita
+  const instalar = sample ? sample([{role:"user", content:rules()+"\n\nVocê acabou de ser criado com as skills acima. Não use nenhuma ferramenta agora. Responda apenas: pronto."}], {tools, modelTier:"quick"}).then(()=>({ok:true})).catch(e=>({ok:false, msg:e?.userMsg||e?.message||"erro"})) : Promise.resolve({ok:false, msg:"sem IA conectada"});
+  const SKILLS = ["Agenda","Destaques","Tradução PT/EN/ES","PDF: ler e padronizar","Pesquisa avançada","Briefing de notícias","Tutor de estudos"];
   const steps = [
-    {t:`Autenticando com ${vendor}`, ms:1100, log:[gpt?"> POST https://api.openai.com/v1/auth":"> POST https://api.anthropic.com/v1/auth", "  conta verificada <b>200 OK</b>"]},
-    {t:"Criando o agente", ms:1500, log:[`> agents.create({ name: "${cfg.name}" })`, `  id: ${id} <b>201 CREATED</b>`]},
+    {t:`Autenticando com ${vendor}`, ms:700, log:[gpt?"> GET https://api.openai.com/v1/models":"> GET https://api.anthropic.com/v1/models", `  chave verificada · ${check.total||"?"} modelos disponíveis <b>200 OK</b>`]},
+    {t:"Selecionando o modelo", ms:700, log:[`> modelo: ${id} <b>ok</b>`, check.web?"> busca na web: disponível <b>ok</b>":"> busca na web: será testada no primeiro uso"]},
     {t:"Definindo personalidade e idioma", ms:1000, log:["> persona: estilo Jarvis · objetivo · cordial", "> idioma: pt-BR <b>ok</b>"]},
-    {t:"Instalando skills: tradução, PDF e pesquisa", ms:2000, log:["> tools.register(adicionar_tarefa) <b>ok</b>", "> tools.register(concluir_tarefa) <b>ok</b>", "> tools.register(mostrar_destaque) <b>ok</b>", "> skills.install(traducao: pt/en/es) <b>ok</b>", "> skills.install(pdf: ler, padronizar, editar) <b>ok</b>", "> skills.install(pesquisa_avancada) <b>ok</b>"]},
-    {t:"Calibrando voz", ms:900, log:[`> voz: ${cfg.voice} · ritmo 1.0 · pt-BR <b>ok</b>`]},
-    {t:"Sincronizando memória", ms:1000, log:[`> agenda: ${tasks.length} itens · histórico: novo <b>ok</b>`]},
+    {t:"Instalando skills: tutor, pesquisa, tradução, PDF e agenda", ms:2000, wait:instalar, log:["> tools.register(plano_de_estudo) <b>ok</b>", "> tools.register(adicionar_tarefa) <b>ok</b>", "> tools.register(concluir_tarefa) <b>ok</b>", "> tools.register(mostrar_destaque) <b>ok</b>", "> skills.install(traducao: pt/en/es) <b>ok</b>", "> skills.install(pdf: ler, padronizar, editar) <b>ok</b>", "> skills.install(pesquisa_avancada) <b>ok</b>"]},
+    {t:"Calibrando voz", ms:700, log:[NATIVE?"> voz do Android · pt-BR <b>ok</b>":`> voz: ${cfg.voice} · ritmo 1.0 · pt-BR <b>ok</b>`]},
+    {t:"Preparando sua rotina", ms:800, log:[`> interesses: ${topics().length} assuntos <b>ok</b>`, cfg.rotina?`> briefing diário às ${cfg.rotina.hora}${cfg.rotina.dias==="uteis"?" (seg a sex)":""} <b>ok</b>`:"> rotina: padrão"]},
+    {t:"Sincronizando memória", ms:700, log:[`> agenda: ${tasks.length} itens · histórico: novo <b>ok</b>`]},
     {t:"Ativando núcleo", ms:900, log:["> core.boot() <b>ONLINE</b>"]},
   ];
   const total = steps.reduce((a,s)=>a+s.ms,0);
@@ -1253,25 +1897,238 @@ async function createAgent(){
       await sleep(50);
     }
     while (li < s.log.length) log(s.log[li++]);
+    if (s.wait){ $("#suStep").textContent = "Testando as skills com a IA…"; const r = await s.wait; log(r.ok ? `> teste com ${id}: ${tools.length} ferramentas aceitas <b>ok</b>` : `> teste das skills falhou: ${esc(r.msg)} (o agente tenta de novo na primeira conversa)`); }
     done += s.ms; lis[i].className="ok";
   }
-  cfg.agent = {id, provider:cfg.provider, criadoEm:new Date().toISOString()};
+  cfg.agent = {id, provider:cfg.provider, criadoEm:new Date().toISOString(), skills:SKILLS, ferramentas:tools.map(t=>t.name)};
+  if (!history.length){ history.push({role:"assistant", content:`${cfg.name} criado. Esta é a nossa conversa: fica salva neste aparelho.`}); saveHist(); }
+  /* passos acima são só visuais: a conexão real já foi validada antes desta tela */
   store.set("cfg", cfg);
   $("#suStep").textContent = "Agente pronto";
-  $("#suDone").hidden = false; $("#suDone").textContent = `✓ ${cfg.name} criado · ${id}`;
+  $("#suDone").hidden = false; $("#suDone").textContent = `✓ ${cfg.name} online · ${id}`;
   addRipple(innerWidth/2, innerHeight/2, true); setTimeout(()=>addRipple(innerWidth/2, innerHeight/2, true),150);
   burst(innerWidth/2, innerHeight/2, 40, 5);
   await sleep(1100);
   $("#setupView").hidden = true; setMode("idle");
 }
-function showBoot(){ $("#bootView").hidden=false; $("#bootHint").textContent = `Conectado a ${PROV[cfg.provider]}. Toque para iniciar o briefing`; }
+function showBoot(){ $("#bootView").hidden=false; $("#bootHint").textContent = `Conectado a ${PROV[cfg.provider]}. ${briefingDevido()?"Toque para ouvir o briefing de hoje":"Toque para começar"}`; }
 $("#bootBtn").addEventListener("click", ()=>{ $("#bootView").hidden=true; activate(); });
-function activate(){ renderCard(); runBriefing({abertura:true}); }
+function activate({primeira=false}={}){ renderCard(); if (primeira || briefingDevido()) runBriefing({abertura:true}); else ask("", {greeting:true}); }
+
+/* ---------- IA real: OpenAI (ChatGPT) e Anthropic (Claude) com a chave do usuário ---------- */
+const AI = (() => {
+  const INFO = {
+    gpt: {nome:"ChatGPT", empresa:"a OpenAI", pagina:"página de chaves da OpenAI", prefixo:"sk-", url:"https://platform.openai.com/api-keys",
+      ajuda:`A OpenAI não deixa outros apps entrarem com o login do ChatGPT. A conexão é feita com uma <b>chave de API</b>: abra a página da OpenAI, entre com a mesma conta, toque em <b>Create new secret key</b>, copie e cole aqui. A API é cobrada à parte da assinatura do ChatGPT: a conta precisa ter crédito em <b>Billing</b>.`},
+    claude: {nome:"Claude", empresa:"a Anthropic", pagina:"Console da Anthropic", prefixo:"sk-ant-", url:"https://console.anthropic.com/settings/keys",
+      ajuda:`A Anthropic não deixa outros apps entrarem com o login do Claude.ai. A conexão é feita com uma <b>chave de API</b>: abra o Console da Anthropic, entre com sua conta, toque em <b>Create Key</b>, copie e cole aqui. A API é cobrada à parte da assinatura do Claude: a conta precisa ter crédito em <b>Billing</b>.`},
+  };
+  const ERR = (status, j, empresa) => {
+    const m = String(j?.error?.message || j?.message || "");
+    const code = j?.error?.code || j?.error?.type || "";
+    const e = new Error(m || ("HTTP "+status)); e.status=status; e.apiCode=code;
+    if (status===401 || status===403) { e.code="auth"; e.userMsg="A chave foi recusada. Confira se copiou a chave inteira, ou crie uma nova."; }
+    else if (code==="insufficient_quota" || /credit balance|billing|quota/i.test(m)) { e.code="billing"; e.userMsg=`A chave funciona, mas a conta de API está sem crédito. Adicione crédito em Billing no site da ${empresa==="a OpenAI"?"OpenAI":"Anthropic"}.`; }
+    else if (status===429) { e.code="rate_limited"; e.userMsg="Muitas solicitações seguidas. Aguarde alguns segundos."; }
+    else if (status>=500 || status===529) { e.code="server"; e.userMsg="O servidor da IA está instável agora. Tente de novo em instantes."; }
+    else { e.code="api"; e.userMsg="A IA recusou o pedido ("+(m.slice(0,140)||status)+")."; }
+    return e;
+  };
+  async function http(url, opt, empresa){
+    let r;
+    try { r = await fetch(url, opt); }
+    catch (err) { if (err?.name==="AbortError") throw Object.assign(new Error("cancelled"),{code:"cancelled"}); throw Object.assign(new Error("rede"),{code:"network", userMsg:"Sem conexão com a internet, ou a rede bloqueou o acesso à IA."}); }
+    const j = await r.json().catch(()=>({}));
+    if (!r.ok) throw ERR(r.status, j, empresa);
+    return j;
+  }
+  const parseJSON = text => {
+    const t = String(text||"").replace(/```(?:json)?/g,"");
+    const a = t.indexOf("{"), b = t.lastIndexOf("}");
+    if (a<0 || b<a) throw Object.assign(new Error("json"),{code:"api", userMsg:"A IA respondeu num formato inesperado. Tente de novo."});
+    return JSON.parse(t.slice(a,b+1));
+  };
+  const safe = async (fn) => { try { return await fn(); } catch (e) { return e; } };
+
+  /* ----- Anthropic (Messages API) ----- */
+  const anthropic = (key, model) => {
+    const H = {"content-type":"application/json", "x-api-key":key, "anthropic-version":"2023-06-01", "anthropic-dangerous-direct-browser-access":"true"};
+    const flags = {effort:true, webType:"web_search_20260209"};
+    async function call(body, signal){
+      for (let tries=0; tries<3; tries++){
+        const b = Object.assign({}, body);
+        if (flags.effort && b._effort) b.output_config = {effort:b._effort};
+        delete b._effort;
+        if (b.tools) b.tools = b.tools.map(t => t.type==="WEB" ? {type:flags.webType, name:"web_search", max_uses:5} : t);
+        try { return await http("https://api.anthropic.com/v1/messages", {method:"POST", headers:H, body:JSON.stringify(b), signal}, "a Anthropic"); }
+        catch (e) {
+          if (e.status===400 && /effort|output_config/i.test(e.message) && flags.effort){ flags.effort=false; continue; }
+          if (e.status===400 && /web_search/i.test(e.message) && flags.webType!=="web_search_20250305"){ flags.webType="web_search_20250305"; continue; }
+          throw e;
+        }
+      }
+    }
+    async function run(turns, {signal, tools=[], modelTier="quick", onText, web=false}={}){
+      const msgs = turns.map(m=>({role:m.role, content:m.content}));
+      const defs = tools.map(t=>({name:t.name, description:t.description, input_schema:t.inputSchema||{type:"object", properties:{}}}));
+      if (web) defs.push({type:"WEB"});
+      let text = "";
+      for (let step=0; step<10; step++){
+        const res = await call({model, max_tokens:modelTier==="quick"?3000:8000, _effort:modelTier==="quick"?"low":"medium", messages:msgs, ...(defs.length?{tools:defs}:{})}, signal);
+        msgs.push({role:"assistant", content:res.content});
+        const t = (res.content||[]).filter(b=>b.type==="text").map(b=>b.text).join("");
+        if (t) { text = t; onText?.({text}); }
+        if (res.stop_reason==="refusal") return {text: text || "Prefiro não ajudar com esse pedido."};
+        if (res.stop_reason==="pause_turn") continue;
+        const uses = (res.content||[]).filter(b=>b.type==="tool_use");
+        if (res.stop_reason!=="tool_use" || !uses.length) return {text};
+        const results = await Promise.all(uses.map(async u => {
+          const tool = tools.find(x=>x.name===u.name);
+          try { const out = tool ? await tool.execute(u.input||{}, {signal}) : {erro:"ferramenta desconhecida"}; return {type:"tool_result", tool_use_id:u.id, content:JSON.stringify(out ?? {ok:true}).slice(0,20000)}; }
+          catch (err) { return {type:"tool_result", tool_use_id:u.id, is_error:true, content:String(err?.message||err)}; }
+        }));
+        msgs.push({role:"user", content:results});
+      }
+      return {text};
+    }
+    return run;
+  };
+
+  /* ----- OpenAI (Responses API) ----- */
+  const openai = (key, model) => {
+    const H = {"content-type":"application/json", "authorization":"Bearer "+key};
+    const flags = {reasoning:true, webType:"web_search"};
+    async function call(body, signal){
+      for (let tries=0; tries<3; tries++){
+        const b = Object.assign({}, body);
+        if (flags.reasoning && b._effort) b.reasoning = {effort:b._effort};
+        delete b._effort;
+        if (b.tools) b.tools = b.tools.map(t => t.type==="WEB" ? {type:flags.webType} : t);
+        try { return await http("https://api.openai.com/v1/responses", {method:"POST", headers:H, body:JSON.stringify(b), signal}, "a OpenAI"); }
+        catch (e) {
+          if (e.status===400 && /reasoning/i.test(e.message) && flags.reasoning){ flags.reasoning=false; continue; }
+          if (e.status===400 && /web_search/i.test(e.message) && flags.webType!=="web_search_preview"){ flags.webType="web_search_preview"; continue; }
+          throw e;
+        }
+      }
+    }
+    const outText = res => (res.output||[]).filter(o=>o.type==="message").flatMap(o=>o.content||[]).filter(c=>c.type==="output_text").map(c=>c.text).join("");
+    async function run(turns, {signal, tools=[], modelTier="quick", onText, web=false}={}){
+      const defs = tools.map(t=>({type:"function", name:t.name, description:t.description||"", parameters:t.inputSchema||{type:"object", properties:{}}, strict:false}));
+      if (web) defs.push({type:"WEB"});
+      let input = turns.map(m=>({role:m.role, content:String(m.content)}));
+      let prev = null, text = "";
+      for (let step=0; step<10; step++){
+        const res = await call({model, input, max_output_tokens:modelTier==="quick"?3000:8000, _effort:modelTier==="quick"?"low":"medium", ...(defs.length?{tools:defs}:{}), ...(prev?{previous_response_id:prev}:{})}, signal);
+        const t = outText(res); if (t) { text = t; onText?.({text}); }
+        const calls = (res.output||[]).filter(o=>o.type==="function_call");
+        if (!calls.length) return {text};
+        input = await Promise.all(calls.map(async c => {
+          const tool = tools.find(x=>x.name===c.name);
+          let args = {}; try { args = JSON.parse(c.arguments||"{}"); } catch {}
+          try { const out = tool ? await tool.execute(args, {signal}) : {erro:"ferramenta desconhecida"}; return {type:"function_call_output", call_id:c.call_id, output:JSON.stringify(out ?? {ok:true}).slice(0,20000)}; }
+          catch (err) { return {type:"function_call_output", call_id:c.call_id, output:JSON.stringify({erro:String(err?.message||err)})}; }
+        }));
+        prev = res.id;
+      }
+      return {text};
+    }
+    return run;
+  };
+
+  /* escolhe o melhor modelo da lista que a própria chave enxerga */
+  function pickClaude(ids){
+    const pref = ["claude-opus-5-5","claude-sonnet-5-5","claude-opus-5","claude-sonnet-5","claude-opus-4-8","claude-sonnet-4-6"];
+    return pref.find(x=>ids.includes(x)) || ids.find(x=>/opus|sonnet/.test(x)) || ids[0];
+  }
+  function pickGpt(ids){
+    const v = id => { const m = id.match(/^gpt-(\d+(?:\.\d+)?)$/); return m ? parseFloat(m[1]) : -1; };
+    const best = ids.filter(x=>v(x)>=4).sort((a,b)=>v(b)-v(a))[0];
+    return best || (ids.includes("gpt-4o") ? "gpt-4o" : ids.find(x=>/^gpt-/.test(x)) || "gpt-4o");
+  }
+  async function validate(p, key){
+    if (p==="claude"){
+      const j = await http("https://api.anthropic.com/v1/models?limit=100", {headers:{"x-api-key":key, "anthropic-version":"2023-06-01", "anthropic-dangerous-direct-browser-access":"true"}}, "a Anthropic");
+      const ids = (j.data||[]).map(m=>m.id);
+      const model = pickClaude(ids);
+      // teste real de resposta (também confirma que a conta tem crédito)
+      await anthropic(key, model)([{role:"user", content:"Responda apenas: OK"}], {modelTier:"quick"});
+      return {model, total:ids.length, web:true};
+    } else {
+      const j = await http("https://api.openai.com/v1/models", {headers:{"authorization":"Bearer "+key}}, "a OpenAI");
+      const ids = (j.data||[]).map(m=>m.id);
+      const model = pickGpt(ids);
+      await openai(key, model)([{role:"user", content:"Responda apenas: OK"}], {modelTier:"quick"});
+      return {model, total:ids.length, web:true};
+    }
+  }
+  function client(p, key, model){
+    const run = p==="claude" ? anthropic(key, model) : openai(key, model);
+    const fn = (turns, opts) => run(turns, opts);
+    fn.json = async (prompt, opts={}) => {
+      const {text} = await run([{role:"user", content:prompt+"\n\nResponda apenas com o JSON, sem nenhum texto antes ou depois."}], opts);
+      return parseJSON(text);
+    };
+    fn.web = true;
+    return fn;
+  }
+  return {INFO, validate, client};
+})();
+function connectAI(){
+  if (window.claude?.use) return;
+  const p = cfg?.provider, key = cfg?.keys?.[p];
+  sample = (p && key) ? AI.client(p, key, cfg.model?.[p] || (p==="claude"?"claude-opus-5-5":"gpt-4o")) : null;
+  applyName();
+}
+
+/* ---------- voz nativa no Android (plugins Capacitor) ---------- */
+async function setupNativeVoice(){
+  if (!NATIVE) return;
+  const TTS = plugin("TextToSpeech"), SR = plugin("SpeechRecognition");
+  const LANGS = {"pt-BR":"pt-BR", en:"en-US", es:"es-ES"};
+  if (TTS){
+    let stateCb = null;
+    tts = {
+      async speak(text, {language="pt-BR"}={}){ stateCb?.({state:"speaking"}); try { await TTS.speak({text:String(text), lang:LANGS[language]||language, rate:1.0, pitch:1.0, volume:1.0, category:"playback"}); } finally { stateCb?.({state:"idle"}); } },
+      stop(){ return TTS.stop().catch(()=>{}); },
+      onState(cb){ stateCb = cb; }
+    };
+  }
+  if (SR){
+    const ok = await SR.available().then(r=>r?.available).catch(()=>false);
+    if (!ok) return;
+    let listening=false, last="", cbs={};
+    SR.addListener("partialResults", d=>{ const t=(d?.matches||[])[0]||""; if(!t) return; last=t; cbs.p?.({text:t}); });
+    SR.addListener("listeningState", d=>{
+      if (d?.status==="started"){ listening=true; cbs.s?.({state:"listening"}); }
+      else { listening=false; const t=last; last=""; if (t) cbs.f?.({text:t}); cbs.s?.({state:"idle", reason:"stopped"}); }
+    });
+    dict = {
+      active: () => listening,
+      onPartial(f){ cbs.p=f; }, onFinal(f){ cbs.f=f; }, onState(f){ cbs.s=f; },
+      async start({language="pt-BR"}={}){
+        let perm = await SR.checkPermissions().catch(()=>({}));
+        if (perm.speechRecognition!=="granted") perm = await SR.requestPermissions().catch(()=>({}));
+        if (perm.speechRecognition!=="granted") throw {code:"not_granted"};
+        last="";
+        await SR.start({language, maxResults:1, partialResults:true, popup:false});
+      },
+      async stop(){ await SR.stop(); }
+    };
+    $("#mic").hidden=false;
+    dict.onPartial(({text})=>{ voiceKick=.6+Math.random()*.4; caption(`<span class="you">${esc(text)}</span>`); });
+    dict.onFinal(({text})=>{ voiceKick=.8; heard=text.trim(); caption(`<span class="you">${esc(heard)}</span>`); });
+    dict.onState(({state})=>{
+      if (state==="listening") setMode("listening");
+      if (state==="idle"){ if(mode==="listening") setMode("idle"); const q=heard.trim(); heard=""; if(q) ask(q); }
+    });
+  }
+}
 
 /* ---------- capabilities ---------- */
 (async()=>{
   const c = window.claude;
-  if (!c?.use) return;
+  if (!c?.use){ connectAI(); setupNativeVoice(); return; }
   const [s,t,d] = await Promise.all([c.use("sample"), c.use("tts"), c.use("dictation")]);
   sample=s; tts=t; dict=d;
   c.use("mcp").then(m=>{ mcp=m; }).catch(()=>{});
@@ -1295,6 +2152,8 @@ function activate(){ renderCard(); runBriefing({abertura:true}); }
 
 /* ---------- start ---------- */
 applyName(); renderCard(); renderTicker();
-if (!cfg?.provider) showLogin(); else showBoot();
+if (!cfg?.provider || (!window.claude?.use && !cfg?.keys?.[cfg.provider])) showLogin();
+else if (!cfg.onboarded) { connectAI(); onboarding().then(()=>activate({primeira:true})); }
+else showBoot();
 })();
 </script>
