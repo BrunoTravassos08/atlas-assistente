@@ -1,7 +1,8 @@
+// Gera os PNGs do ícone: node scripts/gerar-icone.js android/app/src/main/res
 const { chromium } = require('playwright'); const fs=require('fs');
 (async()=>{
   const b=await chromium.launch(); const p=await b.newPage();
-  const fg=fs.readFileSync('fg.svg','utf8'), bg=fs.readFileSync('bg.svg','utf8');
+  const fg=fs.readFileSync('assets/icone/frente.svg','utf8'), bg=fs.readFileSync('assets/icone/fundo.svg','utf8');
   const out=process.argv[2];
   const dens={mdpi:1,hdpi:1.5,xhdpi:2,xxhdpi:3,xxxhdpi:4};
   async function shot(html,size,file,transparent){ await p.setViewportSize({width:size,height:size}); await p.setContent(`<html><body style="margin:0;background:transparent">${html}</body></html>`); await p.screenshot({path:file,omitBackground:!!transparent,clip:{x:0,y:0,width:size,height:size}}); }
