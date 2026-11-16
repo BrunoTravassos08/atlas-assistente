@@ -19,6 +19,7 @@ public class MainActivity extends BridgeActivity {
 
     @Override
     public void onCreate(Bundle savedInstanceState) {
+        registerPlugin(AtlasSistema.class);
         super.onCreate(savedInstanceState);
         Window window = getWindow();
         window.getDecorView().setBackgroundColor(Color.parseColor("#040914"));

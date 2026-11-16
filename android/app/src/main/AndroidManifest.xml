@@ -45,6 +45,15 @@
     <!-- Android 11+: permite achar o motor de voz (TTS) e o reconhecimento de fala do aparelho -->
     <queries>
         <intent>
+            <action android:name="android.intent.action.VIEW" />
+            <category android:name="android.intent.category.BROWSABLE" />
+            <data android:scheme="https" />
+        </intent>
+        <package android:name="com.android.chrome" />
+        <package android:name="com.openai.chatgpt" />
+        <package android:name="com.anthropic.claude" />
+        <package android:name="com.android.vending" />
+        <intent>
             <action android:name="android.intent.action.TTS_SERVICE" />
         </intent>
         <intent>
