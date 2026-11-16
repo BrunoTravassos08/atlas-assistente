@@ -1973,7 +1973,7 @@ $("#cnCopy").addEventListener("click", async e=>{
 document.addEventListener("visibilitychange", async ()=>{
   if (document.hidden || $("#connect").hidden || $("#loginView").hidden) return;
   const p=$("#connect").dataset.p, info=AI.INFO[p]; if(!info || $("#cnKey").value.trim()) return;
-  try{ const t=(await navigator.clipboard.readText()||"").trim(); if(t.startsWith(info.prefixo) && t.length>20 && !/\s/.test(t)){ $("#cnKey").value=t; const m=$("#cnMsg"); m.hidden=false; m.className="note"; m.textContent="Chave colada automaticamente. Toque em Conectar."; } }catch{}
+  try{ const t=(await navigator.clipboard.readText()||"").trim(); if((info.prefixos||[info.prefixo]).some(x=>t.startsWith(x)) && t.length>20 && !/\s/.test(t)){ $("#cnKey").value=t; const m=$("#cnMsg"); m.hidden=false; m.className="note"; m.textContent="Chave colada automaticamente. Toque em Conectar."; } }catch{}
 });
 $("#cnPaste").addEventListener("click", async ()=>{ try{ const t=await navigator.clipboard.readText(); if(t) $("#cnKey").value=t.trim(); }catch{ $("#cnKey").focus(); } });
 $("#cnForm").addEventListener("submit", async e=>{
@@ -1985,10 +1985,11 @@ $("#cnForm").addEventListener("submit", async e=>{
   go.disabled=true; go.textContent="Verificando…"; msgEl.hidden=false; msgEl.className="note"; msgEl.textContent="Verificando a chave com "+AI.INFO[p].empresa+"…";
   let check;
   try{ check = await AI.validate(p, key); }
-  catch(err){ return fail(err?.userMsg || "Não consegui verificar a chave. Confira a internet e tente de novo."); }
+  catch(err){ fail(err?.userMsg || "Não consegui verificar a chave. Confira a internet e tente de novo."); if(err?.detalhe){ const d=document.createElement("small"); d.style.cssText="display:block;margin-top:6px;opacity:.85;word-break:break-word"; d.textContent="Resposta de "+AI.INFO[p].empresa.replace(/^(a|o) /,"")+": "+err.detalhe; msgEl.appendChild(d); } return; }
   cfg = Object.assign({voice:"buttery", speak:true}, cfg||{}, {provider:p, user:$("#uName").value.trim(), name:($("#aName").value.trim()||"ATLAS").toUpperCase()});
   cfg.keys = Object.assign({}, cfg.keys, {[p]:key});
   cfg.model = Object.assign({}, cfg.model, {[p]:check.model});
+  if (check.auth) cfg.gemAuth = check.auth;
   delete cfg.agent;
   store.set("cfg", cfg); applyName(); renderTicker();
   go.disabled=false; go.textContent="Conectar";
@@ -2164,15 +2165,17 @@ const AI = (() => {
       passos:["Toque em <b>Abrir no navegador</b>. O Console da Anthropic abre no navegador do celular.", "Entre com a <b>mesma conta do Claude</b>.", "Toque em <b>Create Key</b>, dê um nome (ex.: Atlas) e confirme.", "Copie a chave, volte para o Atlas e toque em <b>Colar</b>."],
       ajuda:`A Anthropic não deixa outros apps entrarem pelo login do Claude, nem pelo app do Claude. A ligação é feita com uma <b>chave de API</b>, que só é criada no Console da Anthropic. Leva um minuto. A API é cobrada à parte da assinatura: a conta precisa ter crédito em <b>Billing</b>.`},
   };
-  INFO.gemini = {nome:"Gemini", empresa:"o Google", pagina:"Google AI Studio", prefixo:"AIza", url:"https://aistudio.google.com/apikey", site:"aistudio.google.com/apikey", app:"gemini", appNome:"Gemini",
-    passos:["Toque em <b>Abrir no navegador</b>. O Google AI Studio abre no navegador do celular.", "Entre com sua <b>conta Google</b> (a mesma do Gmail) e aceite os termos, se pedir.", "Toque em <b>Create API key</b> (ou Criar chave de API). Se pedir um projeto, escolha o que aparecer ou crie um.", "Copie a chave (começa com <b>AIza</b>), volte para o Atlas e toque em <b>Colar</b>."],
+  INFO.gemini = {nome:"Gemini", empresa:"o Google", pagina:"Google AI Studio", prefixo:"AQ.", prefixos:["AQ.","AIza"], url:"https://aistudio.google.com/apikey", site:"aistudio.google.com/apikey", app:"gemini", appNome:"Gemini",
+    passos:["Toque em <b>Abrir no navegador</b>. O Google AI Studio abre no navegador do celular.", "Entre com sua <b>conta Google</b> (a mesma do Gmail) e aceite os termos, se pedir.", "Toque em <b>Create API key</b> (ou Criar chave de API). Se pedir um projeto, escolha o que aparecer ou crie um.", "Toque no <b>ícone de copiar</b> ao lado da chave (ela começa com <b>AQ.</b> ou <b>AIza</b>), volte para o Atlas e toque em <b>Colar</b>."],
     ajuda:`O Gemini tem <b>plano gratuito</b>: a chave é criada no Google AI Studio com sua conta Google, <b>sem cartão</b>. O plano grátis tem um limite de uso por minuto e por dia; quando acabar, o Atlas avisa e volta a funcionar depois. O app do Gemini não cria a chave: ela só sai pelo site.`};
   const ERR = (status, j, empresa) => {
     const m = String(j?.error?.message || j?.message || "");
     const code = j?.error?.status || j?.error?.code || j?.error?.type || "";
     const e = new Error(m || ("HTTP "+status)); e.status=status; e.apiCode=code;
+    const motivo = (j?.error?.details||[]).map(d=>d?.reason).filter(Boolean)[0] || "";
+    e.detalhe = `${status}${code?" "+code:""}${motivo?" · "+motivo:""}${m?" · "+m.slice(0,220):""}`;
     if (empresa==="o Google"){
-      if (/API key not valid|API_KEY_INVALID|API key expired/i.test(m) || status===401 || (status===403 && !/billing|region|location/i.test(m))) { e.code="auth"; e.userMsg="O Google recusou a chave. Confira se copiou a chave inteira (começa com AIza), ou crie uma nova no AI Studio."; }
+      if (/API key not valid|API_KEY_INVALID|API key expired/i.test(m) || status===401 || (status===403 && !/billing|region|location/i.test(m))) { e.code="auth"; e.userMsg="O Google recusou a chave. Confira se copiou a chave inteira pelo ícone de copiar do AI Studio, ou crie uma nova."; }
       else if (status===429 || code==="RESOURCE_EXHAUSTED") { e.code="rate_limited"; e.userMsg = /per ?day|daily|PerDay/i.test(m) ? "O limite grátis de hoje do Gemini acabou. Ele renova por volta das 4h ou 5h da manhã (horário de Brasília). Se quiser usar sem limite, ative o faturamento no AI Studio." : "O plano grátis do Gemini permite poucos pedidos por minuto. Aguarde uns 30 segundos e tente de novo."; }
       else if (/location|region|not supported in your country/i.test(m)) { e.code="api"; e.userMsg="O Gemini não está disponível nesta região para esta chave."; }
       else if (status>=500) { e.code="server"; e.userMsg="O servidor do Gemini está instável agora. Tente de novo em instantes."; }
@@ -2306,8 +2309,10 @@ const AI = (() => {
     if (o.type==="object" && (!o.properties || !Object.keys(o.properties).length)) { o.properties = {texto:{type:"string"}}; delete o.required; }
     return o;
   };
-  const gemini = (key, model) => {
-    const H = {"content-type":"application/json", "x-goog-api-key":key};
+  const gemini = (key, model, auth="header") => {
+    // chaves novas do AI Studio ("AQ.", chaves de autenticação) e antigas ("AIza") vão no cabeçalho x-goog-api-key; ?key= fica como alternativa
+    const H = auth==="query" ? {"content-type":"application/json"} : {"content-type":"application/json", "x-goog-api-key":key};
+    const Q = auth==="query" ? `?key=${encodeURIComponent(key)}` : "";
     const flags = {thinking:"level"};
     async function call(body, signal){
       for (let tries=0; tries<3; tries++){
@@ -2315,7 +2320,7 @@ const AI = (() => {
         b.generationConfig = Object.assign({}, b.generationConfig);
         if (flags.thinking==="level") b.generationConfig.thinkingConfig = {thinkingLevel: q?"low":"medium"};
         else if (flags.thinking==="budget") b.generationConfig.thinkingConfig = {thinkingBudget: q?0:2048};
-        try { const r = await http(`${GBASE}/models/${encodeURIComponent(model)}:generateContent`, {method:"POST", headers:H, body:JSON.stringify(b), signal}, "o Google");
+        try { const r = await http(`${GBASE}/models/${encodeURIComponent(model)}:generateContent${Q}`, {method:"POST", headers:H, body:JSON.stringify(b), signal}, "o Google");
           const u = r.usageMetadata||{}, q = r.candidates?.[0]?.groundingMetadata?.webSearchQueries?.length||0;
           hooks.usage?.({p:"gemini", model, inTok:u.promptTokenCount||0, outTok:(u.candidatesTokenCount||0)+(u.thoughtsTokenCount||0), buscas: q ? (/gemini-[3-9]/.test(model) ? q : 1) : 0});
           return r; }
@@ -2385,12 +2390,25 @@ const AI = (() => {
   }
   async function validate(p, key){
     if (p==="gemini"){
-      const j = await http(`${GBASE}/models?pageSize=200`, {headers:{"x-goog-api-key":key}}, "o Google");
-      const ids = (j.models||[]).filter(m=>(m.supportedGenerationMethods||[]).includes("generateContent")).map(m=>String(m.name).replace(/^models\//,""));
+      // 1) lista de modelos (se a chave não puder listar, segue com a lista padrão)
+      let ids = [];
+      try {
+        const j = await http(`${GBASE}/models?pageSize=200`, {headers:{"x-goog-api-key":key}}, "o Google");
+        ids = (j.models||[]).filter(m=>(m.supportedGenerationMethods||[]).includes("generateContent")).map(m=>String(m.name).replace(/^models\//,""));
+      } catch (e) { if (e.code==="network") throw e; }
+      const modelos = ids.length ? pickGemini(ids).slice(0,4) : ["gemini-flash-latest","gemini-2.5-flash","gemini-3-flash-preview","gemini-2.0-flash"];
+      // 2) pedido real; se a chave for recusada no cabeçalho, tenta como ?key=
       let last;
-      for (const model of pickGemini(ids).slice(0,4)){
-        try { await gemini(key, model)([{role:"user", content:"Responda apenas: OK"}], {modelTier:"quick"}); return {model, total:ids.length, web:true}; }
-        catch (e) { last = e; if (e.code==="auth") throw e; }
+      for (const auth of ["header","query"]){
+        for (const model of modelos){
+          try { await gemini(key, model, auth)([{role:"user", content:"Responda apenas: OK"}], {modelTier:"quick"}); return {model, total:ids.length, web:true, auth}; }
+          catch (e) {
+            last = e;
+            if (e.code==="network" || e.code==="cancelled") throw e;
+            if (e.code==="rate_limited") return {model, total:ids.length, web:true, auth, aviso:e.userMsg};   // a chave funciona; só o limite grátis acabou
+            if (e.code==="auth") break;   // mesma resposta para qualquer modelo: tenta o outro jeito de enviar a chave
+          }
+        }
       }
       throw last || Object.assign(new Error("modelo"),{code:"api", userMsg:"Não achei um modelo do Gemini disponível para esta chave."});
     }
@@ -2409,8 +2427,8 @@ const AI = (() => {
       return {model, total:ids.length, web:true};
     }
   }
-  function client(p, key, model){
-    const run = p==="claude" ? anthropic(key, model) : p==="gemini" ? gemini(key, model) : openai(key, model);
+  function client(p, key, model, opts={}){
+    const run = p==="claude" ? anthropic(key, model) : p==="gemini" ? gemini(key, model, opts.auth||"header") : openai(key, model);
     const fn = (turns, opts) => { hooks.guard?.(); return run(turns, opts); };
     fn.json = async (prompt, opts={}) => {
       hooks.guard?.();
@@ -2427,7 +2445,7 @@ AI.hooks.guard = checarLimite;
 function connectAI(){
   if (window.claude?.use) return;
   const p = cfg?.provider, key = cfg?.keys?.[p];
-  sample = (p && key) ? AI.client(p, key, cfg.model?.[p] || (p==="claude"?"claude-opus-5-5":p==="gemini"?"gemini-flash-latest":"gpt-4o")) : null;
+  sample = (p && key) ? AI.client(p, key, cfg.model?.[p] || (p==="claude"?"claude-opus-5-5":p==="gemini"?"gemini-flash-latest":"gpt-4o"), {auth: p==="gemini" ? (cfg.gemAuth||"header") : undefined}) : null;
   applyName();
 }
 
