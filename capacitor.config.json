@@ -1,0 +1,8 @@
+{
+  "appId": "br.com.atlas.assistente",
+  "appName": "Atlas",
+  "webDir": "www",
+  "android": {
+    "backgroundColor": "#02040a"
+  }
+}

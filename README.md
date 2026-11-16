@@ -22,6 +22,18 @@ O arquivo `index.html` foi feito para rodar como Artifact no claude.ai. Lá ele 
 
 Aberto direto no navegador ou no GitHub Pages, a interface, as animações e o editor de PDF funcionam. A IA e a voz da plataforma ficam em modo offline.
 
+## App Android (APK de teste)
+
+**Baixar a versão mais recente:** https://github.com/BrunoTravassos08/atlas-assistente/releases/latest/download/Atlas.apk
+
+O app empacota o `index.html` com o [Capacitor](https://capacitorjs.com). A cada push na `main`, o workflow `.github/workflows/android-apk.yml` compila o APK e publica um novo Release. Também dá para rodar manualmente em **Actions → APK Android → Run workflow**.
+
+Para instalar: abra o link no celular, baixe o `Atlas.apk`, toque no arquivo e permita "instalar apps desconhecidos". As versões seguintes instalam por cima.
+
+Limitações desta primeira versão: a IA, a voz e a busca de notícias dependem dos recursos do claude.ai e ficam em modo offline dentro do app até a integração com as APIs. Interface, animações e editor de PDF funcionam.
+
+Para compilar no computador: `npm install`, `npm run sync` e depois `cd android && ./gradlew assembleDebug` (precisa de Java 21 e Android SDK).
+
 ## Próximos passos (app Android)
 
 - Integração real com as APIs da OpenAI e da Anthropic, usando a chave ou o login do usuário

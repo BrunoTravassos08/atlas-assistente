@@ -1,0 +1,67 @@
+name: APK Android
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+concurrency:
+  group: apk-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v5
+
+      - uses: actions/setup-node@v5
+        with:
+          node-version: 22
+          cache: npm
+
+      - uses: actions/setup-java@v5
+        with:
+          distribution: temurin
+          java-version: 21
+          cache: gradle
+
+      # O runner ubuntu-latest já traz o Android SDK (ANDROID_HOME); o Gradle baixa o que faltar.
+      - name: Instalar dependências
+        run: npm ci
+
+      - name: Copiar o protótipo para o app
+        run: npm run sync
+
+      - name: Compilar APK
+        working-directory: android
+        run: |
+          chmod +x gradlew
+          ./gradlew assembleDebug --no-daemon --stacktrace
+          cp app/build/outputs/apk/debug/app-debug.apk ../Atlas.apk
+
+      - name: Guardar APK no build
+        uses: actions/upload-artifact@v5
+        with:
+          name: Atlas-apk
+          path: Atlas.apk
+
+      - name: Publicar no GitHub Releases
+        if: github.event_name != 'pull_request' && github.ref == 'refs/heads/main'
+        uses: softprops/action-gh-release@v2
+        with:
+          tag_name: v0.1.${{ github.run_number }}
+          name: Atlas 0.1.${{ github.run_number }} (teste)
+          make_latest: true
+          files: Atlas.apk
+          body: |
+            APK de teste do Atlas, gerado automaticamente a partir do commit ${{ github.sha }}.
+
+            **Como instalar:** baixe o `Atlas.apk` abaixo no celular, abra o arquivo e permita "instalar apps desconhecidos" quando o Android pedir.
+            As próximas versões instalam por cima, sem precisar desinstalar.
+
+            Link fixo para a versão mais recente: https://github.com/${{ github.repository }}/releases/latest/download/Atlas.apk
