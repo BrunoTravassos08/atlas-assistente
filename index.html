@@ -1318,6 +1318,24 @@ function browse(url, max=2500){
 }
 
 let briefingBusy=false, pendingBriefing=false;
+// uma etapa curta do briefing: uma busca na web, uma resposta pequena em JSON, com prazo próprio
+async function etapaWeb(prompt, ms=40000){
+  const ctl=new AbortController(); const tm=setTimeout(()=>ctl.abort(), ms); const t0=Date.now();
+  try{
+    for(let tent=0; tent<2; tent++){
+      try{ return await sample.json(prompt,{modelTier:"quick", web:true, signal:ctl.signal}); }
+      catch(e){ if(e?.code==="rate_limited" && tent===0 && Date.now()-t0<ms-8000){ await sleep(6000); continue; } throw e; }
+    }
+  } catch(e){ if(ctl.signal.aborted) throw Object.assign(new Error("timeout"),{code:"timeout"}); throw e; }
+  finally{ clearTimeout(tm); }
+}
+const promptTopico = (t, cidade) => `Pesquise na web as notícias de HOJE (ou das últimas 48 horas) sobre: ${t.q || t.nome}.${cidade?` O usuário mora em ${cidade}.`:""}
+Ignore resultados que não sejam sobre o assunto. Use só o que encontrar; nunca invente número ou placar. Responda SOMENTE com JSON, curto:
+{"fala": "1 a 2 frases curtas com a manchete mais importante, para ser lida em voz alta", "resumo": "1 frase", "manchetes": [{"titulo": "...", "fonte": "...", "quando": "ex.: há 8 h"}],
+ "numeros": "opcional, só números presentes nos resultados: [{\"rotulo\": \"...\", \"valor\": \"...\", \"unidade\": \"...\", \"variacao\": \"+1,2%\"}], até 4",
+ "placar": "SOMENTE se o assunto for um time e houver jogo recente: {\"competicao\": \"...\", \"status\": \"encerrado\", \"mandante\": {\"nome\": \"...\", \"sigla\": \"3 letras\", \"gols\": 0, \"cor_primaria\": \"#hex\", \"cor_secundaria\": \"#hex\"}, \"visitante\": {...}}; senão omita"}
+No máximo 3 manchetes.`;
+const promptClima = cidade => `Pesquise na web a previsão do tempo de HOJE em ${cidade}. Responda SOMENTE com JSON: {"cidade": "${cidade}", "temperatura": 29, "minima": 24, "maxima": 31, "condicao": "ensolarado", "chuva": 20, "fala": "1 frase curta"}`;
 async function runBriefing({abertura=false}={}){
   if(briefingBusy) return; briefingBusy=true;
   const h=new Date().getHours(), per=h<12?"Bom dia":h<18?"Boa tarde":"Boa noite";
@@ -1344,11 +1362,32 @@ async function runBriefing({abertura=false}={}){
     }
   }
   const webBusca = !textos.length && !!sample?.web;
-  const aoVivo = textos.length>0 || webBusca;
+  let aoVivo = textos.length>0 || webBusca;
   try{
     if(!sample) throw {code:"offline"};
     const next=tasks.filter(t=>!t.feito).sort((a,b)=>(a.hora||"").localeCompare(b.hora||""));
     const cidade = cfg.perfil?.cidade || "";
+    let r;
+    if (webBusca){
+      // um pedido curto por assunto, 3 de cada vez; cada assunto aparece pronto assim que chega
+      const resultados = new Array(ts.length).fill(null); let clima = null, fila = ts.map((t,i)=>i);
+      const trabalhador = async () => { while(fila.length){ const i=fila.shift();
+        highlight.topicos[i].status="buscando"; if(tab==="destaque") renderCard();
+        try{ const x = await etapaWeb(promptTopico(ts[i], cidade)); resultados[i]=Object.assign({assunto:ts[i].nome}, x); highlight.topicos[i].status="ok"; }
+        catch(e){ highlight.topicos[i].status = e?.code==="timeout" ? "demorou" : e?.code==="rate_limited" ? "limite" : "falhou"; console.warn("briefing", ts[i].nome, e?.code, e?.detalhe||e?.message); }
+        $("#state").textContent=`Notícias: ${highlight.topicos.filter(x=>x.status!=="na fila"&&x.status!=="buscando").length} de ${ts.length}`;
+        if(tab==="destaque") renderCard(); } };
+      const climaP = cidade ? etapaWeb(promptClima(cidade), 30000).then(x=>{ clima=x; }).catch(()=>{}) : Promise.resolve();
+      await Promise.all([trabalhador(), trabalhador(), trabalhador(), climaP]);
+      const ok = resultados.filter(Boolean);
+      if(!ok.length) throw {code:"sem_noticias"};
+      aoVivo = true;
+      const prox = next[0];
+      r = {topicos: ok, clima: clima && clima.temperatura!=null ? clima : null,
+        abertura: `Separei as notícias de ${ok.length} ${ok.length>1?"assuntos":"assunto"}${next.length?` e você tem ${next.length} ${next.length>1?"compromissos":"compromisso"} hoje`:""}.`,
+        agenda_fala: next.length ? `Seu próximo compromisso é ${prox.titulo}${prox.hora?` às ${prox.hora}`:""}.` : "Sua agenda de hoje está livre.",
+        encerramento: (ok.length<ts.length ? `Não consegui as notícias de ${ts.length-ok.length} ${ts.length-ok.length>1?"assuntos":"assunto"} agora. ` : "") + "Posso ajudar com mais alguma coisa?"};
+    } else {
     const prompt = `Você é ${cfg.name}, assistente pessoal estilo J.A.R.V.I.S. do ${cfg.user||"usuário"}. Português do Brasil.
 Agora: ${new Date().toLocaleString("pt-BR",{weekday:"long",day:"2-digit",month:"long",hour:"2-digit",minute:"2-digit"})}.
 Agenda pendente de hoje: ${JSON.stringify(next.map(t=>({hora:t.hora,titulo:t.titulo})))}
@@ -1366,7 +1405,8 @@ Monte o briefing de abertura. Ele vira uma apresentação animada, cartão por c
    "placar": "SOMENTE se o assunto for um time e houver jogo recente nos resultados: {\"competicao\": \"...\", \"status\": \"encerrado\", \"mandante\": {\"nome\": \"...\", \"sigla\": \"3 letras\", \"gols\": 0, \"cor_primaria\": \"#hex\", \"cor_secundaria\": \"#hex\"}, \"visitante\": {...}, \"estatisticas\": [{\"nome\": \"Posse de bola\", \"mandante\": 55, \"visitante\": 45, \"unidade\": \"%\"}]}; senão omita"}],
  "encerramento": "1 frase perguntando de forma natural se pode ajudar com mais alguma coisa"}
 No máximo 3 manchetes por assunto. Use só informação presente nos resultados.`;
-    const r = await sample.json(prompt,{modelTier:"quick", web:webBusca});
+    r = await sample.json(prompt,{modelTier:"quick", web:false});
+    }
     const tops=(r.topicos||[]).slice(0,8).map(t=>({assunto:String(t.assunto||""), fala:String(t.fala||""), resumo:String(t.resumo||""), manchetes:(Array.isArray(t.manchetes)?t.manchetes:[]).slice(0,3).map(m=>({titulo:String(m.titulo||""), fonte:String(m.fonte||""), quando:String(m.quando||"")})), numeros:Array.isArray(t.numeros)?t.numeros.slice(0,4):null, placar:(t.placar&&typeof t.placar==="object"&&t.placar.mandante&&t.placar.visitante)?t.placar:null}));
     const next2=tasks.filter(t=>!t.feito);
     const slides=[];
@@ -1392,8 +1432,8 @@ No máximo 3 manchetes por assunto. Use só informação presente nos resultados
     highlight.run=false; renderCard();
     await helloP;
     if(e?.code==="not_granted") caption("<em>Preciso da sua permissão para usar o Claude. Toque no núcleo e permita.</em>");
-    else if(abertura) { briefingBusy=false; return ask("", {greeting:true}); }
-    else caption("<em>Não consegui montar o briefing agora. Tente de novo.</em>");
+    else if(abertura && e?.code!=="sem_noticias") { briefingBusy=false; return ask("", {greeting:true}); }
+    else caption(`<em>${esc(e?.code==="sem_noticias" ? "Não consegui buscar as notícias agora: a IA não respondeu a tempo para nenhum assunto. Confira a internet e toque em Atualizar notícias." : e?.userMsg || "Não consegui montar o briefing agora. Tente de novo.")}</em>`);
   }finally{ briefingBusy=false; if(mode!=="listening") setMode("idle"); }
 }
 function renderBriefing(h){
@@ -1699,7 +1739,8 @@ Pedido: ${pergunta}
 Responda SOMENTE com JSON neste formato:
 {"titulo": "título curto", "resumo": "2 a 3 frases com a resposta direta", "pontos": ["3 a 6 pontos-chave objetivos"], "secoes": [{"titulo": "...", "texto": "1 parágrafo"}], "fontes": ["tipos de fontes ou referências conhecidas onde isso pode ser conferido"], "verificar": ["o que conferir em fonte atualizada"], "confianca": "alta | média | baixa"}`;
   try{
-    const r = await sample.json(prompt, {modelTier:"default", signal, web:!web && !!sample?.web});
+    // no Gemini o modo "rápido" com busca responde bem mais depressa (o grátis pensa devagar no modo completo)
+    const r = await sample.json(prompt, {modelTier: cfg.provider==="gemini" ? "quick" : "default", signal, web:!web && !!sample?.web});
     highlight = {tipo:"pesquisa", web:!!web || !!sample?.web, titulo:String(r.titulo||pergunta).slice(0,120), pergunta, resumo:String(r.resumo||""), pontos:(r.pontos||[]).slice(0,6).map(String), secoes:(r.secoes||[]).slice(0,5), fontes:(r.fontes||[]).slice(0,6).map(String), verificar:(r.verificar||[]).slice(0,4).map(String), confianca:String(r.confianca||""), em:new Date().toISOString()};
     store.set("hl",highlight); tab="destaque"; renderCard(); renderTicker();
     return {resumo:highlight.resumo, pontos:highlight.pontos, confianca:highlight.confianca};
