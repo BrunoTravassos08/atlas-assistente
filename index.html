@@ -321,6 +321,21 @@ textarea.inp{height:auto;padding:8px 12px;resize:vertical;font:inherit}
 @keyframes fade{to{opacity:1}}
 @keyframes seg{to{stroke-dasharray:var(--len) 999}}
 
+/* ---------- música: tocando agora ---------- */
+.musica{display:grid;grid-template-columns:auto 1fr;gap:16px;align-items:center;margin-top:6px}
+.disco{position:relative;width:96px;height:96px;border-radius:50%;background:repeating-radial-gradient(circle,#0b1424 0 2px,#111d33 2px 4px);box-shadow:0 0 0 2px rgba(67,217,255,.25),0 0 24px var(--mc,#1ed760);animation:spin 3.2s linear infinite}
+.disco::after{content:"";position:absolute;inset:34px;border-radius:50%;background:var(--mc,#1ed760);box-shadow:inset 0 0 0 6px rgba(0,0,0,.35)}
+.musica.pausado .disco,.musica.pausado .eq i{animation-play-state:paused}
+.eq{display:flex;align-items:flex-end;gap:3px;height:26px;margin:8px 0 2px}
+.eq i{width:5px;background:var(--mc,#1ed760);border-radius:2px;animation:eq 1s ease-in-out infinite alternate;box-shadow:0 0 8px var(--mc,#1ed760)}
+.eq i:nth-child(2){animation-delay:-.4s}.eq i:nth-child(3){animation-delay:-.7s}.eq i:nth-child(4){animation-delay:-.2s}.eq i:nth-child(5){animation-delay:-.9s}.eq i:nth-child(6){animation-delay:-.5s}
+@keyframes eq{from{height:4px}to{height:26px}}
+.musica h3{margin:0}
+.musica .app{font-family:var(--f-hud);font-size:12px;letter-spacing:.12em;color:var(--mc,#1ed760);text-transform:uppercase}
+.ctrl{display:flex;gap:8px;margin-top:12px;flex-wrap:wrap}
+.ctrl button{flex:1;min-width:44px;min-height:44px;border:1px solid var(--line-hi);background:rgba(67,217,255,.06);color:var(--fg);font-size:18px;cursor:pointer}
+.ctrl button.main{background:var(--mc,#1ed760);color:#04140a;border-color:transparent;font-weight:700}
+
 /* ---------- apresentação: cartões que entram, passam e saem ---------- */
 .slide{animation:sIn .6s cubic-bezier(.2,.8,.2,1) both}
 .slide>*{animation:rise .55s cubic-bezier(.2,.8,.2,1) both}
@@ -561,6 +576,7 @@ const NATIVE = !!window.Capacitor?.isNativePlatform?.();
 const plugin = name => (NATIVE && window.Capacitor?.registerPlugin) ? window.Capacitor.registerPlugin(name) : null;
 /* links: abre no navegador de verdade do aparelho (não numa aba interna) */
 const SIS = plugin("AtlasSistema");
+let appsMusica = null;
 let sisInfo = null;
 async function infoSistema(){ if(!SIS) return null; try{ sisInfo = await SIS.info(); }catch{ sisInfo = null; } return sisInfo; }
 const CHROMIUM_MIN = 110; // a página da OpenAI quebra ("throwIfAborted is not a function") em Chrome antigo
@@ -1032,6 +1048,7 @@ function renderCard(){
       <div class="row"><span class="sub">Rotina: ${cfg.rotina?`briefing às <b style="color:var(--fg)">${esc(cfg.rotina.hora)}</b>${cfg.rotina.dias==="uteis"?", seg a sex":", todos os dias"}${cfg.rotina.lembrete?" · com aviso":""}`:"não configurada"}</span><button class="btn-line" data-act="onboarding" type="button">Refazer configuração</button></div>
       <div><span class="lbl">Skills instaladas</span><div class="chips">${(cfg.agent?.skills||["Agenda","Destaques","Tradução PT/EN/ES","PDF: ler e padronizar","Pesquisa avançada","Briefing de notícias","Tutor de estudos"]).map(x=>`<span>✓ ${x}</span>`).join("")}</div></div>
       <div class="row"><span class="sub">Conversa salva: ${history.length} mensagens</span><button class="btn-line" data-act="limpar" type="button">Limpar conversa</button></div>
+      ${NATIVE?`<div class="row"><label class="lbl" for="sMus" style="margin:0">App de música</label><select class="inp" id="sMus" style="width:auto"><option value="">Automático</option>${(appsMusica||[]).map(a=>`<option value="${esc(a.id)}" ${cfg.musicaApp===a.id?"selected":""}>${esc(a.nome)}</option>`).join("")}</select></div>`:""}
       <div class="row"><label class="lbl" for="sFx" style="margin:0">Efeitos visuais</label><select class="inp" id="sFx" style="width:auto"><option value="leve" ${FX.lite?"selected":""}>Leve (recomendado)</option><option value="completo" ${FX.lite?"":"selected"}>Completo</option></select></div>
       ${cfg.agent?`<div class="sub">Modelo: <b style="color:var(--fg)">${esc(cfg.model?.[cfg.provider]||cfg.agent.id)}</b><br>Conectado em ${new Date(cfg.agent.criadoEm).toLocaleString("pt-BR")}</div>`:""}
       <div class="row"><span class="sub">Conectado: <b style="color:var(--cyan)">${sample?PROV[cfg.provider]:"nenhuma IA"}</b></span><button class="btn-line warn" id="logout" type="button">Trocar IA</button></div>
@@ -1047,6 +1064,7 @@ $("#card").addEventListener("click", e=>{
   if(act==="desfazer" && pdfUndo.length){ const u=pdfUndo.pop(); Object.assign(pdf,{bytes:u.bytes,pages:u.pages,ops:u.ops}); renderCard(); renderThumbs(); }
   if(act==="baixar") pdfDownload();
   if(act==="briefing") runBriefing();
+  if(act?.startsWith("mus-")) controleMusica(act.slice(4)).catch(err=>caption(`<em>${esc(err.message)}</em>`));
   if(highlight.tipo==="apresentacao"){
     const k=e.target.closest("[data-story]")?.dataset.story;
     if(k!=null) storyManual(+k);
@@ -1075,6 +1093,7 @@ $("#card").addEventListener("change", e=>{
   if(id==="sVoice") cfg.voice=e.target.value;
   if(id==="sSpeak") cfg.speak=e.target.checked;
   if(id==="sFx"){ cfg.fx=e.target.value; store.set("cfg",cfg); applyFx(); }
+  if(id==="sMus"){ cfg.musicaApp=e.target.value; store.set("cfg",cfg); }
   if(id==="sTopics"){ setTimeout(agendarLembrete,0); const old=topics(); cfg.interesses=e.target.value.split("\n").map(x=>x.trim()).filter(Boolean).slice(0,8).map(n=>old.find(o=>o.nome===n)||{nome:n,q:n}); }
   store.set("cfg",cfg);
 });
@@ -1102,6 +1121,7 @@ O usuário pode te chamar pelo nome por voz ("${cfg.name}, ..."); a mensagem del
 Você controla um painel (HUD). Use as ferramentas quando fizer sentido:
 - adicionar_tarefa / concluir_tarefa / remover_tarefa para a agenda do dia.
 - mostrar_destaque para exibir um cartão com título, um valor grande (número, porcentagem, horário) e itens curtos. Use sempre que a resposta tiver um número ou dado-chave, um resumo, ou uma lista.
+MÚSICA: para tocar algo use tocar_musica (responda curto, a música já vai começar); para pausar, pular ou mudar o volume use controlar_musica.
 O USUÁRIO É MUITO VISUAL, EM QUALQUER ASSUNTO (não só esporte): quase toda resposta deve aparecer no painel além de ser falada, da mais simples à mais complexa. Resposta com mais de uma parte (o dia de hoje, resumo, comparação, passo a passo, notícias, finanças, saúde, viagem) → apresentar, com 2 a 6 cartões variados (numeros, grafico, agenda, clima, noticias, placar, destaque). "O que temos para hoje?", "bom dia" ou "novidades" → briefing_noticias. Placar ou resultado de jogo → mostrar_placar (com cores dos uniformes, gols e estatísticas que encontrar). Três ou mais números comparáveis ou uma evolução no tempo → mostrar_grafico. Um único dado-chave → mostrar_destaque. Para fatos atuais (placares, tabela, cotações, clima, resultados) use a busca na web antes, quando disponível. Nunca invente placar, estatística ou número: se não encontrar, diga que não achou.
 SKILLS:
 1. Tradução (português, inglês, espanhol): quando pedirem para traduzir, ou perguntarem como se diz algo em outro idioma, chame mostrar_traducao com o texto completo traduzido de forma natural. Na sua resposta falada diga só uma frase curta em português (ex.: "Aqui está em inglês."); o app lê a tradução em voz alta no idioma certo.
@@ -1476,6 +1496,25 @@ function limparCartao(c){
   return o;
 }
 
+/* ---------- música ---------- */
+const COR_APP = {spotify:"#1ed760", ytmusic:"#ff3d3d", youtube:"#ff3d3d", deezer:"#a238ff", soundcloud:"#ff7700", amazon:"#25d1da"};
+let musicaPausada=false;
+function renderMusica(h){
+  const cor=COR_APP[h.app]||"#43d9ff";
+  return `<div class="eyebrow">Tocando agora${h.nome?` · ${esc(h.nome)}`:""}</div>
+    <div class="musica${musicaPausada?" pausado":""}" style="--mc:${cor}"><div class="disco"></div>
+      <div><div class="app">${esc(h.nome||"Música")}</div><h3>${esc(h.busca||"")}</h3><div class="eq"><i></i><i></i><i></i><i></i><i></i><i></i></div>
+      ${h.metodo==="busca"?`<p class="sub" style="margin:4px 0 0">Abri a busca no ${esc(h.nome||"app")}. Toque na música para começar.</p>`:""}</div></div>
+    <div class="ctrl" style="--mc:${cor}"><button type="button" data-act="mus-anterior" aria-label="Anterior">⏮</button><button type="button" class="main" data-act="mus-alternar" aria-label="Pausar ou continuar">${musicaPausada?"▶":"⏸"}</button><button type="button" data-act="mus-proxima" aria-label="Próxima">⏭</button><button type="button" data-act="mus-diminuir_volume" aria-label="Diminuir volume">🔉</button><button type="button" data-act="mus-aumentar_volume" aria-label="Aumentar volume">🔊</button></div>`;
+}
+async function controleMusica(acao){
+  if(!SIS) throw new Error("Os controles de música funcionam no app Android.");
+  const r=await SIS.controleMidia({acao});
+  if(acao==="pausar") musicaPausada=true; else if(acao==="continuar"||acao==="proxima"||acao==="anterior") musicaPausada=false; else if(acao==="alternar") musicaPausada=!musicaPausada;
+  if(highlight.tipo==="musica" && tab==="destaque") renderCard();
+  return r;
+}
+
 const RESEARCH_STEPS = ["Decompondo a pergunta","Levantando dados e fontes","Cruzando informações","Verificando consistência","Escrevendo o relatório"];
 let researchTimer=null;
 async function research(pergunta, signal){
@@ -1510,6 +1549,7 @@ function renderHighlight(h){
   if(h.tipo==="placar") return renderPlacar(h);
   if(h.tipo==="grafico") return renderGrafico(h);
   if(h.tipo==="apresentacao" && h.slides?.length) return renderStory(h);
+  if(h.tipo==="musica") return renderMusica(h);
   if(h.tipo==="pesquisa"){
     if(h.run) return `<div class="eyebrow">Pesquisa avançada</div><h3>${esc(h.titulo)}</h3><ul class="su-steps">${RESEARCH_STEPS.map((s,i)=>`<li class="${i<h.etapa?"ok":i===h.etapa?"run":""}">${s}</li>`).join("")}</ul>`;
     const conf={alta:"var(--green)", "média":"var(--amber)", media:"var(--amber)", baixa:"var(--red)"}[h.confianca?.toLowerCase()]||"var(--fg-dim)";
@@ -1546,7 +1586,21 @@ const CARTAO_SCHEMA = {type:"object", properties:{
   resumo:{type:"string"}, manchetes:{type:"array", items:{type:"object", properties:{titulo:{type:"string"}, fonte:{type:"string"}, quando:{type:"string"}}}},
   competicao:{type:"string"}, status:{type:"string"}, mandante:{type:"object"}, visitante:{type:"object"}, gols:{type:"array", items:{type:"object"}}, estatisticas:{type:"array", items:{type:"object"}}
 }, required:["tipo"]};
+if (NATIVE) setTimeout(()=>SIS?.appsMusica().then(r=>{ appsMusica=r.apps||[]; }).catch(()=>{}), 1500);
 const tools = [
+  {name:"tocar_musica", description:"Toca uma música, artista, álbum ou playlist no app de música do celular (Spotify, YouTube Music, Deezer etc.) e volta para o Atlas, mostrando o cartão Tocando agora. Use para 'toca', 'coloca', 'quero ouvir'.",
+   inputSchema:{type:"object", properties:{busca:{type:"string", description:"o que tocar, ex.: Asa Branca Luiz Gonzaga, Alceu Valença, playlist de frevo"}, tipo:{type:"string", enum:["musica","artista","album","playlist","qualquer"]}, app:{type:"string", enum:["spotify","ytmusic","youtube","deezer","soundcloud","amazon"], description:"só se o usuário pedir um app específico"}}, required:["busca"]},
+   async execute(i){
+     if(!SIS) throw new Error("Tocar música funciona no app Android do Atlas.");
+     const busca=String(i.busca).slice(0,120);
+     let r; try{ r=await SIS.tocarMusica({busca, tipo:i.tipo||"qualquer", app:i.app||cfg.musicaApp||"spotify"}); }
+     catch{ throw new Error("Não encontrei um app de música instalado. Instale o Spotify ou o YouTube Music."); }
+     musicaPausada=false;
+     highlight={tipo:"musica", titulo:`Tocando: ${busca}`, busca, app:r.app, nome:r.nome, metodo:r.metodo}; store.set("hl",highlight); tab="destaque"; renderCard(); renderTicker();
+     return {ok:true, app:r.nome, metodo:r.metodo, nota: r.metodo==="tocar" ? "a música foi pedida ao app; responda em uma frase curta, sem repetir detalhes" : "o app só abriu a busca; diga para tocar na música"}; }},
+  {name:"controlar_musica", description:"Controla a música que está tocando em qualquer app: pausar, continuar, próxima, anterior, aumentar ou diminuir o volume.",
+   inputSchema:{type:"object", properties:{acao:{type:"string", enum:["pausar","continuar","proxima","anterior","aumentar_volume","diminuir_volume"]}}, required:["acao"]},
+   async execute(i){ const r=await controleMusica(i.acao); return {ok:true, volume:r?.volume, volumeMax:r?.volumeMax}; }},
   {name:"apresentar", description:"Mostra no painel uma apresentação animada: cartões que entram, passam sozinhos um depois do outro e saem, como num telejornal. Use para QUALQUER resposta com mais de uma parte, de qualquer assunto: o dia de hoje, resumo, comparação, explicação passo a passo, notícias, finanças, saúde, viagem, receita. Misture tipos de cartão (números, gráfico, agenda, clima, notícias, placar, destaque). Só use números que você tem certeza ou encontrou na busca.",
    inputSchema:{type:"object", properties:{titulo:{type:"string"}, cartoes:{type:"array", minItems:1, maxItems:8, items:CARTAO_SCHEMA}}, required:["cartoes"]},
    execute(i){ const slides=(Array.isArray(i.cartoes)?i.cartoes:[]).slice(0,8).map(limparCartao); if(!slides.length) throw new Error("Nenhum cartão.");
