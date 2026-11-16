@@ -30,7 +30,19 @@ O app empacota o `index.html` com o [Capacitor](https://capacitorjs.com). A cada
 
 Para instalar: abra o link no celular, baixe o `Atlas.apk`, toque no arquivo e permita "instalar apps desconhecidos". As versões seguintes instalam por cima.
 
-Limitações desta primeira versão: a IA, a voz e a busca de notícias dependem dos recursos do claude.ai e ficam em modo offline dentro do app até a integração com as APIs. Interface, animações e editor de PDF funcionam.
+### Conectar a IA
+
+Na primeira abertura, escolha ChatGPT ou Claude e cole uma **chave de API** (o app tem um botão que abre a página de chaves de cada empresa). Nem a OpenAI nem a Anthropic oferecem login com a conta do ChatGPT/Claude.ai para apps de terceiros, e a API é cobrada à parte das assinaturas, então a conta de API precisa ter crédito.
+
+- A chave é validada na hora (lista de modelos + uma resposta de teste) e fica salva só no aparelho.
+- O app escolhe o modelo mais recente que a chave enxerga.
+- Pesquisa e briefing de notícias usam a busca na web do próprio provedor.
+- No Android, a voz usa o reconhecimento de fala e o leitor de texto do sistema. A escuta contínua ("Atlas, ...") ainda não existe no app.
+
+### Desempenho e rotação
+
+- Efeitos em modo **Leve** por padrão no app: 30 quadros por segundo, fundo em resolução menor e sem desfoque. Dá para trocar para **Completo** em Ajustes.
+- Celular deitado usa um layout próprio: núcleo à esquerda e painel à direita.
 
 Para compilar no computador: `npm install`, `npm run sync` e depois `cd android && ./gradlew assembleDebug` (precisa de Java 21 e Android SDK).
 
