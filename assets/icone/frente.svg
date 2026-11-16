@@ -1,0 +1,35 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 108 108">
+  <defs>
+    <radialGradient id="core" cx="46%" cy="42%" r="60%">
+      <stop offset="0" stop-color="#ffffff"/>
+      <stop offset=".18" stop-color="#bff3ff"/>
+      <stop offset=".45" stop-color="#43d9ff"/>
+      <stop offset=".8" stop-color="#2f6bff"/>
+      <stop offset="1" stop-color="#1a2f9a"/>
+    </radialGradient>
+    <radialGradient id="halo" cx="50%" cy="50%" r="50%">
+      <stop offset=".45" stop-color="#43d9ff" stop-opacity=".55"/>
+      <stop offset="1" stop-color="#43d9ff" stop-opacity="0"/>
+    </radialGradient>
+    <filter id="glow" x="-50%" y="-50%" width="200%" height="200%"><feGaussianBlur stdDeviation="1.1" result="b"/><feMerge><feMergeNode in="b"/><feMergeNode in="SourceGraphic"/></feMerge></filter>
+  </defs>
+  <circle cx="54" cy="54" r="30" fill="url(#halo)"/>
+  <!-- anel externo segmentado -->
+  <g fill="none" stroke-linecap="round" filter="url(#glow)">
+    <circle cx="54" cy="54" r="30" stroke="#43d9ff" stroke-width="1.6" stroke-dasharray="14 5 3 5" opacity=".9"/>
+    <path d="M30.5 40 A27 27 0 0 1 56 27" stroke="#9a6bff" stroke-width="2.4"/>
+    <path d="M78 66 A27 27 0 0 1 60 80.5" stroke="#43d9ff" stroke-width="2.4"/>
+  </g>
+  <!-- esfera -->
+  <circle cx="54" cy="54" r="19" fill="url(#core)"/>
+  <g fill="none" stroke="#e6f9ff" stroke-opacity=".55" stroke-width=".7">
+    <ellipse cx="54" cy="54" rx="19" ry="7"/>
+    <ellipse cx="54" cy="54" rx="19" ry="14"/>
+    <ellipse cx="54" cy="54" rx="7.5" ry="19"/>
+    <ellipse cx="54" cy="54" rx="14" ry="19"/>
+  </g>
+  <!-- órbita inclinada -->
+  <ellipse cx="54" cy="54" rx="27" ry="9" fill="none" stroke="#bff3ff" stroke-width="1.2" opacity=".85" transform="rotate(-24 54 54)" filter="url(#glow)"/>
+  <circle cx="77.5" cy="43.5" r="2.4" fill="#ffffff" filter="url(#glow)"/>
+  <circle cx="49" cy="49" r="3.2" fill="#ffffff" opacity=".95" filter="url(#glow)"/>
+</svg>
