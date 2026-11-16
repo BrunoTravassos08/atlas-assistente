@@ -11,6 +11,9 @@
 <style>
 /* Layout: HUD de tela única. Celular em pé: orb no centro, painel abaixo. Tela larga: orb à esquerda, painel à direita (como no tablet do vídeo). */
 :root{
+  /* margens seguras: o app Android injeta --safe-area-inset-*; no navegador vale env() */
+  --sat:var(--safe-area-inset-top,env(safe-area-inset-top,0px));--sab:var(--safe-area-inset-bottom,env(safe-area-inset-bottom,0px));
+  --sal:var(--safe-area-inset-left,env(safe-area-inset-left,0px));--sar:var(--safe-area-inset-right,env(safe-area-inset-right,0px));
   --void:#040914; --deep:#081428; --panel:rgba(12,30,58,.55); --line:rgba(90,180,255,.18); --line-hi:rgba(90,200,255,.45);
   --cyan:#43d9ff; --blue:#2f6bff; --violet:#9a6bff; --green:#3dff8a; --amber:#ffb547; --red:#ff5d6c;
   --fg:#e6f3ff; --fg-dim:#8fb0cf; --fg-faint:#56708c;
@@ -21,7 +24,7 @@
 }
 [hidden]{display:none!important}
 *,*::before,*::after{box-sizing:border-box}
-html,body{height:100%}
+html,body{height:100%;margin:0;background:#040914}
 body{background:var(--void);color:var(--fg);font-family:var(--f-body);overflow:hidden;-webkit-tap-highlight-color:transparent}
 #bg{position:fixed;inset:0;width:100%;height:100%;z-index:0;pointer-events:none}
 #fx{position:fixed;inset:0;width:100%;height:100%;z-index:15;pointer-events:none}
@@ -35,7 +38,7 @@ button{cursor:pointer}
 :focus-visible{outline:2px solid var(--cyan);outline-offset:2px}
 
 .app{position:relative;z-index:1;height:100%;display:flex;flex-direction:column;
-  padding-left:max(16px,env(safe-area-inset-left,0px));padding-right:max(16px,env(safe-area-inset-right,0px));padding-block:12px 0}
+  padding-left:max(16px,var(--sal));padding-right:max(16px,var(--sar));padding-block:calc(12px + var(--sat)) 0}
 
 /* Header */
 .top{display:flex;align-items:center;justify-content:space-between;gap:12px;padding-bottom:10px;border-bottom:1px solid var(--line)}
@@ -118,7 +121,7 @@ button{cursor:pointer}
 .send{height:100%;background:transparent;border:0;border-left:1px solid var(--line);padding:0 14px;font-family:var(--f-hud);font-size:11px;letter-spacing:.2em;color:var(--cyan)}
 
 /* Ticker */
-.ticker{display:flex;align-items:center;gap:10px;margin-top:10px;margin-inline:calc(-1*max(16px,env(safe-area-inset-left,0px))) calc(-1*max(16px,env(safe-area-inset-right,0px)));padding:8px max(16px,env(safe-area-inset-right,0px)) calc(8px + env(safe-area-inset-bottom,0px)) max(16px,env(safe-area-inset-left,0px));border-top:1px solid var(--line);background:rgba(4,9,20,.85);overflow:hidden}
+.ticker{display:flex;align-items:center;gap:10px;margin-top:10px;margin-inline:calc(-1*max(16px,var(--sal))) calc(-1*max(16px,var(--sar)));padding:8px max(16px,var(--sar)) calc(8px + var(--sab)) max(16px,var(--sal));border-top:1px solid var(--line);background:rgba(4,9,20,.85);overflow:hidden}
 .live{flex:0 0 auto;background:var(--cyan);color:var(--void);font-family:var(--f-hud);font-weight:700;font-size:10px;letter-spacing:.18em;padding:3px 8px}
 .track{flex:1;min-width:0;overflow:hidden;white-space:nowrap;mask-image:linear-gradient(90deg,transparent,#000 4%,#000 96%,transparent)}
 .track span{display:inline-block;padding-left:100%;animation:tick 40s linear infinite;font-family:var(--f-hud);font-size:12px;color:var(--fg-dim)}
@@ -138,7 +141,7 @@ button{cursor:pointer}
 
 /* Login / boot overlays */
 .overlay{position:fixed;inset:0;z-index:20;display:flex;align-items:center;justify-content:center;background:rgba(4,9,20,.78);backdrop-filter:blur(3px);
-  padding:max(16px,env(safe-area-inset-top,0px)) max(16px,env(safe-area-inset-right,0px)) max(16px,env(safe-area-inset-bottom,0px)) max(16px,env(safe-area-inset-left,0px));overflow:auto}
+  padding:max(16px,var(--sat)) max(16px,var(--sar)) max(16px,var(--sab)) max(16px,var(--sal));overflow:auto}
 .login{width:100%;max-width:420px;display:flex;flex-direction:column;gap:18px}
 .login .brand{flex-direction:column;align-items:flex-start;gap:6px}
 .login .brand b{font-size:26px}
@@ -211,7 +214,7 @@ button{cursor:pointer}
 }
 /* celular deitado (ou qualquer tela baixa e larga): núcleo à esquerda, painel à direita */
 @media (orientation:landscape) and (max-height:620px){
-  .app{padding-top:max(6px,env(safe-area-inset-top,0px))}
+  .app{padding-top:max(6px,var(--sat))}
   .top{padding-bottom:4px}
   .brand b{font-size:15px}.brand span{display:none}
   .status{font-size:10px;gap:8px}
@@ -223,12 +226,17 @@ button{cursor:pointer}
   .caption,.app:has(.qchips:not([hidden])) .caption{font-size:13px;line-height:1.4;max-height:4.3em;margin-top:4px}
   .state{font-size:10px;margin-top:2px}
   .qchips{margin-top:4px}.qchips button{padding:5px 8px!important;font-size:10px}
-  .composer{padding-top:6px;padding-bottom:max(6px,env(safe-area-inset-bottom,0px))}
+  .composer{padding-top:6px;padding-bottom:max(6px,var(--sab))}
   .field{height:40px}.mic{width:40px;height:40px}.mic.clip,.mic.wake{width:36px;height:36px}
   .ticker{display:none}
   .login{max-width:640px}
   .overlay{align-items:flex-start}
 }
+
+/* abas sempre inteiras na tela, sem rolar de lado */
+.tabs{gap:2px}
+.tabs button{flex:1 1 0;min-width:0;padding:8px 2px;letter-spacing:.12em;white-space:nowrap;overflow:hidden;text-overflow:clip}
+@media (max-width:430px){.tabs button{font-size:9px;letter-spacing:.06em}}
 
 /* ---------- modo leve (aparelhos médios) ---------- */
 .lite .card,.lite .overlay,.lite .overlay.setup{backdrop-filter:none;-webkit-backdrop-filter:none}
