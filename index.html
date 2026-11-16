@@ -287,7 +287,7 @@ textarea.inp{height:auto;padding:8px 12px;resize:vertical;font:inherit}
       <div class="caption" id="caption" aria-live="polite"></div>
       <div class="qchips" id="qchips" hidden>
         <button type="button" data-q="Quero que você pesquise uma coisa para mim.">Pesquisar algo</button>
-        <button type="button" data-q="Quero anotar um compromisso na agenda.">Anotar compromisso</button>
+        <button type="button" data-q="Preciso de ajuda com os estudos.">Ajuda nos estudos</button>
         <button type="button" data-q="">Agora não</button>
       </div>
     </section>
@@ -419,7 +419,8 @@ let cfg = store.get("cfg", null); // {provider, user, name, voice, speak}
 let tasks = store.get("tasks", null);
 if (!tasks) tasks = [];
 let highlight = store.get("hl", {categoria:"Sistema", titulo:"Pronto para começar", valor:"100%", legenda:"Todos os módulos online. Peça algo por voz ou texto."});
-let history = []; // {role, content}
+let history = store.get("conversa", []); // conversa dedicada do agente, salva no aparelho
+const saveHist = () => { if (history.length>80) history.splice(0, history.length-80); store.set("conversa", history); };
 let tab = "agenda";
 let mode = "idle"; // idle | listening | thinking | speaking
 let sample = null, tts = null, dict = null;
@@ -865,7 +866,7 @@ function renderCard(){
   } else if (tab==="pdf"){
     el.innerHTML = renderPdfCard();
   } else if (tab==="historico"){
-    el.innerHTML = `<div class="eyebrow">Conversa</div>` + (history.length ? `<div class="hist">${history.slice(-10).map(m=>`<div><b>${m.role==="user"?esc(cfg?.user||"VOCÊ").toUpperCase():esc(cfg?.name||"ATLAS")}</b>${esc(m.content)}</div>`).join("")}</div>` : `<p class="empty">A conversa desta sessão aparece aqui.</p>`);
+    el.innerHTML = `<div class="eyebrow">Conversa</div>` + (history.length ? `<div class="hist">${history.slice(-30).map(m=>`<div><b>${m.role==="user"?esc(cfg?.user||"VOCÊ").toUpperCase():esc(cfg?.name||"ATLAS")}</b>${esc(m.content)}</div>`).join("")}</div>` : `<p class="empty">A conversa desta sessão aparece aqui.</p>`);
     el.scrollTop = el.scrollHeight;
   } else {
     el.innerHTML = `<div class="eyebrow">Ajustes</div><div class="set">
@@ -875,7 +876,8 @@ function renderCard(){
       <div class="row"><label class="lbl" for="sSpeak" style="margin:0">Responder em voz alta</label><input type="checkbox" id="sSpeak" ${cfg.speak?"checked":""}></div>
       <div><label class="lbl" for="sTopics">Assuntos do briefing (um por linha)</label><textarea class="inp" id="sTopics" rows="4" style="height:auto;padding:8px 12px;resize:vertical">${esc(topics().map(t=>t.nome).join("\n"))}</textarea></div>
       <div class="row"><span class="sub">Rotina: ${cfg.rotina?`briefing às <b style="color:var(--fg)">${esc(cfg.rotina.hora)}</b>${cfg.rotina.dias==="uteis"?", seg a sex":", todos os dias"}${cfg.rotina.lembrete?" · com aviso":""}`:"não configurada"}</span><button class="btn-line" data-act="onboarding" type="button">Refazer configuração</button></div>
-      <div><span class="lbl">Skills instaladas</span><div class="chips">${["Agenda","Destaques","Tradução EN/ES","PDF: ler e padronizar","Pesquisa avançada","Briefing de notícias","Tutor de estudos"].map(x=>`<span>${x}</span>`).join("")}</div></div>
+      <div><span class="lbl">Skills instaladas</span><div class="chips">${(cfg.agent?.skills||["Agenda","Destaques","Tradução PT/EN/ES","PDF: ler e padronizar","Pesquisa avançada","Briefing de notícias","Tutor de estudos"]).map(x=>`<span>✓ ${x}</span>`).join("")}</div></div>
+      <div class="row"><span class="sub">Conversa salva: ${history.length} mensagens</span><button class="btn-line" data-act="limpar" type="button">Limpar conversa</button></div>
       <div class="row"><label class="lbl" for="sFx" style="margin:0">Efeitos visuais</label><select class="inp" id="sFx" style="width:auto"><option value="leve" ${FX.lite?"selected":""}>Leve (recomendado)</option><option value="completo" ${FX.lite?"":"selected"}>Completo</option></select></div>
       ${cfg.agent?`<div class="sub">Modelo: <b style="color:var(--fg)">${esc(cfg.model?.[cfg.provider]||cfg.agent.id)}</b><br>Conectado em ${new Date(cfg.agent.criadoEm).toLocaleString("pt-BR")}</div>`:""}
       <div class="row"><span class="sub">Conectado: <b style="color:var(--cyan)">${sample?PROV[cfg.provider]:"nenhuma IA"}</b></span><button class="btn-line warn" id="logout" type="button">Trocar IA</button></div>
@@ -891,6 +893,7 @@ $("#card").addEventListener("click", e=>{
   if(act==="desfazer" && pdfUndo.length){ const u=pdfUndo.pop(); Object.assign(pdf,{bytes:u.bytes,pages:u.pages,ops:u.ops}); renderCard(); renderThumbs(); }
   if(act==="baixar") pdfDownload();
   if(act==="briefing") runBriefing();
+  if(act==="limpar"){ history.length=0; saveHist(); renderCard(); caption("Conversa apagada. Podemos começar do zero."); }
   if(act==="onboarding") onboarding().then(()=>{ renderCard(); renderTicker(); runBriefing({abertura:true}); });
   if(act==="resumir") ask("Leia o PDF aberto e me faça um resumo.");
   if(act==="ouvir" && highlight.tipo==="traducao") speakIn(highlight.traducao, highlight.para);
@@ -935,7 +938,7 @@ SKILLS:
 1. Tradução (português, inglês, espanhol): quando pedirem para traduzir, ou perguntarem como se diz algo em outro idioma, chame mostrar_traducao com o texto completo traduzido de forma natural. Na sua resposta falada diga só uma frase curta em português (ex.: "Aqui está em inglês."); o app lê a tradução em voz alta no idioma certo.
 2. PDF: o usuário anexa PDFs pelo clipe. Use pdf_info para ver tamanhos e orientação das páginas, pdf_ler_texto para ler o conteúdo, pdf_padronizar para deixar todas as páginas no mesmo tamanho (A4 por padrão), pdf_girar, pdf_excluir_paginas e pdf_reordenar para alterar. Páginas fora do padrão são um problema recorrente do usuário: quando um PDF tiver formatos misturados, ofereça padronizar. Depois de alterar, diga que ele pode baixar pelo botão Baixar PDF no painel. Se não houver PDF aberto, peça para anexar pelo clipe.
 3. Pesquisa avançada: para QUALQUER pedido de informação, explicação, comparação, recomendação, dados ou "pesquise", chame pesquisa_avancada antes de responder. Depois resuma o resultado em até 3 frases e diga que o relatório completo está no painel. Não use para conversa casual, agenda, tradução ou PDF.
-5. Estudos e atividades: você também pode ser tutor. Quando o usuário pedir ajuda com estudos, faculdade, escola, um trabalho, prova ou atividade: pergunte a matéria, o tema e o prazo se faltar; explique passo a passo, de forma didática; use pesquisa_avancada para conteúdo; use mostrar_destaque para um plano de estudo ou roteiro em itens; e ofereça salvar prazos e etapas na agenda com adicionar_tarefa. Se ele anexar um PDF da atividade, leia com pdf_ler_texto antes de ajudar.
+5. Tutor de estudos: quando o usuário pedir ajuda com estudos, faculdade, escola, concurso, um trabalho, prova ou atividade: pergunte a matéria, o tema e o prazo se faltar; explique passo a passo, de forma didática; use pesquisa_avancada para conteúdo; use plano_de_estudo para mostrar o plano ou roteiro em etapas no painel (com salvar_na_agenda=true se ele pedir para lembrar ou agendar); e ofereça salvar os prazos na agenda. Se ele anexar um PDF da atividade, leia com pdf_ler_texto antes de ajudar.
 4. Briefing de notícias: quando pedirem notícias, novidades ou "o que está acontecendo", chame briefing_noticias (busca os assuntos de interesse do usuário: ${topics().map(t=>t.nome).join("; ")}). Depois diga só uma frase curta, porque o briefing já é falado.
 A pesquisa e o briefing usam a web ao vivo quando o app está aberto no Claude para desktop; senão usam seu conhecimento e apontam o que conferir.
 ${context()}`;
@@ -1094,7 +1097,7 @@ No máximo 3 manchetes por assunto. Use só informação presente nos resultados
     store.set("hl",highlight); if(tab==="destaque") renderCard(); renderTicker();
     await helloP;
     const fala=String(r.fala||"");
-    caption(esc(fala)); history.push({role:"assistant",content:(abertura?`${per}, ${cfg.user||""}. `:"")+fala});
+    caption(esc(fala)); history.push({role:"assistant",content:(abertura?`${per}, ${cfg.user||""}. `:"")+fala}); saveHist();
     if(abertura) showChips();
     marcarBriefing();
     await speak(fala);
@@ -1170,6 +1173,12 @@ function renderPdfCard(){
 
 let nextId = Math.max(0,...tasks.map(t=>t.id))+1;
 const tools = [
+  {name:"plano_de_estudo", description:"Skill Tutor de estudos: monta um plano de estudo ou roteiro de atividade (faculdade, escola, concurso, curso) e mostra no painel; opcionalmente salva as etapas e o prazo na agenda.", inputSchema:{type:"object",properties:{materia:{type:"string"},tema:{type:"string"},prazo:{type:"string",description:"data ou prazo, ex.: 25/11 ou sexta-feira"},resumo:{type:"string",description:"1 frase sobre como estudar"},etapas:{type:"array",items:{type:"object",properties:{titulo:{type:"string"},hora:{type:"string",description:"HH:MM opcional"}},required:["titulo"]}},salvar_na_agenda:{type:"boolean"}},required:["materia","tema","etapas"]},
+   execute(i){ const et=(Array.isArray(i.etapas)?i.etapas:[]).slice(0,8).map(e=>typeof e==="string"?{titulo:e}:e);
+     highlight={categoria:("Tutor · "+String(i.materia||"Estudos")).slice(0,30), titulo:String(i.tema||"Plano de estudo").slice(0,90), valor:i.prazo?String(i.prazo).slice(0,16):"", legenda:i.resumo?String(i.resumo).slice(0,200):"", itens:et.map((e,k)=>`${k+1}. ${String(e.titulo).slice(0,70)}`)};
+     store.set("hl",highlight); tab="destaque";
+     let salvos=0; if(i.salvar_na_agenda){ for(const e of et){ tasks.push({id:nextId++, titulo:`${String(i.materia||"Estudo").slice(0,20)}: ${String(e.titulo).slice(0,55)}`, hora:e.hora?String(e.hora).slice(0,5):"", nota:i.prazo?("prazo "+String(i.prazo).slice(0,20)):"", feito:false}); salvos++; } saveTasks(); }
+     renderCard(); renderTicker(); return {ok:true, etapas:et.length, salvos_na_agenda:salvos}; }},
   {name:"adicionar_tarefa", description:"Adiciona um compromisso ou lembrete à agenda do dia.", inputSchema:{type:"object",properties:{titulo:{type:"string"},hora:{type:"string",description:"HH:MM, opcional"},nota:{type:"string"}},required:["titulo"]},
    execute(i){ const x={id:nextId++, titulo:String(i.titulo).slice(0,80), hora:i.hora?String(i.hora).slice(0,5):"", nota:i.nota?String(i.nota).slice(0,60):"", feito:false}; tasks.push(x); saveTasks(); tab="agenda"; renderCard(); renderTicker(); return {ok:true, id:x.id}; }},
   {name:"concluir_tarefa", description:"Marca um item da agenda como feito, pelo id.", inputSchema:{type:"object",properties:{id:{type:"number"}},required:["id"]},
@@ -1204,7 +1213,7 @@ async function ask(userText, {greeting=false}={}){
   const ctl = new AbortController(); busy = ctl;
   if (tts) try{ tts.stop(); }catch{}
   synth?.cancel();
-  if (!greeting){ history.push({role:"user",content:userText}); caption(`<span class="you">${esc(userText)}</span>`); }
+  if (!greeting){ history.push({role:"user",content:userText}); saveHist(); caption(`<span class="you">${esc(userText)}</span>`); }
   setMode("thinking");
   if (tab==="historico") renderCard();
   if (!sample){ return offline(userText, greeting); }
@@ -1216,7 +1225,7 @@ async function ask(userText, {greeting=false}={}){
     const {text} = await sample(turns, {signal:ctl.signal, tools, modelTier:"quick",
       onText:({text})=>{ shown=text; if(mode==="thinking" && !(cfg.speak&&tts)) setMode("speaking"); caption(esc(text)); }});
     if (ctl!==busy) return;
-    history.push({role:"assistant",content:text});
+    history.push({role:"assistant",content:text}); saveHist();
     caption(esc(text));
     if (tab==="historico") renderCard();
     if (greeting) showChips();
@@ -1226,7 +1235,7 @@ async function ask(userText, {greeting=false}={}){
     if (e?.code==="cancelled") return;
     const msg = e?.userMsg || {not_granted:"Preciso da sua permissão para usar o Claude. Toque no núcleo e permita.", rate_limited:"Muitas solicitações seguidas. Aguarde alguns segundos.", sampling_disabled:"O acesso ao Claude está desativado nesta conta."}[e?.code] || "Não consegui completar a resposta. Tente de novo.";
     caption(esc(e?.text || shown) + (e?.text||shown ? "<br>" : "") + `<em>${esc(msg)}</em>`);
-    if (!greeting && !(e?.text||shown)) history.pop();
+    if (!greeting && !(e?.text||shown)) { history.pop(); saveHist(); }
   }finally{
     if (ctl===busy){ busy=null; if (mode!=="listening") setMode("idle"); }
   }
@@ -1244,7 +1253,7 @@ async function offline(userText, greeting){
   const text = greeting ? `${per}, ${cfg.user||"senhor"}. Todos os sistemas online.${next?` Seu próximo compromisso é ${next.titulo}${next.hora?" às "+next.hora:""}.`:""} Posso ajudar com alguma coisa?`
     : "Ainda não estou conectado a uma inteligência artificial. Vá em Ajustes, toque em Trocar IA e conecte sua chave do ChatGPT ou do Claude.";
   await new Promise(r=>setTimeout(r,700));
-  caption(esc(text)); history.push({role:"assistant",content:text});
+  caption(esc(text)); history.push({role:"assistant",content:text}); saveHist();
   if(greeting) showChips();
   await speak(text); setMode("idle"); busy=null;
 }
@@ -1494,11 +1503,14 @@ const hexId = n => Array.from({length:n},()=>"0123456789abcdef"[Math.random()*16
 async function createAgent(check={}){
   const gpt = cfg.provider==="gpt", vendor = gpt?"OpenAI":"Anthropic";
   const id = check.model || cfg.model?.[cfg.provider] || "—";
+  // instalação real: envia a personalidade + todas as skills para o modelo e confirma que ele aceita
+  const instalar = sample ? sample([{role:"user", content:rules()+"\n\nVocê acabou de ser criado com as skills acima. Não use nenhuma ferramenta agora. Responda apenas: pronto."}], {tools, modelTier:"quick"}).then(()=>({ok:true})).catch(e=>({ok:false, msg:e?.userMsg||e?.message||"erro"})) : Promise.resolve({ok:false, msg:"sem IA conectada"});
+  const SKILLS = ["Agenda","Destaques","Tradução PT/EN/ES","PDF: ler e padronizar","Pesquisa avançada","Briefing de notícias","Tutor de estudos"];
   const steps = [
     {t:`Autenticando com ${vendor}`, ms:700, log:[gpt?"> GET https://api.openai.com/v1/models":"> GET https://api.anthropic.com/v1/models", `  chave verificada · ${check.total||"?"} modelos disponíveis <b>200 OK</b>`]},
     {t:"Selecionando o modelo", ms:700, log:[`> modelo: ${id} <b>ok</b>`, check.web?"> busca na web: disponível <b>ok</b>":"> busca na web: será testada no primeiro uso"]},
     {t:"Definindo personalidade e idioma", ms:1000, log:["> persona: estilo Jarvis · objetivo · cordial", "> idioma: pt-BR <b>ok</b>"]},
-    {t:"Instalando skills: tradução, PDF e pesquisa", ms:2000, log:["> tools.register(adicionar_tarefa) <b>ok</b>", "> tools.register(concluir_tarefa) <b>ok</b>", "> tools.register(mostrar_destaque) <b>ok</b>", "> skills.install(traducao: pt/en/es) <b>ok</b>", "> skills.install(pdf: ler, padronizar, editar) <b>ok</b>", "> skills.install(pesquisa_avancada) <b>ok</b>"]},
+    {t:"Instalando skills: tutor, pesquisa, tradução, PDF e agenda", ms:2000, wait:instalar, log:["> tools.register(plano_de_estudo) <b>ok</b>", "> tools.register(adicionar_tarefa) <b>ok</b>", "> tools.register(concluir_tarefa) <b>ok</b>", "> tools.register(mostrar_destaque) <b>ok</b>", "> skills.install(traducao: pt/en/es) <b>ok</b>", "> skills.install(pdf: ler, padronizar, editar) <b>ok</b>", "> skills.install(pesquisa_avancada) <b>ok</b>"]},
     {t:"Calibrando voz", ms:700, log:[NATIVE?"> voz do Android · pt-BR <b>ok</b>":`> voz: ${cfg.voice} · ritmo 1.0 · pt-BR <b>ok</b>`]},
     {t:"Preparando sua rotina", ms:800, log:[`> interesses: ${topics().length} assuntos <b>ok</b>`, cfg.rotina?`> briefing diário às ${cfg.rotina.hora}${cfg.rotina.dias==="uteis"?" (seg a sex)":""} <b>ok</b>`:"> rotina: padrão"]},
     {t:"Sincronizando memória", ms:700, log:[`> agenda: ${tasks.length} itens · histórico: novo <b>ok</b>`]},
@@ -1528,9 +1540,11 @@ async function createAgent(check={}){
       await sleep(50);
     }
     while (li < s.log.length) log(s.log[li++]);
+    if (s.wait){ $("#suStep").textContent = "Testando as skills com a IA…"; const r = await s.wait; log(r.ok ? `> teste com ${id}: ${tools.length} ferramentas aceitas <b>ok</b>` : `> teste das skills falhou: ${esc(r.msg)} (o agente tenta de novo na primeira conversa)`); }
     done += s.ms; lis[i].className="ok";
   }
-  cfg.agent = {id, provider:cfg.provider, criadoEm:new Date().toISOString()};
+  cfg.agent = {id, provider:cfg.provider, criadoEm:new Date().toISOString(), skills:SKILLS, ferramentas:tools.map(t=>t.name)};
+  if (!history.length){ history.push({role:"assistant", content:`${cfg.name} criado. Esta é a nossa conversa: fica salva neste aparelho.`}); saveHist(); }
   /* passos acima são só visuais: a conexão real já foi validada antes desta tela */
   store.set("cfg", cfg);
   $("#suStep").textContent = "Agente pronto";

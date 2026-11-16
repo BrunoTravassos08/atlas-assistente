@@ -39,6 +39,10 @@ Na primeira abertura, escolha ChatGPT ou Claude e cole uma **chave de API** (o a
 - Pesquisa e briefing de notícias usam a busca na web do próprio provedor.
 - No Android, a voz usa o reconhecimento de fala e o leitor de texto do sistema. A escuta contínua ("Atlas, ...") ainda não existe no app.
 
+### Agente e skills
+
+Ao terminar a configuração, o app cria o agente: envia a personalidade e todas as skills (ferramentas) para o modelo escolhido e faz um teste real para confirmar que ele aceita. Skills pré-instaladas para todo usuário: agenda, cartões de destaque, tradução PT/EN/ES (lida em voz), PDF (ler, padronizar, girar, excluir, reordenar, baixar), pesquisa avançada com busca na web, briefing de notícias e tutor de estudos (plano em etapas no painel, com opção de salvar na agenda). A conversa com o agente fica salva no aparelho e continua entre as aberturas; dá para apagar em Ajustes. Com chave de API não existe "projeto" dentro do app do ChatGPT ou do Claude: o agente vive no Atlas.
+
 ### Configuração inicial
 
 O app não vem com interesses nem agenda pré-definidos. Na primeira abertura ele guia a pessoa em 4 etapas: nome, conexão com a IA, interesses (assuntos prontos + cidade, time e assuntos livres) e rotina (horário do briefing, dias, aviso no celular e voz). Ao terminar, o agente já pesquisa os interesses e apresenta o primeiro briefing. Depois, o briefing acontece uma vez por dia, a partir do horário escolhido, na primeira vez que o app é aberto. Dá para refazer tudo em **Ajustes → Refazer configuração**.
