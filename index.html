@@ -321,6 +321,13 @@ textarea.inp{height:auto;padding:8px 12px;resize:vertical;font:inherit}
 @keyframes fade{to{opacity:1}}
 @keyframes seg{to{stroke-dasharray:var(--len) 999}}
 
+/* ---------- gasto ---------- */
+.gasto{display:flex;align-items:center;gap:16px;margin-top:6px}
+.gasto .big{margin:0}
+.anel{width:96px;height:96px;flex:0 0 auto;transform:rotate(-90deg)}
+.anel circle.sg{stroke-dasharray:0 999;animation:seg 1.2s ease-out forwards}
+.set .gbox{border:1px solid var(--line);padding:10px 12px;display:flex;flex-direction:column;gap:10px}
+
 /* ---------- música: tocando agora ---------- */
 .musica{display:grid;grid-template-columns:auto 1fr;gap:16px;align-items:center;margin-top:6px}
 .disco{position:relative;width:96px;height:96px;border-radius:50%;background:repeating-radial-gradient(circle,#0b1424 0 2px,#111d33 2px 4px);box-shadow:0 0 0 2px rgba(67,217,255,.25),0 0 24px var(--mc,#1ed760);animation:spin 3.2s linear infinite}
@@ -1022,7 +1029,7 @@ const esc = s => String(s??"").replace(/[&<>"]/g, c=>({"&":"&amp;","<":"&lt;",">
 let shown={h:null,i:null}, swapT=null;
 function renderCard(){
   const el=$("#card");
-  el.classList.toggle("rich", tab==="destaque" && ["placar","grafico","briefing","apresentacao"].includes(highlight?.tipo));
+  el.classList.toggle("rich", tab==="destaque" && ["placar","grafico","briefing","apresentacao","gasto"].includes(highlight?.tipo));
   document.querySelectorAll(".tabs button").forEach(b=>b.setAttribute("aria-selected", String(b.dataset.tab===tab)));
   if (tab==="agenda"){
     const list=[...tasks].sort((a,b)=>(a.hora||"99").localeCompare(b.hora||"99"));
@@ -1048,6 +1055,12 @@ function renderCard(){
       <div><label class="lbl" for="sTopics">Assuntos do briefing (um por linha)</label><textarea class="inp" id="sTopics" rows="4" style="height:auto;padding:8px 12px;resize:vertical">${esc(topics().map(t=>t.nome).join("\n"))}</textarea></div>
       <div class="row"><span class="sub">Rotina: ${cfg.rotina?`briefing às <b style="color:var(--fg)">${esc(cfg.rotina.hora)}</b>${cfg.rotina.dias==="uteis"?", seg a sex":", todos os dias"}${cfg.rotina.lembrete?" · com aviso":""}`:"não configurada"}</span><button class="btn-line" data-act="onboarding" type="button">Refazer configuração</button></div>
       <div><span class="lbl">Skills instaladas</span><div class="chips">${(cfg.agent?.skills||["Agenda","Destaques","Tradução PT/EN/ES","PDF: ler e padronizar","Pesquisa avançada","Briefing de notícias","Tutor de estudos"]).map(x=>`<span>✓ ${x}</span>`).join("")}</div></div>
+      <div class="gbox"><div class="row"><span class="sub">Gasto com a IA neste mês: <b style="color:var(--green)">${esc(brl(gastoAtual().usd))}</b>${cfg.provider==="gemini"&&geminiGratis()?" · Gemini grátis":""}</span><button class="btn-line" data-act="gasto-ver" type="button">Ver gasto</button></div>
+        <div class="row"><label class="lbl" for="sLim" style="margin:0">Limite por mês (R$)</label><input class="inp" id="sLim" inputmode="decimal" placeholder="sem limite" style="width:120px" value="${num(cfg.limite?.usd)>0?(num(cfg.limite.usd)*cotacao()).toFixed(2).replace(".",","):""}"></div>
+        <div class="row"><label class="lbl" for="sLimAcao" style="margin:0">No limite</label><select class="inp" id="sLimAcao" style="width:auto"><option value="confirmar" ${cfg.limite?.acao!=="bloquear"?"selected":""}>Perguntar antes de continuar</option><option value="bloquear" ${cfg.limite?.acao==="bloquear"?"selected":""}>Pausar a IA</option></select></div>
+        <div class="row"><label class="lbl" for="sCot" style="margin:0">Dólar (R$)</label><input class="inp" id="sCot" inputmode="decimal" style="width:90px" value="${cotacao().toFixed(2).replace(".",",")}"></div>
+        ${cfg.provider==="gemini"||cfg.keys?.gemini?`<div class="row"><label class="lbl" for="sGemPlano" style="margin:0">Plano do Gemini</label><select class="inp" id="sGemPlano" style="width:auto"><option value="gratis" ${geminiGratis()?"selected":""}>Grátis</option><option value="pago" ${geminiGratis()?"":"selected"}>Pago (faturamento ativo)</option></select></div>`:""}
+        <p class="note" style="margin:0">Aviso aos 80% do limite. O valor é uma estimativa pelos preços de tabela.</p></div>
       <div class="row"><span class="sub">Conversa salva: ${history.length} mensagens</span><button class="btn-line" data-act="limpar" type="button">Limpar conversa</button></div>
       ${NATIVE?`<div class="row"><label class="lbl" for="sMus" style="margin:0">App de música</label><select class="inp" id="sMus" style="width:auto"><option value="">Automático</option>${(appsMusica||[]).map(a=>`<option value="${esc(a.id)}" ${cfg.musicaApp===a.id?"selected":""}>${esc(a.nome)}</option>`).join("")}</select></div>`:""}
       <div class="row"><label class="lbl" for="sFx" style="margin:0">Efeitos visuais</label><select class="inp" id="sFx" style="width:auto"><option value="leve" ${FX.lite?"selected":""}>Leve (recomendado)</option><option value="completo" ${FX.lite?"":"selected"}>Completo</option></select></div>
@@ -1065,6 +1078,9 @@ $("#card").addEventListener("click", e=>{
   if(act==="desfazer" && pdfUndo.length){ const u=pdfUndo.pop(); Object.assign(pdf,{bytes:u.bytes,pages:u.pages,ops:u.ops}); renderCard(); renderThumbs(); }
   if(act==="baixar") pdfDownload();
   if(act==="briefing") runBriefing();
+  if(act==="gasto-ver"){ highlight={tipo:"gasto", titulo:"Gasto com a IA"}; tab="destaque"; renderCard(); }
+  if(act==="gasto-ajustes"){ tab="ajustes"; renderCard(); setTimeout(()=>$("#sLim")?.focus(),50); }
+  if(act==="gasto-liberar"){ const g=gastoAtual(); g.liberado=true; store.set("gasto",g); renderCard(); caption("Uso liberado até o fim do mês."); }
   if(act?.startsWith("mus-")) controleMusica(act.slice(4)).catch(err=>caption(`<em>${esc(err.message)}</em>`));
   if(highlight.tipo==="apresentacao"){
     const k=e.target.closest("[data-story]")?.dataset.story;
@@ -1095,6 +1111,10 @@ $("#card").addEventListener("change", e=>{
   if(id==="sSpeak") cfg.speak=e.target.checked;
   if(id==="sFx"){ cfg.fx=e.target.value; store.set("cfg",cfg); applyFx(); }
   if(id==="sMus"){ cfg.musicaApp=e.target.value; store.set("cfg",cfg); }
+  if(id==="sCot"){ const v=num(e.target.value); if(v>0){ const lim=num(cfg.limite?.usd)*cotacao(); cfg.cotacao=v; if(lim>0) cfg.limite.usd=lim/v; } store.set("cfg",cfg); renderCard(); }
+  if(id==="sLim"){ const v=num(e.target.value); cfg.limite=Object.assign({acao:"confirmar"}, cfg.limite, {usd: v>0 ? v/cotacao() : 0}); const g=gastoAtual(); g.aviso80=false; g.liberado=false; store.set("gasto",g); store.set("cfg",cfg); renderCard(); }
+  if(id==="sLimAcao"){ cfg.limite=Object.assign({usd:0}, cfg.limite, {acao:e.target.value}); store.set("cfg",cfg); }
+  if(id==="sGemPlano"){ cfg.geminiPlano=e.target.value; store.set("cfg",cfg); renderCard(); }
   if(id==="sTopics"){ setTimeout(agendarLembrete,0); const old=topics(); cfg.interesses=e.target.value.split("\n").map(x=>x.trim()).filter(Boolean).slice(0,8).map(n=>old.find(o=>o.nome===n)||{nome:n,q:n}); }
   store.set("cfg",cfg);
 });
@@ -1392,9 +1412,10 @@ function miniPlacar(p){
 }
 function animateCounts(root){
   root.querySelectorAll("[data-count]").forEach(el=>{
-    const target=num(el.dataset.count), unit=el.dataset.unit||"", t0=performance.now(), dur=900, dec=Math.abs(target%1)>0?1:0;
-    if (reduce){ el.textContent=target.toLocaleString("pt-BR",{maximumFractionDigits:2})+unit; return; }
-    const step=now=>{ const k=Math.min(1,(now-t0)/dur), e=1-Math.pow(1-k,3); el.textContent=(target*e).toLocaleString("pt-BR",{minimumFractionDigits:k<1?dec:0,maximumFractionDigits:k<1?dec:2})+unit; if(k<1) requestAnimationFrame(step); };
+    const target=num(el.dataset.count), unit=el.dataset.unit||"", pre=el.dataset.pre||"", t0=performance.now(), dur=900, fixo=el.dataset.dec!=null, dec=fixo?+el.dataset.dec:(Math.abs(target%1)>0?1:0);
+    const fmt=(v,fim)=>pre+v.toLocaleString("pt-BR",fixo?{minimumFractionDigits:dec,maximumFractionDigits:dec}:{minimumFractionDigits:fim?0:dec,maximumFractionDigits:fim?2:dec})+unit;
+    if (reduce){ el.textContent=fmt(target,true); return; }
+    const step=now=>{ const k=Math.min(1,(now-t0)/dur), e=1-Math.pow(1-k,3); el.textContent=fmt(target*e,k>=1); if(k<1) requestAnimationFrame(step); };
     requestAnimationFrame(step);
   });
 }
@@ -1516,6 +1537,95 @@ async function controleMusica(acao){
   return r;
 }
 
+/* ---------- gasto com a IA: estimativa por tokens e buscas, limite mensal ---------- */
+// preços de tabela em US$ por 1 milhão de tokens (entrada / saída) e por 1.000 buscas. É uma estimativa: a cobrança oficial é a do site da empresa.
+function precoModelo(p, model){
+  const m = String(model||"").toLowerCase();
+  if (p==="claude"){
+    const busca = 10;
+    if (/haiku/.test(m)) return {in:1, out:5, busca};
+    if (/sonnet/.test(m)) return {in:3, out:15, busca};
+    if (/opus-4(-1)?(-|$)|opus-4-0|claude-3/.test(m)) return {in:15, out:75, busca};
+    return {in:5, out:25, busca};                                   // Opus 4.5 em diante
+  }
+  if (p==="gpt"){
+    const busca = 10;
+    if (/nano/.test(m)) return {in:.05, out:.4, busca};
+    if (/mini/.test(m)) return {in:.25, out:2, busca};
+    if (/gpt-4o/.test(m)) return {in:2.5, out:10, busca:25};
+    if (/gpt-4\.1/.test(m)) return {in:2, out:8, busca:25};
+    if (/gpt-5(\.0)?($|-)/.test(m)) return {in:1.25, out:10, busca};
+    return {in:1.75, out:14, busca};                                // GPT-5.x mais novos
+  }
+  if (p==="gemini"){
+    const busca = 35;
+    if (/lite/.test(m)) return {in:.1, out:.4, busca};
+    if (/pro/.test(m)) return /gemini-2/.test(m) ? {in:1.25, out:10, busca} : {in:2, out:12, busca};
+    if (/gemini-2/.test(m)) return {in:.3, out:2.5, busca};
+    return {in:.5, out:3, busca:14};                                // Flash 3 em diante
+  }
+  return {in:2, out:10, busca:10};
+}
+const mesAtual = () => new Date().toISOString().slice(0,7);
+const diaPacifico = () => new Date(Date.now()-8*3600e3).toISOString().slice(0,10); // a cota grátis do Google renova à meia-noite do Pacífico
+function gastoNovo(){ return {mes:mesAtual(), usd:0, porIA:{}, chamadas:0, tokIn:0, tokOut:0, buscas:0, aviso80:false, liberado:false, gemDia:{dia:diaPacifico(), pedidos:0, buscas:0}}; }
+let gasto = store.get("gasto", null);
+function gastoAtual(){
+  if (!gasto || gasto.mes!==mesAtual()) { const gd=gasto?.gemDia; gasto=gastoNovo(); if(gd?.dia===diaPacifico()) gasto.gemDia=gd; }
+  if (!gasto.gemDia || gasto.gemDia.dia!==diaPacifico()) gasto.gemDia={dia:diaPacifico(), pedidos:0, buscas:0};
+  return gasto;
+}
+const geminiGratis = () => (cfg?.geminiPlano||"gratis")==="gratis";
+const cotacao = () => num(cfg?.cotacao) > 0 ? num(cfg.cotacao) : 5.4;
+const brl = usd => (usd*cotacao()).toLocaleString("pt-BR",{style:"currency",currency:"BRL"});
+const usdTxt = usd => "US$ "+usd.toLocaleString("pt-BR",{minimumFractionDigits:2, maximumFractionDigits:usd<1?4:2});
+function registrarUso({p, model, inTok=0, outTok=0, buscas=0}){
+  const g = gastoAtual();
+  const pr = precoModelo(p, model), gratis = p==="gemini" && geminiGratis();
+  const custo = gratis ? 0 : (inTok*pr.in + outTok*pr.out)/1e6 + buscas*pr.busca/1000;
+  g.usd += custo; g.chamadas++; g.tokIn += inTok; g.tokOut += outTok; g.buscas += buscas;
+  const ia = g.porIA[p] = g.porIA[p] || {usd:0, chamadas:0, tokIn:0, tokOut:0, buscas:0, modelo:""};
+  ia.usd += custo; ia.chamadas++; ia.tokIn += inTok; ia.tokOut += outTok; ia.buscas += buscas; ia.modelo = model;
+  if (p==="gemini") { g.gemDia.pedidos++; g.gemDia.buscas += buscas; }
+  store.set("gasto", g);
+  const lim = num(cfg?.limite?.usd);
+  if (lim>0 && !g.aviso80 && g.usd >= lim*.8 && g.usd < lim){
+    g.aviso80 = true; store.set("gasto", g);
+    setTimeout(()=>caption(`<em>Aviso: você já usou ${Math.round(g.usd/lim*100)}% do limite do mês com a IA (${esc(brl(g.usd))} de ${esc(brl(lim))}).</em>`), 1200);
+  }
+  if (tab==="ajustes" && !$("#card").contains(document.activeElement)) renderCard();
+}
+function checarLimite(){
+  const g = gastoAtual(), lim = num(cfg?.limite?.usd);
+  if (!(lim>0) || g.usd < lim || g.liberado) return;
+  const bloquear = cfg?.limite?.acao==="bloquear";
+  highlight = {tipo:"gasto", titulo:"Limite do mês atingido"}; tab="destaque"; renderCard();
+  throw Object.assign(new Error("limite"), {code:"limite", userMsg: bloquear
+    ? `Você chegou ao limite de ${brl(lim)} deste mês com a IA. O Atlas volta a responder no dia 1º, ou quando você aumentar o limite em Ajustes.`
+    : `Você chegou ao limite de ${brl(lim)} deste mês com a IA. Toque em "Continuar este mês" no painel para liberar, ou aumente o limite em Ajustes.`});
+}
+function anel(pct, cor){
+  const R=46, C=2*Math.PI*R, f=Math.max(0,Math.min(1,pct));
+  return `<svg class="anel" viewBox="0 0 108 108"><circle cx="54" cy="54" r="${R}" fill="none" stroke="rgba(90,180,255,.12)" stroke-width="10"/><circle class="sg" cx="54" cy="54" r="${R}" fill="none" stroke="${cor}" stroke-width="10" stroke-linecap="round" style="--len:${(f*C).toFixed(1)};filter:drop-shadow(0 0 6px ${cor})"/><text x="54" y="60" text-anchor="middle" transform="rotate(90 54 54)" style="font-family:var(--f-hud);font-size:20px;fill:#fff">${Math.round(pct*100)}%</text></svg>`;
+}
+function renderGasto(){
+  const g = gastoAtual(), lim = num(cfg?.limite?.usd), pct = lim>0 ? g.usd/lim : 0;
+  const cor = pct>=1 ? "#ff5d6c" : pct>=.8 ? "#ffb547" : "#3dff8a";
+  const nomes = {gpt:"ChatGPT", claude:"Claude", gemini:"Gemini"};
+  const ias = Object.entries(g.porIA);
+  const mes = new Date().toLocaleDateString("pt-BR",{month:"long", year:"numeric"});
+  const fmtN = n => n.toLocaleString("pt-BR");
+  const gem = g.porIA.gemini || cfg?.provider==="gemini";
+  return `<div class="eyebrow">Gasto com a IA · ${esc(mes)}</div>
+    <div class="gasto">${lim>0?anel(pct, cor):""}<div><div class="big" style="color:${lim>0?cor:"var(--green)"}"><span data-count="${(g.usd*cotacao()).toFixed(2).replace(".",",")}" data-pre="R$ " data-dec="2">${esc(brl(g.usd))}</span></div>
+      <p class="sub" style="margin:0">${esc(usdTxt(g.usd))} · dólar a R$ ${cotacao().toLocaleString("pt-BR",{minimumFractionDigits:2})}${lim>0?` · limite ${esc(brl(lim))}`:" · sem limite definido"}</p></div></div>
+    ${pct>=1 && !g.liberado ? `<div class="aviso" style="margin-top:10px"><span>O limite do mês foi atingido. ${cfg?.limite?.acao==="bloquear"?"O Atlas está pausado até o dia 1º ou até você aumentar o limite.":"Você pode liberar o uso até o fim do mês."}</span><div class="duo">${cfg?.limite?.acao==="bloquear"?"":`<button type="button" class="btn-line" data-act="gasto-liberar">Continuar este mês</button>`}<button type="button" class="btn-line" data-act="gasto-ajustes">Mudar limite</button></div></div>` : ""}
+    ${kpiTiles([{rotulo:"Respostas", valor:g.chamadas}, {rotulo:"Tokens", valor:fmtN(g.tokIn+g.tokOut)}, {rotulo:"Buscas na web", valor:g.buscas}])}
+    ${ias.length?`<div class="chart-h" style="margin-top:12px">${ias.map(([k,v],i)=>{ const mx=Math.max(...ias.map(([,x])=>x.usd))||1; const c=PALETA[i%PALETA.length]; return `<div class="hb" style="animation-delay:${i*.08}s"><span>${esc(nomes[k]||k)}</span><div class="tr2"><i style="--w:${Math.max(2,(v.usd/mx*100)).toFixed(1)}%;--c:${c}"></i></div><b>${esc(k==="gemini"&&geminiGratis()?"grátis":brl(v.usd))}</b></div>`; }).join("")}</div>`:""}
+    ${gem?`<p class="sub" style="margin-top:10px">${geminiGratis()?`<b style="color:var(--green)">Gemini no plano grátis: custo zero.</b> Hoje: <b style="color:var(--fg)">${g.gemDia.pedidos}</b> pedidos e ${g.gemDia.buscas} buscas no Google. O Google limita o plano grátis por minuto e por dia (o número muda por modelo); quando acabar, o Atlas avisa. A cota renova por volta das 4h ou 5h (Brasília).`:"Gemini com faturamento ativado: custo estimado pela tabela do Google."}</p>`:""}
+    <p class="note" style="margin-top:10px">Estimativa feita pelo Atlas a partir dos tokens e buscas de cada resposta, com os preços de tabela de cada empresa. A cobrança oficial é a do site da empresa.</p>`;
+}
+
 const RESEARCH_STEPS = ["Decompondo a pergunta","Levantando dados e fontes","Cruzando informações","Verificando consistência","Escrevendo o relatório"];
 let researchTimer=null;
 async function research(pergunta, signal){
@@ -1551,6 +1661,7 @@ function renderHighlight(h){
   if(h.tipo==="grafico") return renderGrafico(h);
   if(h.tipo==="apresentacao" && h.slides?.length) return renderStory(h);
   if(h.tipo==="musica") return renderMusica(h);
+  if(h.tipo==="gasto") return renderGasto();
   if(h.tipo==="pesquisa"){
     if(h.run) return `<div class="eyebrow">Pesquisa avançada</div><h3>${esc(h.titulo)}</h3><ul class="su-steps">${RESEARCH_STEPS.map((s,i)=>`<li class="${i<h.etapa?"ok":i===h.etapa?"run":""}">${s}</li>`).join("")}</ul>`;
     const conf={alta:"var(--green)", "média":"var(--amber)", media:"var(--amber)", baixa:"var(--red)"}[h.confianca?.toLowerCase()]||"var(--fg-dim)";
@@ -1590,6 +1701,10 @@ const CARTAO_SCHEMA = {type:"object", properties:{
 }, required:["tipo"]};
 if (NATIVE) setTimeout(()=>SIS?.appsMusica().then(r=>{ appsMusica=r.apps||[]; }).catch(()=>{}), 1500);
 const tools = [
+  {name:"mostrar_gasto", description:"Mostra no painel quanto já foi gasto com a IA neste mês (estimativa em reais e dólar), o limite mensal e, no Gemini grátis, o uso da cota do dia.",
+   inputSchema:{type:"object", properties:{}},
+   execute(){ const g=gastoAtual(), lim=num(cfg?.limite?.usd); highlight={tipo:"gasto", titulo:"Gasto com a IA"}; tab="destaque"; renderCard();
+     return {gasto_reais:brl(g.usd), gasto_dolar:usdTxt(g.usd), limite_reais: lim>0?brl(lim):"sem limite", respostas:g.chamadas, gemini_gratis: cfg?.provider==="gemini"&&geminiGratis(), pedidos_gemini_hoje:g.gemDia.pedidos}; }},
   {name:"tocar_musica", description:"Toca uma música, artista, álbum ou playlist no app de música do celular (Spotify, YouTube Music, Deezer etc.) e volta para o Atlas, mostrando o cartão Tocando agora. Use para 'toca', 'coloca', 'quero ouvir'.",
    inputSchema:{type:"object", properties:{busca:{type:"string", description:"o que tocar, ex.: Asa Branca Luiz Gonzaga, Alceu Valença, playlist de frevo"}, tipo:{type:"string", enum:["musica","artista","album","playlist","qualquer"]}, app:{type:"string", enum:["spotify","ytmusic","youtube","deezer","soundcloud","amazon"], description:"só se o usuário pedir um app específico"}}, required:["busca"]},
    async execute(i){
@@ -2040,6 +2155,7 @@ function activate({primeira=false}={}){ renderCard(); if (primeira || briefingDe
 
 /* ---------- IA real: OpenAI (ChatGPT) e Anthropic (Claude) com a chave do usuário ---------- */
 const AI = (() => {
+  const hooks = {usage:null, guard:null}; // medição de gasto e limite mensal (definidos fora do módulo)
   const INFO = {
     gpt: {nome:"ChatGPT", empresa:"a OpenAI", pagina:"página de chaves da OpenAI", prefixo:"sk-", url:"https://platform.openai.com/api-keys", site:"platform.openai.com/api-keys", app:"chatgpt", appNome:"ChatGPT",
       passos:["Toque em <b>Abrir no navegador</b>. A página da OpenAI abre no navegador do celular.", "Entre com a <b>mesma conta do ChatGPT</b> (Google, Apple ou e-mail).", "Toque em <b>Create new secret key</b>, dê um nome (ex.: Atlas) e toque em <b>Create</b>.", "Toque em <b>Copy</b>, volte para o Atlas e toque em <b>Colar</b>."],
@@ -2096,7 +2212,9 @@ const AI = (() => {
         if (flags.effort && b._effort) b.output_config = {effort:b._effort};
         delete b._effort;
         if (b.tools) b.tools = b.tools.map(t => t.type==="WEB" ? {type:flags.webType, name:"web_search", max_uses:5} : t);
-        try { return await http("https://api.anthropic.com/v1/messages", {method:"POST", headers:H, body:JSON.stringify(b), signal}, "a Anthropic"); }
+        try { const r = await http("https://api.anthropic.com/v1/messages", {method:"POST", headers:H, body:JSON.stringify(b), signal}, "a Anthropic");
+          const u = r.usage||{}; hooks.usage?.({p:"claude", model, inTok:(u.input_tokens||0)+(u.cache_creation_input_tokens||0)+(u.cache_read_input_tokens||0), outTok:u.output_tokens||0, buscas:u.server_tool_use?.web_search_requests||0});
+          return r; }
         catch (e) {
           if (e.status===400 && /effort|output_config/i.test(e.message) && flags.effort){ flags.effort=false; continue; }
           if (e.status===400 && /web_search/i.test(e.message) && flags.webType!=="web_search_20250305"){ flags.webType="web_search_20250305"; continue; }
@@ -2140,7 +2258,9 @@ const AI = (() => {
         if (flags.reasoning && b._effort) b.reasoning = {effort:b._effort};
         delete b._effort;
         if (b.tools) b.tools = b.tools.map(t => t.type==="WEB" ? {type:flags.webType} : t);
-        try { return await http("https://api.openai.com/v1/responses", {method:"POST", headers:H, body:JSON.stringify(b), signal}, "a OpenAI"); }
+        try { const r = await http("https://api.openai.com/v1/responses", {method:"POST", headers:H, body:JSON.stringify(b), signal}, "a OpenAI");
+          const u = r.usage||{}; hooks.usage?.({p:"gpt", model, inTok:u.input_tokens||0, outTok:u.output_tokens||0, buscas:(r.output||[]).filter(o=>o.type==="web_search_call").length});
+          return r; }
         catch (e) {
           if (e.status===400 && /reasoning/i.test(e.message) && flags.reasoning){ flags.reasoning=false; continue; }
           if (e.status===400 && /web_search/i.test(e.message) && flags.webType!=="web_search_preview"){ flags.webType="web_search_preview"; continue; }
@@ -2195,7 +2315,10 @@ const AI = (() => {
         b.generationConfig = Object.assign({}, b.generationConfig);
         if (flags.thinking==="level") b.generationConfig.thinkingConfig = {thinkingLevel: q?"low":"medium"};
         else if (flags.thinking==="budget") b.generationConfig.thinkingConfig = {thinkingBudget: q?0:2048};
-        try { return await http(`${GBASE}/models/${encodeURIComponent(model)}:generateContent`, {method:"POST", headers:H, body:JSON.stringify(b), signal}, "o Google"); }
+        try { const r = await http(`${GBASE}/models/${encodeURIComponent(model)}:generateContent`, {method:"POST", headers:H, body:JSON.stringify(b), signal}, "o Google");
+          const u = r.usageMetadata||{}, q = r.candidates?.[0]?.groundingMetadata?.webSearchQueries?.length||0;
+          hooks.usage?.({p:"gemini", model, inTok:u.promptTokenCount||0, outTok:(u.candidatesTokenCount||0)+(u.thoughtsTokenCount||0), buscas: q ? (/gemini-[3-9]/.test(model) ? q : 1) : 0});
+          return r; }
         catch (e) {
           if (e.status===400 && /thinking/i.test(e.message) && flags.thinking){ flags.thinking = flags.thinking==="level" ? "budget" : null; continue; }
           throw e;
@@ -2288,16 +2411,19 @@ const AI = (() => {
   }
   function client(p, key, model){
     const run = p==="claude" ? anthropic(key, model) : p==="gemini" ? gemini(key, model) : openai(key, model);
-    const fn = (turns, opts) => run(turns, opts);
+    const fn = (turns, opts) => { hooks.guard?.(); return run(turns, opts); };
     fn.json = async (prompt, opts={}) => {
+      hooks.guard?.();
       const {text} = await run([{role:"user", content:prompt+"\n\nResponda apenas com o JSON, sem nenhum texto antes ou depois."}], opts);
       return parseJSON(text);
     };
     fn.web = true;
     return fn;
   }
-  return {INFO, validate, client};
+  return {INFO, validate, client, hooks};
 })();
+AI.hooks.usage = registrarUso;
+AI.hooks.guard = checarLimite;
 function connectAI(){
   if (window.claude?.use) return;
   const p = cfg?.provider, key = cfg?.keys?.[p];
