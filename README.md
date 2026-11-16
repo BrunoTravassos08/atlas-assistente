@@ -39,6 +39,10 @@ Na primeira abertura, escolha ChatGPT ou Claude e cole uma **chave de API** (o a
 - Pesquisa e briefing de notícias usam a busca na web do próprio provedor.
 - No Android, a voz usa o reconhecimento de fala e o leitor de texto do sistema. A escuta contínua ("Atlas, ...") ainda não existe no app.
 
+### Configuração inicial
+
+O app não vem com interesses nem agenda pré-definidos. Na primeira abertura ele guia a pessoa em 4 etapas: nome, conexão com a IA, interesses (assuntos prontos + cidade, time e assuntos livres) e rotina (horário do briefing, dias, aviso no celular e voz). Ao terminar, o agente já pesquisa os interesses e apresenta o primeiro briefing. Depois, o briefing acontece uma vez por dia, a partir do horário escolhido, na primeira vez que o app é aberto. Dá para refazer tudo em **Ajustes → Refazer configuração**.
+
 ### Desempenho e rotação
 
 - Efeitos em modo **Leve** por padrão no app: 30 quadros por segundo, fundo em resolução menor e sem desfoque. Dá para trocar para **Completo** em Ajustes.

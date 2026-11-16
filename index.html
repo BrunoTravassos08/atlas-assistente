@@ -233,6 +233,25 @@ button{cursor:pointer}
   .overlay{align-items:flex-start}
 }
 
+
+/* ---------- configuração inicial ---------- */
+.steps{list-style:none;margin:0;padding:0;display:flex;gap:6px;counter-reset:st}
+.steps li{flex:1;counter-increment:st;font-family:var(--f-hud);font-size:10px;letter-spacing:.14em;text-transform:uppercase;color:var(--fg-faint);border-top:2px solid var(--line);padding-top:6px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.steps li::before{content:counter(st) " · "}
+.steps li.on{color:var(--cyan);border-top-color:var(--cyan);box-shadow:0 -6px 12px -8px var(--cyan)}
+.steps li.ok{color:var(--fg-dim);border-top-color:var(--green)}
+.onb section{display:flex;flex-direction:column;gap:14px}
+.onb-h{margin:0;font-family:var(--f-hud);font-weight:700;font-size:22px;line-height:1.2}
+.onb .sub{margin:0}
+.pick{display:flex;flex-wrap:wrap;gap:8px}
+.pick button{border:1px solid var(--line-hi);background:rgba(8,20,40,.7);padding:9px 12px;font-family:var(--f-hud);font-size:13px;color:var(--fg-dim);display:inline-flex;gap:8px;align-items:center}
+.pick button i{font-style:normal;width:14px;height:14px;border:1px solid var(--fg-faint);display:inline-grid;place-items:center;font-size:10px;color:transparent}
+.pick button[aria-pressed="true"]{border-color:var(--cyan);color:var(--fg);background:rgba(67,217,255,.12);box-shadow:0 0 14px rgba(67,217,255,.18)}
+.pick button[aria-pressed="true"] i{background:var(--cyan);color:var(--void);border-color:var(--cyan)}
+textarea.inp{height:auto;padding:8px 12px;resize:vertical;font:inherit}
+.check{display:flex;gap:10px;align-items:center;font-size:14px;color:var(--fg-dim)}
+.check input{width:20px;height:20px;accent-color:var(--cyan)}
+.login.onb{max-width:520px}
 /* abas sempre inteiras na tela, sem rolar de lado */
 .tabs{gap:2px}
 .tabs button{flex:1 1 0;min-width:0;padding:8px 2px;letter-spacing:.12em;white-space:nowrap;overflow:hidden;text-overflow:clip}
@@ -267,8 +286,8 @@ button{cursor:pointer}
       <div class="wakebar" id="wakebar" hidden><i></i><span id="wakeTxt">Diga "Atlas"</span></div>
       <div class="caption" id="caption" aria-live="polite"></div>
       <div class="qchips" id="qchips" hidden>
-        <button type="button" data-q="Preciso de ajuda com a faculdade.">Ajuda na faculdade</button>
-        <button type="button" data-q="Tenho uma atividade e quero ajuda.">Tenho uma atividade</button>
+        <button type="button" data-q="Quero que você pesquise uma coisa para mim.">Pesquisar algo</button>
+        <button type="button" data-q="Quero anotar um compromisso na agenda.">Anotar compromisso</button>
         <button type="button" data-q="">Agora não</button>
       </div>
     </section>
@@ -306,6 +325,7 @@ button{cursor:pointer}
 <div class="overlay" id="loginView" hidden>
   <div class="login">
     <div class="brand"><b>ATLAS</b><span>Central de inteligência</span></div>
+    <ol class="steps" aria-label="Configuração inicial"><li class="on">Você</li><li id="stIA">IA</li><li>Interesses</li><li>Rotina</li></ol>
     <div class="two">
       <div><label class="lbl" for="uName">Como devo te chamar?</label><input class="inp" id="uName" placeholder="Seu nome"></div>
       <div><label class="lbl" for="aName">Nome do agente</label><input class="inp" id="aName" placeholder="ATLAS"></div>
@@ -330,6 +350,38 @@ button{cursor:pointer}
   </div>
 </div>
 
+
+<div class="overlay" id="onbView" hidden>
+  <div class="login onb">
+    <div class="brand"><b id="onbBrand">ATLAS</b><span>Configuração inicial</span></div>
+    <ol class="steps" aria-hidden="true"><li class="ok">Você</li><li class="ok">IA</li><li id="stInt" class="on">Interesses</li><li id="stRot">Rotina</li></ol>
+
+    <section id="onbInt">
+      <h2 class="onb-h">O que você quer acompanhar?</h2>
+      <p class="sub">Escolha os assuntos. Eu vou pesquisar sobre eles todos os dias e te contar o que importa.</p>
+      <div class="pick" id="pick"></div>
+      <div class="two">
+        <div><label class="lbl" for="oCity">Sua cidade</label><input class="inp" id="oCity" placeholder="Ex.: Recife - PE"></div>
+        <div id="oTeamBox" hidden><label class="lbl" for="oTeam">Seu time</label><input class="inp" id="oTeam" placeholder="Ex.: Sport"></div>
+      </div>
+      <div><label class="lbl" for="oMore">Pessoas ou assuntos específicos (um por linha)</label><textarea class="inp" id="oMore" rows="3" placeholder="Ex.: um político, uma empresa, um artista"></textarea></div>
+      <p class="note bad" id="oIntMsg" hidden></p>
+      <div class="row2"><span></span><button type="button" class="btn-solid" id="oIntNext">Continuar</button></div>
+    </section>
+
+    <section id="onbRot" hidden>
+      <h2 class="onb-h">Monte sua rotina</h2>
+      <p class="sub">Todo dia, a partir do horário escolhido, a primeira vez que você abrir o app eu faço o briefing: notícias dos seus assuntos e seus compromissos.</p>
+      <div class="two">
+        <div><label class="lbl" for="oHora">Horário do briefing</label><input class="inp" id="oHora" type="time" value="07:00"></div>
+        <div><label class="lbl" for="oDias">Dias</label><select class="inp" id="oDias"><option value="todos">Todos os dias</option><option value="uteis">Segunda a sexta</option></select></div>
+      </div>
+      <label class="check"><input type="checkbox" id="oLembrete" checked> <span>Me avisar no celular nesse horário</span></label>
+      <label class="check"><input type="checkbox" id="oVoz" checked> <span>Ler as respostas em voz alta</span></label>
+      <div class="row2"><button type="button" class="btn-line" id="oRotBack">‹ Voltar</button><button type="button" class="btn-solid" id="oRotGo">Criar meu agente</button></div>
+    </section>
+  </div>
+</div>
 <div class="overlay setup" id="setupView" hidden>
   <div class="su-box">
     <div class="eyebrow" id="suProv">Conectando</div>
@@ -365,13 +417,7 @@ const store = {
 /* ---------- state ---------- */
 let cfg = store.get("cfg", null); // {provider, user, name, voice, speak}
 let tasks = store.get("tasks", null);
-if (!tasks) {
-  tasks = [
-    {id:1, hora:"09:30", titulo:"Revisar e-mails", nota:"exemplo", feito:false},
-    {id:2, hora:"14:00", titulo:"Reunião com a equipe", nota:"exemplo", feito:false},
-    {id:3, hora:"17:00", titulo:"Gravação de conteúdo", nota:"exemplo", feito:false},
-  ];
-}
+if (!tasks) tasks = [];
 let highlight = store.get("hl", {categoria:"Sistema", titulo:"Pronto para começar", valor:"100%", legenda:"Todos os módulos online. Peça algo por voz ou texto."});
 let history = []; // {role, content}
 let tab = "agenda";
@@ -828,7 +874,8 @@ function renderCard(){
       <div class="row"><label class="lbl" for="sVoice" style="margin:0">Voz</label><select class="inp" id="sVoice" style="width:auto">${["buttery","airy","glassy","rounded"].map(v=>`<option ${cfg.voice===v?"selected":""}>${v}</option>`).join("")}</select></div>
       <div class="row"><label class="lbl" for="sSpeak" style="margin:0">Responder em voz alta</label><input type="checkbox" id="sSpeak" ${cfg.speak?"checked":""}></div>
       <div><label class="lbl" for="sTopics">Assuntos do briefing (um por linha)</label><textarea class="inp" id="sTopics" rows="4" style="height:auto;padding:8px 12px;resize:vertical">${esc(topics().map(t=>t.nome).join("\n"))}</textarea></div>
-      <div><span class="lbl">Skills instaladas</span><div class="chips">${["Agenda","Destaques","Tradução EN/ES","PDF: ler e padronizar","Pesquisa avançada","Briefing de notícias","Tutor da faculdade"].map(x=>`<span>${x}</span>`).join("")}</div></div>
+      <div class="row"><span class="sub">Rotina: ${cfg.rotina?`briefing às <b style="color:var(--fg)">${esc(cfg.rotina.hora)}</b>${cfg.rotina.dias==="uteis"?", seg a sex":", todos os dias"}${cfg.rotina.lembrete?" · com aviso":""}`:"não configurada"}</span><button class="btn-line" data-act="onboarding" type="button">Refazer configuração</button></div>
+      <div><span class="lbl">Skills instaladas</span><div class="chips">${["Agenda","Destaques","Tradução EN/ES","PDF: ler e padronizar","Pesquisa avançada","Briefing de notícias","Tutor de estudos"].map(x=>`<span>${x}</span>`).join("")}</div></div>
       <div class="row"><label class="lbl" for="sFx" style="margin:0">Efeitos visuais</label><select class="inp" id="sFx" style="width:auto"><option value="leve" ${FX.lite?"selected":""}>Leve (recomendado)</option><option value="completo" ${FX.lite?"":"selected"}>Completo</option></select></div>
       ${cfg.agent?`<div class="sub">Modelo: <b style="color:var(--fg)">${esc(cfg.model?.[cfg.provider]||cfg.agent.id)}</b><br>Conectado em ${new Date(cfg.agent.criadoEm).toLocaleString("pt-BR")}</div>`:""}
       <div class="row"><span class="sub">Conectado: <b style="color:var(--cyan)">${sample?PROV[cfg.provider]:"nenhuma IA"}</b></span><button class="btn-line warn" id="logout" type="button">Trocar IA</button></div>
@@ -844,6 +891,7 @@ $("#card").addEventListener("click", e=>{
   if(act==="desfazer" && pdfUndo.length){ const u=pdfUndo.pop(); Object.assign(pdf,{bytes:u.bytes,pages:u.pages,ops:u.ops}); renderCard(); renderThumbs(); }
   if(act==="baixar") pdfDownload();
   if(act==="briefing") runBriefing();
+  if(act==="onboarding") onboarding().then(()=>{ renderCard(); renderTicker(); runBriefing({abertura:true}); });
   if(act==="resumir") ask("Leia o PDF aberto e me faça um resumo.");
   if(act==="ouvir" && highlight.tipo==="traducao") speakIn(highlight.traducao, highlight.para);
   if(act==="copiar" && highlight.tipo==="traducao"){ navigator.clipboard?.writeText(highlight.traducao).then(()=>{ e.target.textContent="Copiado"; }).catch(()=>{}); }
@@ -856,7 +904,7 @@ $("#card").addEventListener("change", e=>{
   if(id==="sVoice") cfg.voice=e.target.value;
   if(id==="sSpeak") cfg.speak=e.target.checked;
   if(id==="sFx"){ cfg.fx=e.target.value; store.set("cfg",cfg); applyFx(); }
-  if(id==="sTopics"){ const old=topics(); cfg.interesses=e.target.value.split("\n").map(x=>x.trim()).filter(Boolean).slice(0,8).map(n=>old.find(o=>o.nome===n)||{nome:n,q:n}); }
+  if(id==="sTopics"){ setTimeout(agendarLembrete,0); const old=topics(); cfg.interesses=e.target.value.split("\n").map(x=>x.trim()).filter(Boolean).slice(0,8).map(n=>old.find(o=>o.nome===n)||{nome:n,q:n}); }
   store.set("cfg",cfg);
 });
 function renderTicker(){
@@ -887,7 +935,7 @@ SKILLS:
 1. Tradução (português, inglês, espanhol): quando pedirem para traduzir, ou perguntarem como se diz algo em outro idioma, chame mostrar_traducao com o texto completo traduzido de forma natural. Na sua resposta falada diga só uma frase curta em português (ex.: "Aqui está em inglês."); o app lê a tradução em voz alta no idioma certo.
 2. PDF: o usuário anexa PDFs pelo clipe. Use pdf_info para ver tamanhos e orientação das páginas, pdf_ler_texto para ler o conteúdo, pdf_padronizar para deixar todas as páginas no mesmo tamanho (A4 por padrão), pdf_girar, pdf_excluir_paginas e pdf_reordenar para alterar. Páginas fora do padrão são um problema recorrente do usuário: quando um PDF tiver formatos misturados, ofereça padronizar. Depois de alterar, diga que ele pode baixar pelo botão Baixar PDF no painel. Se não houver PDF aberto, peça para anexar pelo clipe.
 3. Pesquisa avançada: para QUALQUER pedido de informação, explicação, comparação, recomendação, dados ou "pesquise", chame pesquisa_avancada antes de responder. Depois resuma o resultado em até 3 frases e diga que o relatório completo está no painel. Não use para conversa casual, agenda, tradução ou PDF.
-5. Faculdade e atividades: você também é o tutor do usuário. Quando ele pedir ajuda com a faculdade, um trabalho, prova ou atividade: pergunte a matéria, o tema e o prazo se faltar; explique passo a passo, de forma didática; use pesquisa_avancada para conteúdo; use mostrar_destaque para um plano de estudo ou roteiro em itens; e ofereça salvar prazos e etapas na agenda com adicionar_tarefa. Se ele anexar um PDF da atividade, leia com pdf_ler_texto antes de ajudar.
+5. Estudos e atividades: você também pode ser tutor. Quando o usuário pedir ajuda com estudos, faculdade, escola, um trabalho, prova ou atividade: pergunte a matéria, o tema e o prazo se faltar; explique passo a passo, de forma didática; use pesquisa_avancada para conteúdo; use mostrar_destaque para um plano de estudo ou roteiro em itens; e ofereça salvar prazos e etapas na agenda com adicionar_tarefa. Se ele anexar um PDF da atividade, leia com pdf_ler_texto antes de ajudar.
 4. Briefing de notícias: quando pedirem notícias, novidades ou "o que está acontecendo", chame briefing_noticias (busca os assuntos de interesse do usuário: ${topics().map(t=>t.nome).join("; ")}). Depois diga só uma frase curta, porque o briefing já é falado.
 A pesquisa e o briefing usam a web ao vivo quando o app está aberto no Claude para desktop; senão usam seu conhecimento e apontam o que conferir.
 ${context()}`;
@@ -976,13 +1024,7 @@ async function pdfDownload(){
 /* ---------- web ao vivo (navegador do app Claude) + briefing de notícias ---------- */
 let mcp=null, browserState="?"; // "?" | "on" | "off"
 let browserLock=Promise.resolve();
-const DEFAULT_TOPICS=[
-  {nome:"Sport Club do Recife", q:'"Sport Club do Recife" OR "Sport Recife"'},
-  {nome:"Política e atualidades de Recife e Pernambuco", q:"Recife Pernambuco política"},
-  {nome:"Jarbas Vasconcelos (Jarbinhas)", q:'"Jarbas Vasconcelos" OR Jarbinhas'},
-  {nome:"Raquel Lyra", q:'"Raquel Lyra"'},
-];
-const topics = () => (cfg.interesses && cfg.interesses.length ? cfg.interesses : DEFAULT_TOPICS);
+const topics = () => (cfg?.interesses || []);
 const bingNews = q => `https://www.bing.com/news/search?q=${encodeURIComponent(q)}&qft=${encodeURIComponent('interval="7"')}&setlang=pt-br&cc=br`;
 const bingWeb = q => `https://www.bing.com/search?q=${encodeURIComponent(q)}&setlang=pt-br&cc=br`;
 function textOf(r){ const p=r?.payload; let t=typeof p==="string"? p : (r?.content||[]).filter(b=>b.type==="text").map(b=>b.text).join("\n"); return String(t||"").split("\nTab Context:")[0]; }
@@ -1017,6 +1059,7 @@ async function runBriefing({abertura=false}={}){
     helloP = (cfg.speak&&tts) ? tts.speak(hello,{voice:cfg.voice||"buttery",language:"pt-BR"}).catch(()=>{}) : sleep(1500);
   }
   const ts=topics();
+  if(!ts.length){ briefingBusy=false; return ask("", {greeting:true}); }
   highlight={tipo:"briefing", run:true, topicos:ts.map(t=>({assunto:t.nome, status:"na fila"}))};
   tab="destaque"; renderCard();
   setMode("thinking"); $("#state").textContent="Buscando notícias…";
@@ -1044,7 +1087,7 @@ ${textos.map(t=>`### ${t.assunto}\n${t.resultados}`).join("\n\n")}` : `Não há 
 Assuntos de interesse: ${ts.map(t=>t.nome).join("; ")}.
 
 Monte o briefing de abertura. Responda SOMENTE com JSON:
-{"fala": "texto para ser lido em voz alta, sem a saudação inicial (ela já foi dita), 4 a 7 frases curtas: a manchete mais importante de cada assunto, depois o próximo compromisso da agenda, e TERMINE perguntando de forma natural se ele precisa de ajuda com a faculdade ou com alguma atividade", "topicos": [{"assunto": "...", "resumo": "1 frase", "manchetes": [{"titulo": "...", "fonte": "...", "quando": "ex.: há 8 h"}]}]}
+{"fala": "texto para ser lido em voz alta, sem a saudação inicial (ela já foi dita), 4 a 7 frases curtas: a manchete mais importante de cada assunto, depois o próximo compromisso da agenda, e TERMINE perguntando de forma natural se pode ajudar com mais alguma coisa", "topicos": [{"assunto": "...", "resumo": "1 frase", "manchetes": [{"titulo": "...", "fonte": "...", "quando": "ex.: há 8 h"}]}]}
 No máximo 3 manchetes por assunto. Use só informação presente nos resultados.`;
     const r = await sample.json(prompt,{modelTier:"quick", web:webBusca});
     highlight={tipo:"briefing", run:false, aoVivo, em:new Date().toISOString(), topicos:(r.topicos||[]).slice(0,8).map(t=>({assunto:String(t.assunto||""), resumo:String(t.resumo||""), manchetes:(t.manchetes||[]).slice(0,3).map(m=>({titulo:String(m.titulo||""), fonte:String(m.fonte||""), quando:String(m.quando||"")}))}))};
@@ -1053,6 +1096,7 @@ No máximo 3 manchetes por assunto. Use só informação presente nos resultados
     const fala=String(r.fala||"");
     caption(esc(fala)); history.push({role:"assistant",content:(abertura?`${per}, ${cfg.user||""}. `:"")+fala});
     if(abertura) showChips();
+    marcarBriefing();
     await speak(fala);
   }catch(e){
     highlight.run=false; renderCard();
@@ -1165,7 +1209,7 @@ async function ask(userText, {greeting=false}={}){
   if (tab==="historico") renderCard();
   if (!sample){ return offline(userText, greeting); }
   const turns = greeting
-    ? [{role:"user", content: rules()+"\n\nO usuário acabou de abrir o app. Cumprimente pelo período do dia e faça um briefing de no máximo 3 frases sobre a agenda de hoje (o que vem a seguir) e termine perguntando se ele precisa de ajuda com a faculdade ou com alguma atividade. Use mostrar_destaque com o próximo compromisso."}]
+    ? [{role:"user", content: rules()+"\n\nO usuário acabou de abrir o app. Cumprimente pelo período do dia e faça um briefing de no máximo 3 frases sobre a agenda de hoje (o que vem a seguir) e termine perguntando se pode ajudar com alguma coisa. Use mostrar_destaque com o próximo compromisso."}]
     : [{role:"user", content: rules()+"\n\nResponda à conversa a seguir."},{role:"assistant",content:"Entendido."}, ...history.slice(-12)];
   let shown = "";
   try{
@@ -1197,7 +1241,7 @@ async function speak(text){
 async function offline(userText, greeting){
   const h=new Date().getHours(), per=h<12?"Bom dia":h<18?"Boa tarde":"Boa noite";
   const next=tasks.filter(t=>!t.feito).sort((a,b)=>(a.hora||"").localeCompare(b.hora||""))[0];
-  const text = greeting ? `${per}, ${cfg.user||"senhor"}. Todos os sistemas online.${next?` Seu próximo compromisso é ${next.titulo}${next.hora?" às "+next.hora:""}.`:""} Precisa de ajuda com a faculdade ou com alguma atividade?`
+  const text = greeting ? `${per}, ${cfg.user||"senhor"}. Todos os sistemas online.${next?` Seu próximo compromisso é ${next.titulo}${next.hora?" às "+next.hora:""}.`:""} Posso ajudar com alguma coisa?`
     : "Ainda não estou conectado a uma inteligência artificial. Vá em Ajustes, toque em Trocar IA e conecte sua chave do ChatGPT ou do Claude.";
   await new Promise(r=>setTimeout(r,700));
   caption(esc(text)); history.push({role:"assistant",content:text});
@@ -1309,13 +1353,14 @@ document.addEventListener("drop", e=>{ const f=[...(e.dataTransfer?.files||[])].
 $("#orb").addEventListener("click", toggleMic);
 
 /* ---------- login / boot ---------- */
-function showLogin(){ $("#loginView").hidden=false; $("#bootView").hidden=true; $("#connect").hidden=true; $("#prov").hidden=false; $("#provTitle").hidden=false; $("#uName").value=cfg?.user||""; $("#aName").value=cfg?.name&&cfg.name!=="ATLAS"?cfg.name:""; }
+function showLogin(){ document.querySelectorAll("#loginView .steps li").forEach((li,i)=>li.className=i===0?"on":""); $("#onbView").hidden=true; $("#loginView").hidden=false; $("#bootView").hidden=true; $("#connect").hidden=true; $("#prov").hidden=false; $("#provTitle").hidden=false; $("#uName").value=cfg?.user||""; $("#aName").value=cfg?.name&&cfg.name!=="ATLAS"?cfg.name:""; }
 $("#prov").addEventListener("click", e=>{
   const b=e.target.closest("button"); if(!b) return;
   const p=b.dataset.p, info=AI.INFO[p];
   document.querySelectorAll("#prov button").forEach(x=>x.setAttribute("aria-pressed", String(x===b)));
   $("#prov").hidden=true; $("#provTitle").hidden=true; $("#connect").hidden=false;
   $("#connect").dataset.p=p;
+  const st=document.querySelectorAll("#loginView .steps li"); st[0].className="ok"; st[1].className="on";
   $("#cnTitle").textContent=`Conectar ${info.nome}`;
   $("#cnHelp").innerHTML=info.ajuda;
   $("#cnOpen").textContent=`Abrir ${info.pagina} ↗`;
@@ -1345,10 +1390,104 @@ $("#cnForm").addEventListener("submit", async e=>{
   go.disabled=false; go.textContent="Conectar";
   connectAI();
   $("#loginView").hidden=true;
+  await onboarding();
   await createAgent(check);
-  activate();
+  activate({primeira:true});
 });
 
+
+/* ---------- configuração inicial: interesses e rotina ---------- */
+const INTERESSES = [
+  {id:"cidade", nome:"Minha cidade", q:c=>`${c.cidade||"minha cidade"} notícias`, titulo:c=>`Notícias de ${c.cidade||"sua cidade"}`},
+  {id:"politica", nome:"Política", q:c=>`política ${c.cidade?c.cidade+" e ":""}Brasil`, titulo:c=>c.cidade?`Política (${c.cidade} e Brasil)`:"Política no Brasil"},
+  {id:"economia", nome:"Economia e finanças", q:()=>"economia Brasil dólar juros inflação", titulo:()=>"Economia e finanças"},
+  {id:"futebol", nome:"Futebol", q:c=>c.time?`${c.time} futebol`:"futebol brasileiro", titulo:c=>c.time?c.time:"Futebol"},
+  {id:"tecnologia", nome:"Tecnologia", q:()=>"tecnologia inteligência artificial novidades", titulo:()=>"Tecnologia"},
+  {id:"saude", nome:"Saúde e bem-estar", q:()=>"saúde bem-estar Brasil", titulo:()=>"Saúde e bem-estar"},
+  {id:"ciencia", nome:"Ciência", q:()=>"ciência descobertas", titulo:()=>"Ciência"},
+  {id:"cultura", nome:"Cultura e entretenimento", q:()=>"cultura entretenimento cinema música Brasil", titulo:()=>"Cultura e entretenimento"},
+  {id:"fe", nome:"Religião e fé", q:()=>"religião igreja notícias Brasil", titulo:()=>"Religião e fé"},
+  {id:"clima", nome:"Clima e tempo", q:c=>`previsão do tempo ${c.cidade||"Brasil"}`, titulo:c=>c.cidade?`Tempo em ${c.cidade}`:"Clima e tempo"},
+  {id:"agro", nome:"Agronegócio", q:()=>"agronegócio Brasil safra", titulo:()=>"Agronegócio"},
+  {id:"concursos", nome:"Educação e concursos", q:()=>"concursos educação Brasil inscrições", titulo:()=>"Educação e concursos"},
+];
+let onbDone = null;
+function onboarding(){
+  const pf = cfg.perfil || {};
+  $("#onbBrand").textContent = cfg.name || "ATLAS";
+  $("#pick").innerHTML = INTERESSES.map(x=>`<button type="button" data-id="${x.id}" aria-pressed="${(pf.escolhas||[]).includes(x.id)}"><i>✓</i>${esc(x.nome)}</button>`).join("");
+  $("#oCity").value = pf.cidade||""; $("#oTeam").value = pf.time||""; $("#oMore").value = (pf.extras||[]).join("\n");
+  $("#oTeamBox").hidden = !(pf.escolhas||[]).includes("futebol");
+  const r = cfg.rotina || {};
+  $("#oHora").value = r.hora || "07:00"; $("#oDias").value = r.dias || "todos";
+  $("#oLembrete").checked = r.lembrete ?? true; $("#oVoz").checked = cfg.speak ?? true;
+  $("#oIntMsg").hidden = true;
+  onbStep("int");
+  $("#onbView").hidden = false; $("#loginView").hidden = true; $("#bootView").hidden = true;
+  return new Promise(res => { onbDone = res; });
+}
+function onbStep(st){
+  $("#onbInt").hidden = st!=="int"; $("#onbRot").hidden = st!=="rot";
+  $("#stInt").className = st==="int" ? "on" : "ok"; $("#stRot").className = st==="rot" ? "on" : "";
+  $("#onbView").scrollTop = 0;
+}
+$("#pick").addEventListener("click", e=>{
+  const b=e.target.closest("button"); if(!b) return;
+  b.setAttribute("aria-pressed", String(b.getAttribute("aria-pressed")!=="true"));
+  $("#oIntMsg").hidden = true;
+  if (b.dataset.id==="futebol") $("#oTeamBox").hidden = b.getAttribute("aria-pressed")!=="true";
+  if (b.dataset.id==="cidade" && b.getAttribute("aria-pressed")==="true" && !$("#oCity").value) $("#oCity").focus();
+});
+$("#oIntNext").addEventListener("click", ()=>{
+  const escolhas = [...document.querySelectorAll('#pick button[aria-pressed="true"]')].map(b=>b.dataset.id);
+  const extras = $("#oMore").value.split(/\n|;/).map(x=>x.trim()).filter(Boolean).slice(0,6);
+  const c = {cidade:$("#oCity").value.trim(), time:$("#oTeam").value.trim()};
+  if (!escolhas.length && !extras.length){ $("#oIntMsg").hidden=false; $("#oIntMsg").textContent="Escolha pelo menos um assunto, ou escreva um no campo de baixo."; return; }
+  const lista = [...INTERESSES.filter(x=>escolhas.includes(x.id)).map(x=>({nome:x.titulo(c), q:x.q(c)})), ...extras.map(n=>({nome:n, q:n}))];
+  cfg.perfil = {escolhas, extras, ...c};
+  cfg.interesses = lista.slice(0,8);
+  store.set("cfg", cfg);
+  onbStep("rot");
+});
+$("#oRotBack").addEventListener("click", ()=>onbStep("int"));
+$("#oRotGo").addEventListener("click", async ()=>{
+  cfg.rotina = {hora:$("#oHora").value||"07:00", dias:$("#oDias").value, lembrete:$("#oLembrete").checked};
+  cfg.speak = $("#oVoz").checked;
+  cfg.onboarded = true;
+  store.set("cfg", cfg);
+  $("#onbView").hidden = true;
+  agendarLembrete();
+  const f = onbDone; onbDone = null; f?.();
+});
+
+/* rotina: briefing uma vez por dia a partir do horário escolhido */
+const hojeISO = () => { const d=new Date(); return `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,"0")}-${String(d.getDate()).padStart(2,"0")}`; };
+function briefingDevido(){
+  const r = cfg?.rotina; if (!r || !topics().length) return false;
+  if (cfg.ultimoBriefing === hojeISO()) return false;
+  const d = new Date(), dia = d.getDay();
+  if (r.dias==="uteis" && (dia===0 || dia===6)) return false;
+  const [h,m] = String(r.hora||"07:00").split(":").map(Number);
+  return d.getHours()*60+d.getMinutes() >= h*60+(m||0);
+}
+function marcarBriefing(){ cfg.ultimoBriefing = hojeISO(); store.set("cfg", cfg); }
+setInterval(()=>{ if (!document.hidden && cfg?.onboarded && sample && !busy && !briefingBusy && mode==="idle" && $("#loginView").hidden && $("#onbView").hidden && briefingDevido()) runBriefing({abertura:true}); }, 60000);
+async function agendarLembrete(){
+  const LN = plugin("LocalNotifications"); if (!LN) return;
+  try{
+    const ids = [100,101,102,103,104,105,106,107];
+    await LN.cancel({notifications:ids.map(id=>({id}))}).catch(()=>{});
+    const r = cfg.rotina; if (!r?.lembrete) return;
+    let perm = await LN.checkPermissions();
+    if (perm.display!=="granted") perm = await LN.requestPermissions();
+    if (perm.display!=="granted") return;
+    const [hour, minute] = String(r.hora||"07:00").split(":").map(Number);
+    const assuntos = topics().slice(0,3).map(t=>t.nome).join(", ");
+    const base = {title:`${cfg.name||"ATLAS"} · seu briefing`, body:`${cfg.user?cfg.user+", ":""}as novidades de ${assuntos} estão esperando. Toque para ouvir.`};
+    const dias = r.dias==="uteis" ? [2,3,4,5,6] : [null];
+    await LN.schedule({notifications: dias.map((wd,i)=>({id:100+i, ...base, schedule:{on: wd ? {weekday:wd, hour, minute} : {hour, minute}}}))});
+  }catch(e){ console.warn("lembrete", e); }
+}
 /* ---------- agent creation (setup screen) ---------- */
 const sleep = ms => new Promise(r=>setTimeout(r,ms));
 const hexId = n => Array.from({length:n},()=>"0123456789abcdef"[Math.random()*16|0]).join("");
@@ -1361,6 +1500,7 @@ async function createAgent(check={}){
     {t:"Definindo personalidade e idioma", ms:1000, log:["> persona: estilo Jarvis · objetivo · cordial", "> idioma: pt-BR <b>ok</b>"]},
     {t:"Instalando skills: tradução, PDF e pesquisa", ms:2000, log:["> tools.register(adicionar_tarefa) <b>ok</b>", "> tools.register(concluir_tarefa) <b>ok</b>", "> tools.register(mostrar_destaque) <b>ok</b>", "> skills.install(traducao: pt/en/es) <b>ok</b>", "> skills.install(pdf: ler, padronizar, editar) <b>ok</b>", "> skills.install(pesquisa_avancada) <b>ok</b>"]},
     {t:"Calibrando voz", ms:700, log:[NATIVE?"> voz do Android · pt-BR <b>ok</b>":`> voz: ${cfg.voice} · ritmo 1.0 · pt-BR <b>ok</b>`]},
+    {t:"Preparando sua rotina", ms:800, log:[`> interesses: ${topics().length} assuntos <b>ok</b>`, cfg.rotina?`> briefing diário às ${cfg.rotina.hora}${cfg.rotina.dias==="uteis"?" (seg a sex)":""} <b>ok</b>`:"> rotina: padrão"]},
     {t:"Sincronizando memória", ms:700, log:[`> agenda: ${tasks.length} itens · histórico: novo <b>ok</b>`]},
     {t:"Ativando núcleo", ms:900, log:["> core.boot() <b>ONLINE</b>"]},
   ];
@@ -1400,9 +1540,9 @@ async function createAgent(check={}){
   await sleep(1100);
   $("#setupView").hidden = true; setMode("idle");
 }
-function showBoot(){ $("#bootView").hidden=false; $("#bootHint").textContent = `Conectado a ${PROV[cfg.provider]}. Toque para iniciar o briefing`; }
+function showBoot(){ $("#bootView").hidden=false; $("#bootHint").textContent = `Conectado a ${PROV[cfg.provider]}. ${briefingDevido()?"Toque para ouvir o briefing de hoje":"Toque para começar"}`; }
 $("#bootBtn").addEventListener("click", ()=>{ $("#bootView").hidden=true; activate(); });
-function activate(){ renderCard(); runBriefing({abertura:true}); }
+function activate({primeira=false}={}){ renderCard(); if (primeira || briefingDevido()) runBriefing({abertura:true}); else ask("", {greeting:true}); }
 
 /* ---------- IA real: OpenAI (ChatGPT) e Anthropic (Claude) com a chave do usuário ---------- */
 const AI = (() => {
@@ -1641,6 +1781,8 @@ async function setupNativeVoice(){
 
 /* ---------- start ---------- */
 applyName(); renderCard(); renderTicker();
-if (!cfg?.provider || (!window.claude?.use && !cfg?.keys?.[cfg.provider])) showLogin(); else showBoot();
+if (!cfg?.provider || (!window.claude?.use && !cfg?.keys?.[cfg.provider])) showLogin();
+else if (!cfg.onboarded) { connectAI(); onboarding().then(()=>activate({primeira:true})); }
+else showBoot();
 })();
 </script>
