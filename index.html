@@ -583,7 +583,20 @@ let sample = null, tts = null, dict = null;
 const PROV = {gpt:"GPT", claude:"CLAUDE", gemini:"GEMINI"};
 /* app Android (Capacitor) ou navegador/claude.ai */
 const NATIVE = !!window.Capacitor?.isNativePlatform?.();
-const plugin = name => (NATIVE && window.Capacitor?.registerPlugin) ? window.Capacitor.registerPlugin(name) : null;
+// O APK não traz o @capacitor/core (o index.html é um arquivo só), então registerPlugin não existe.
+// Falamos direto com a ponte nativa: cada método vira Capacitor.nativePromise(plugin, método, opções).
+const plugin = name => {
+  const C = window.Capacitor;
+  if (!NATIVE || !C) return null;
+  if (typeof C.registerPlugin==="function") return C.registerPlugin(name);
+  if (typeof C.nativePromise!=="function") return null;
+  if (Array.isArray(C.PluginHeaders) && !C.PluginHeaders.some(h=>h?.name===name)) return null;
+  return new Proxy({}, {get:(_, m) => {
+    if (typeof m!=="string" || m==="then" || m==="toJSON") return undefined;
+    if (m==="addListener") return (ev, cb) => { const h = C.addListener(name, ev, cb); return Object.assign(Promise.resolve(h), h); };
+    return (opts={}) => C.nativePromise(name, m, opts);
+  }});
+};
 /* links: abre no navegador de verdade do aparelho (não numa aba interna) */
 const SIS = plugin("AtlasSistema");
 let appsMusica = null;
@@ -609,13 +622,14 @@ async function openExternal(url, {escolher=false, pacote}={}){
 }
 /* efeitos: "leve" por padrão no app e em aparelhos modestos; "completo" opcional em Ajustes */
 let fxReady=false;
-const FX = {lite:true, fps:30, bgEvery:3, orbDpr:1.25, bgDpr:.75, fxDpr:1};
+const FX = {lite:true, fps:24, bgEvery:3, orbDpr:1, bgDpr:.75, fxDpr:1};
+let bgDirty = 1;   // modo leve: o fundo é desenhado parado e só refeito quando muda a cor (estado) ou o tamanho
 function applyFx(){
   const weak = NATIVE || (navigator.hardwareConcurrency||8) <= 6 || (navigator.deviceMemory||8) <= 4;
   FX.lite = cfg?.fx ? cfg.fx!=="completo" : weak;
-  Object.assign(FX, FX.lite ? {fps:30, bgEvery:3, orbDpr:1.25, bgDpr:.75, fxDpr:1} : {fps:60, bgEvery:1, orbDpr:2, bgDpr:1.5, fxDpr:2});
+  Object.assign(FX, FX.lite ? {fps:24, bgEvery:3, orbDpr:1, bgDpr:.75, fxDpr:1} : {fps:60, bgEvery:1, orbDpr:2, bgDpr:1.5, fxDpr:2});
   document.documentElement.classList.toggle("lite", FX.lite);
-  if (fxReady){ resize(); bgResize(); fxResize(); }
+  if (fxReady){ resize(); bgResize(); fxResize(); bgDirty=performance.now(); }
 }
 const saveTasks = () => store.set("tasks", tasks);
 
@@ -661,22 +675,47 @@ function makeBolt(R){
   return {pts, life:1};
 }
 
+// modo leve: halo, raios e anel de graus são desenhados uma vez numa imagem e só reaproveitados
+let orbFixo = null, orbFixoChave = "";
+function camadaFixa(s){
+  const chave = mode+"|"+s+"|"+cv.width;
+  if (orbFixo && orbFixoChave===chave) return orbFixo;
+  const k = cv.width/s, o = document.createElement("canvas"); o.width = cv.width; o.height = cv.height;
+  const x = o.getContext("2d"); x.setTransform(k,0,0,k,0,0); x.globalCompositeOperation="lighter";
+  const P = PAL[mode], c = s/2, R = s*.24;
+  let g=x.createRadialGradient(c,c,R*.5,c,c,s*.5);
+  g.addColorStop(0,rgba(P.a,.3)); g.addColorStop(.5,rgba(P.c,.07)); g.addColorStop(1,rgba(P.b,0));
+  x.fillStyle=g; x.fillRect(0,0,s,s);
+  x.translate(c,c);
+  g=x.createRadialGradient(0,0,R,0,0,s*.5); g.addColorStop(0,rgba(P.a,.07)); g.addColorStop(1,rgba(P.a,0)); x.fillStyle=g; x.beginPath();
+  for(let i=0;i<12;i++){ const a=i/12*TAU; x.moveTo(0,0); x.arc(0,0,s*.5,a-.06,a+.06); x.closePath(); } x.fill();
+  x.lineWidth=1;
+  for(const big of [false,true]){ x.strokeStyle=rgba(P.a, big?.7:.25); x.beginPath();
+    for(let i=0;i<180;i++){ if((i%15===0)!==big) continue; const a=i/180*TAU, r1=s*.465, r2=r1-(big? s*.024 : s*.01); x.moveTo(Math.cos(a)*r1,Math.sin(a)*r1); x.lineTo(Math.cos(a)*r2,Math.sin(a)*r2); }
+    x.stroke(); }
+  x.fillStyle=rgba(P.a,.55); x.font=`600 ${Math.max(8,s*.019)}px "Chakra Petch",sans-serif`; x.textAlign="center"; x.textBaseline="middle";
+  for(let i=0;i<12;i++){ const a=i/12*TAU; x.save(); x.rotate(a); x.translate(0,-s*.43); x.fillText(String(i*30).padStart(3,"0"),0,0); x.restore(); }
+  orbFixo = o; orbFixoChave = chave; return o;
+}
 function drawOrb(t){
   const s=W; if(!s) return; const c=s/2, R=s*.24*(1+energy*.07);
   cx.clearRect(0,0,s,s);
   cx.globalCompositeOperation="lighter";
-
+  let g;
+  if (FX.lite) cx.drawImage(camadaFixa(s),0,0,s,s);
+  else {
   // halo + god rays
-  let g=cx.createRadialGradient(c,c,R*.5,c,c,s*.5);
+  g=cx.createRadialGradient(c,c,R*.5,c,c,s*.5);
   g.addColorStop(0,rgba(col.a,.25+energy*.3)); g.addColorStop(.5,rgba(col.c,.06+energy*.08)); g.addColorStop(1,rgba(col.b,0));
   cx.fillStyle=g; cx.fillRect(0,0,s,s);
   cx.save(); cx.translate(c,c); cx.rotate(spin*.15);
-  for(let i=0;i<18;i++){
-    const a=i/18*TAU, w=.05+.03*Math.sin(t*1.3+i);
-    const gg=cx.createRadialGradient(0,0,R,0,0,s*.5); gg.addColorStop(0,rgba(col.a,.05+energy*.10)); gg.addColorStop(1,rgba(col.a,0));
-    cx.fillStyle=gg; cx.beginPath(); cx.moveTo(0,0); cx.arc(0,0,s*.5,a-w,a+w); cx.closePath(); cx.fill();
-  }
+  const nRaios = FX.lite ? 9 : 18;
+  const gg=cx.createRadialGradient(0,0,R,0,0,s*.5); gg.addColorStop(0,rgba(col.a,.05+energy*.10)); gg.addColorStop(1,rgba(col.a,0)); cx.fillStyle=gg;
+  cx.beginPath();
+  for(let i=0;i<nRaios;i++){ const a=i/nRaios*TAU, w=.05+.03*Math.sin(t*1.3+i); cx.moveTo(0,0); cx.arc(0,0,s*.5,a-w,a+w); cx.closePath(); }
+  cx.fill();
   cx.restore();
+  }
 
   // shockwaves
   for(const w of waves){ w.r += s*.006*(1+energy); w.a*=.965;
@@ -687,23 +726,28 @@ function drawOrb(t){
   cx.save(); cx.translate(c,c);
 
   // radar sweep
-  if (cx.createConicGradient){
+  if (!FX.lite && cx.createConicGradient){
     const cg=cx.createConicGradient(spin*1.2,0,0);
     cg.addColorStop(0,rgba(col.a,.22+energy*.15)); cg.addColorStop(.08,rgba(col.a,0)); cg.addColorStop(1,rgba(col.a,0));
     cx.fillStyle=cg; cx.beginPath(); cx.arc(0,0,s*.44,0,TAU); cx.arc(0,0,R*1.15,0,TAU,true); cx.fill("evenodd");
   }
 
-  // outer tick ring + degree labels
+  // outer tick ring + degree labels (no modo leve já está na camada fixa)
+  if (!FX.lite){
   cx.save(); cx.rotate(-spin*.25);
   cx.lineWidth=1;
-  for(let i=0;i<180;i++){
-    const a=i/180*TAU, r1=s*.465, big=i%15===0, r2=r1-(big? s*.024 : s*.01);
-    cx.strokeStyle=rgba(col.a, big?.7:.25);
-    cx.beginPath(); cx.moveTo(Math.cos(a)*r1,Math.sin(a)*r1); cx.lineTo(Math.cos(a)*r2,Math.sin(a)*r2); cx.stroke();
+  // marcas agrupadas em dois traços (bem mais leve que 180 traços separados)
+  for(const big of [false,true]){
+    cx.strokeStyle=rgba(col.a, big?.7:.25); cx.beginPath();
+    for(let i=0;i<180;i++){ if((i%15===0)!==big) continue;
+      const a=i/180*TAU, r1=s*.465, r2=r1-(big? s*.024 : s*.01);
+      cx.moveTo(Math.cos(a)*r1,Math.sin(a)*r1); cx.lineTo(Math.cos(a)*r2,Math.sin(a)*r2); }
+    cx.stroke();
   }
   cx.fillStyle=rgba(col.a,.55); cx.font=`600 ${Math.max(8,s*.019)}px "Chakra Petch",sans-serif`; cx.textAlign="center"; cx.textBaseline="middle";
   for(let i=0;i<12;i++){ const a=i/12*TAU; cx.save(); cx.rotate(a); cx.translate(0,-s*.43); cx.fillText(String(i*30).padStart(3,"0"),0,0); cx.restore(); }
   cx.restore();
+  }
 
   // segmented data ring
   cx.save(); cx.rotate(spin*.8);
@@ -736,20 +780,21 @@ function drawOrb(t){
   }
 
   // spectrum bars
-  const N=120;
-  for(let i=0;i<N;i++){
-    const a=i/N*TAU+spin*.4;
-    const n=Math.abs(Math.sin(i*1.7+t*4)*.6+Math.sin(i*.43-t*2.3)*.4);
-    const len=s*.008+s*.06*energy*n;
-    const r0=R*1.48;
-    cx.strokeStyle=rgba(i%3?col.a:col.c,.25+energy*.55); cx.lineWidth=Math.max(1,s*.004);
-    cx.beginPath(); cx.moveTo(Math.cos(a)*r0,Math.sin(a)*r0); cx.lineTo(Math.cos(a)*(r0+len),Math.sin(a)*(r0+len)); cx.stroke();
+  const N=FX.lite?72:120; cx.lineWidth=Math.max(1,s*.004);
+  for(const grupo of [0,1]){
+    cx.strokeStyle=rgba(grupo?col.a:col.c,.25+energy*.55); cx.beginPath();
+    for(let i=0;i<N;i++){ if((i%3?1:0)!==grupo) continue;
+      const a=i/N*TAU+spin*.4;
+      const n=Math.abs(Math.sin(i*1.7+t*4)*.6+Math.sin(i*.43-t*2.3)*.4);
+      const len=s*.008+s*.06*energy*n, r0=R*1.48;
+      cx.moveTo(Math.cos(a)*r0,Math.sin(a)*r0); cx.lineTo(Math.cos(a)*(r0+len),Math.sin(a)*(r0+len)); }
+    cx.stroke();
   }
   cx.restore();
 
   // particles (sucked in while listening, blown out while speaking)
   const flow = mode==="listening"? -1 : mode==="speaking" ? 1 : 0;
-  for(let pi=0, pn=FX.lite?60:parts.length; pi<pn; pi++){ const p=parts[pi];
+  for(let pi=0, pn=FX.lite?45:parts.length; pi<pn; pi++){ const p=parts[pi];
     p.a += p.s*.01*(1+energy*3);
     p.r += flow*.004*(1+p.z);
     if(p.r<.28) p.r=1; if(p.r>1) p.r=.3;
@@ -767,7 +812,8 @@ function drawOrb(t){
     return {st,x,y,z:z0};
   });
   const drawSat = ({st,x,y})=>{
-    for(let i=1;i<st.trail.length;i++){ const [x1,y1]=st.trail[i-1],[x2,y2]=st.trail[i]; cx.strokeStyle=rgba(col.a,i/st.trail.length*.6); cx.lineWidth=2*i/st.trail.length; cx.beginPath(); cx.moveTo(x1,y1); cx.lineTo(x2,y2); cx.stroke(); }
+    if (FX.lite){ cx.strokeStyle=rgba(col.a,.3); cx.lineWidth=1.2; cx.beginPath(); st.trail.forEach(([x1,y1],i)=>i?cx.lineTo(x1,y1):cx.moveTo(x1,y1)); cx.stroke(); }
+    else for(let i=1;i<st.trail.length;i++){ const [x1,y1]=st.trail[i-1],[x2,y2]=st.trail[i]; cx.strokeStyle=rgba(col.a,i/st.trail.length*.6); cx.lineWidth=2*i/st.trail.length; cx.beginPath(); cx.moveTo(x1,y1); cx.lineTo(x2,y2); cx.stroke(); }
     const gg=cx.createRadialGradient(x,y,0,x,y,s*.03); gg.addColorStop(0,"rgba(255,255,255,.95)"); gg.addColorStop(.3,rgba(col.a,.7)); gg.addColorStop(1,rgba(col.a,0));
     cx.fillStyle=gg; cx.fillRect(x-s*.03,y-s*.03,s*.06,s*.06);
   };
@@ -781,7 +827,7 @@ function drawOrb(t){
   cx.fillStyle=g; cx.fillRect(c-R,c-R,R*2,R*2);
   cx.globalCompositeOperation="lighter";
   // plasma blobs
-  for(let k=0;k<6;k++){
+  for(let k=0, nb=FX.lite?3:6;k<nb;k++){
     const a=t*(.35+k*.13)*(k%2?1:-1)+k*1.3+spin;
     const d=R*(.3+.3*Math.sin(t*.7+k));
     const px=c+Math.cos(a)*d, py=c+Math.sin(a*1.1)*d, br=R*(.5+.25*energy);
@@ -795,10 +841,10 @@ function drawOrb(t){
   const proj=(lat,lon)=>{ let x=Math.cos(lat)*Math.cos(lon+rotY), y=Math.sin(lat), z=Math.cos(lat)*Math.sin(lon+rotY);
     const y2=y*Math.cos(tilt)-z*Math.sin(tilt), z2=y*Math.sin(tilt)+z*Math.cos(tilt); return [c+x*R*.97, c+y2*R*.97, z2]; };
   cx.lineWidth=1;
-  for(let la=-60;la<=60;la+=20){ const lat=la*Math.PI/180; let prev=null;
-    for(let i=0;i<=48;i++){ const p=proj(lat,i/48*TAU); if(prev){ cx.strokeStyle=rgba(col.a,p[2]>0? .32+energy*.3 : .06); cx.beginPath(); cx.moveTo(prev[0],prev[1]); cx.lineTo(p[0],p[1]); cx.stroke(); } prev=p; } }
-  for(let lo=0;lo<12;lo++){ const lon=lo/12*TAU; let prev=null;
-    for(let i=0;i<=32;i++){ const p=proj(-Math.PI/2+i/32*Math.PI,lon); if(prev){ cx.strokeStyle=rgba(col.c,p[2]>0? .28+energy*.3 : .05); cx.beginPath(); cx.moveTo(prev[0],prev[1]); cx.lineTo(p[0],p[1]); cx.stroke(); } prev=p; } }
+  // linhas do globo agrupadas: frente e fundo em 4 traços no total (antes eram ~720 traços por quadro)
+  const linhas = (gerar, cor, aF, aT) => { for(const frente of [false,true]){ cx.strokeStyle=rgba(cor, frente?aF:aT); cx.beginPath(); gerar((p,q)=>{ if((q[2]>0)===frente){ cx.moveTo(p[0],p[1]); cx.lineTo(q[0],q[1]); } }); cx.stroke(); } };
+  linhas(seg=>{ for(let la=-60;la<=60;la+=20){ const lat=la*Math.PI/180; let prev=null; for(let i=0;i<=48;i++){ const p=proj(lat,i/48*TAU); if(prev) seg(prev,p); prev=p; } } }, col.a, .32+energy*.3, .06);
+  linhas(seg=>{ for(let lo=0;lo<12;lo++){ const lon=lo/12*TAU; let prev=null; for(let i=0;i<=32;i++){ const p=proj(-Math.PI/2+i/32*Math.PI,lon); if(prev) seg(prev,p); prev=p; } } }, col.c, .28+energy*.3, .05);
   // glowing nodes on the globe
   for(let i=0;i<14;i++){ const p=proj(Math.sin(i*7.3)*1.2, i*2.1); if(p[2]>0){ const pulse=.5+.5*Math.sin(t*3+i); cx.fillStyle=rgba([255,255,255],.4+pulse*.5*(.4+energy)); cx.beginPath(); cx.arc(p[0],p[1],1.2+pulse*1.6,0,TAU); cx.fill(); } }
   // lightning
@@ -854,9 +900,11 @@ function bgResize(){
   streams=Array.from({length:Math.max(4,cols)},(_,i)=>({x:(i+.5)*BW/Math.max(4,cols)+rnd(-30,30), y:rnd(-BH,0), v:rnd(.6,1.8), chars:Array.from({length:18},()=>HEX[Math.random()*16|0])}));
 }
 addEventListener("resize", bgResize); bgResize();
+new ResizeObserver(()=>{ bgDirty=performance.now(); }).observe(document.documentElement);
 
-function drawBg(t){
+function drawBg(t, parado=false){
   const w=BW, h=BH;
+  if (parado) col = {a:[...PAL[mode].a], b:[...PAL[mode].b], c:[...PAL[mode].c]};
   bx.fillStyle="#040914"; bx.fillRect(0,0,w,h);
   // deep gradients
   let g=bx.createRadialGradient(w*.3,h*.4,0,w*.3,h*.4,Math.max(w,h)*.8);
@@ -877,6 +925,8 @@ function drawBg(t){
   // hex grid + activated cells (wave sweeping diagonally)
   if(hexImg) bx.drawImage(hexImg,0,0,w,h);
   const r=hexImg?._r||20;
+  if (parado) active.length = 0;
+  else {
   if(Math.random()<.35+energy) { const cell=hexCells[Math.random()*hexCells.length|0]; if(cell) active.push({x:cell[0],y:cell[1],a:1}); }
   const sweep=((t*120)%(w+h+400))-200;
   for(const cell of hexCells){ const d=Math.abs(cell[0]+cell[1]-sweep); if(d<40) active.push({x:cell[0],y:cell[1],a:.35*(1-d/40)}); }
@@ -884,11 +934,11 @@ function drawBg(t){
   for(const a of active){ bx.strokeStyle=rgba(col.a,a.a*.4); bx.fillStyle=rgba(col.a,a.a*.06); bx.beginPath();
     for(let k=0;k<6;k++){ const an=Math.PI/6+k*Math.PI/3, px=a.x+Math.cos(an)*r, py=a.y+Math.sin(an)*r; k?bx.lineTo(px,py):bx.moveTo(px,py);} bx.closePath(); bx.fill(); bx.stroke(); a.a*=.93; }
   active=active.filter(a=>a.a>.03).slice(-260);
-
   drawRipples();
+  }
   // plexus network
   const maxD=Math.min(170,w*.18);
-  for(const n of nodes){ n.x+=n.vx*(1+energy*2); n.y+=n.vy*(1+energy*2); if(n.x<0||n.x>w) n.vx*=-1; if(n.y<0||n.y>h) n.vy*=-1; }
+  if (!parado) for(const n of nodes){ n.x+=n.vx*(1+energy*2); n.y+=n.vy*(1+energy*2); if(n.x<0||n.x>w) n.vx*=-1; if(n.y<0||n.y>h) n.vy*=-1; }
   for(let i=0;i<nodes.length;i++) for(let j=i+1;j<nodes.length;j++){
     const a=nodes[i], b=nodes[j], dx=a.x-b.x, dy=a.y-b.y, d=Math.hypot(dx,dy);
     if(d<maxD){ const al=(1-d/maxD)*.22*(1+energy); bx.strokeStyle=rgba((i+j)%4?col.a:col.c,al); bx.beginPath(); bx.moveTo(a.x,a.y); bx.lineTo(b.x,b.y); bx.stroke();
@@ -896,6 +946,7 @@ function drawBg(t){
   }
   for(const n of nodes){ const p=.5+.5*Math.sin(t*2+n.p); bx.fillStyle=rgba(col.a,.35+p*.4); bx.beginPath(); bx.arc(n.x,n.y,1+p*1.4,0,TAU); bx.fill(); }
 
+  if (!parado){
   // falling hex data streams
   bx.font='11px "Chakra Petch",monospace'; bx.textAlign="center";
   for(const s of streams){ s.y+=s.v*(1+energy*2); if(s.y-18*14>h){ s.y=rnd(-200,0); s.x=rnd(0,w); }
@@ -905,6 +956,7 @@ function drawBg(t){
   // scanline sweep
   const sy=(t*70)%(h+200)-100; g=bx.createLinearGradient(0,sy-60,0,sy); g.addColorStop(0,rgba(col.a,0)); g.addColorStop(1,rgba(col.a,.07)); bx.fillStyle=g; bx.fillRect(0,sy-60,w,60);
   bx.fillStyle=rgba(col.a,.18); bx.fillRect(0,sy,w,1);
+  }
   // HUD corner brackets
   bx.strokeStyle=rgba(col.a,.35); bx.lineWidth=1.5; const m=10, L=26;
   [[m,m,1,1],[w-m,m,-1,1],[m,h-m,1,-1],[w-m,h-m,-1,-1]].forEach(([x,y,sx,sy2])=>{ bx.beginPath(); bx.moveTo(x,y+L*sy2); bx.lineTo(x,y); bx.lineTo(x+L*sx,y); bx.stroke(); });
@@ -1002,7 +1054,8 @@ let lastFrame=0, frameN=0;
 function frame(now){
   requestAnimationFrame(frame);
   if (document.hidden) return;
-  if (now-lastFrame < 1000/FX.fps - 3) return;
+  const fps = FX.lite && mode==="idle" && !hover ? 12 : FX.fps;   // em espera, no modo leve, anima mais devagar
+  if (now-lastFrame < 1000/fps - 3) return;
   const dt = Math.min(3, lastFrame ? (now-lastFrame)/(1000/60) : 1); lastFrame=now; frameN++;
   const t=(now-t0)/1000*(reduce?.35:1);
   if (mode==="speaking") target=.45+.55*Math.abs(Math.sin(t*9.3)*Math.sin(t*3.1+1))*(0.6+Math.random()*.4);
@@ -1018,13 +1071,14 @@ function frame(now){
   lastE=energy;
   const P=PAL[mode]; for(const k of ["a","b","c"]) for(let i=0;i<3;i++) col[k][i]=lerp(col[k][i],P[k][i],.05);
   spin+=(mode==="thinking"?.045:mode==="speaking"?.02:.006)*(reduce?.3:1)*dt;
-  if (frameN % FX.bgEvery === 0) drawBg(t);
+  if (FX.lite){ if (bgDirty && now>=bgDirty){ drawBg(t, true); bgDirty=0; } }
+  else if (frameN % FX.bgEvery === 0) drawBg(t);
   drawOrb(t); drawFx(now);
 }
 applyFx(); fxReady=true; applyFx();
 requestAnimationFrame(frame);
 
-function setMode(m){ mode=m; $("#state").textContent=PAL[m].label; $("#state").style.color = m==="listening"?"var(--green)": m==="thinking"?"var(--violet)":"var(--cyan)"; $("#mic").classList.toggle("on", m==="listening"); }
+function setMode(m){ if(m!==mode) bgDirty=performance.now()+1500; mode=m; $("#state").textContent=PAL[m].label; $("#state").style.color = m==="listening"?"var(--green)": m==="thinking"?"var(--violet)":"var(--cyan)"; $("#mic").classList.toggle("on", m==="listening"); }
 
 /* ---------- panel ---------- */
 const esc = s => String(s??"").replace(/[&<>"]/g, c=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;"}[c]));
@@ -1834,13 +1888,13 @@ $("#form").addEventListener("submit", e=>{ e.preventDefault(); $("#qchips").hidd
 let heard="", silence=null;
 function toggleMic(){
   $("#qchips").hidden=true;
-  if (!dict) { $("#msg").focus(); return; }
+  if (!dict) { if (vozMotivo) caption(`<em>${esc(vozMotivo)}</em>`); $("#msg").focus(); return; }
   if (wakeOn){ wakeHit(); caption(`<span class="you">Estou ouvindo…</span>`); awaitUntil=Date.now()+9000; return; }
   if (mode==="listening"){ dict.stop().catch(()=>{}); return; }
   if (busy) busy.abort();
   if (tts) try{ tts.stop(); }catch{}
   heard=""; caption(`<span class="you">Pode falar…</span>`);
-  dict.start({language:"pt-BR"}).catch(err=>{ if(err?.code==="not_granted"){ $("#mic").hidden=true; dict=null; caption("<em>Microfone não autorizado. Use o campo de texto.</em>"); } });
+  dict.start({language:"pt-BR"}).catch(err=>{ if(err?.code==="not_granted"){ caption("<em>O microfone não foi liberado. Toque no núcleo de novo e permita, ou libere em Configurações › Apps › Atlas › Permissões.</em>"); } else caption(`<em>Não consegui ligar o microfone (${esc(String(err?.message||err?.code||err))}). Tente de novo.</em>`); });
 }
 $("#mic").addEventListener("click", toggleMic);
 
@@ -2327,16 +2381,44 @@ const AI = (() => {
 
   /* ----- Google Gemini (generateContent) ----- */
   const GBASE = "https://generativelanguage.googleapis.com/v1beta";
+  // o Gemini aceita só um subconjunto do OpenAPI 3.0: converte qualquer esquema para ele
+  const G_OK = new Set(["type","format","description","nullable","enum","properties","required","items","minItems","maxItems","minimum","maximum","anyOf","title","propertyOrdering","minLength","maxLength","pattern"]);
+  const G_TIPOS = new Set(["string","number","integer","boolean","array","object"]);
   const gSchema = sch => {
-    // o Gemini aceita só parte do JSON Schema: limpa o que ele recusa
     if (Array.isArray(sch)) return sch.map(gSchema);
-    if (!sch || typeof sch!=="object") return sch;
+    if (!sch || typeof sch!=="object") return {type:"string"};
     const o = {};
+    let tipo = sch.type;
+    if (Array.isArray(tipo)){ if (tipo.includes("null")) o.nullable = true; tipo = tipo.find(t=>t!=="null"); }
+    if (!tipo && sch.properties) tipo = "object";
+    if (!tipo && sch.items) tipo = "array";
+    if (!tipo && Array.isArray(sch.enum)) tipo = typeof sch.enum[0]==="number" ? "number" : "string";
+    if (!G_TIPOS.has(tipo) && !sch.anyOf) tipo = "string";
+    if (tipo) o.type = tipo;
+    let desc = typeof sch.description==="string" ? sch.description : "";
     for (const [k,v] of Object.entries(sch)){
-      if (["additionalProperties","$schema","default","examples"].includes(k)) continue;
-      o[k] = (k==="properties") ? Object.fromEntries(Object.entries(v).map(([pk,pv])=>[pk,gSchema(pv)])) : gSchema(v);
+      if (!G_OK.has(k) || k==="type" || k==="description" || v==null) continue;
+      if (k==="properties"){ o.properties = Object.fromEntries(Object.entries(v).map(([pk,pv])=>[pk,gSchema(pv)])); }
+      else if (k==="items"){ o.items = gSchema(Array.isArray(v)?v[0]:v); }
+      else if (k==="anyOf"){ o.anyOf = v.map(gSchema); delete o.type; }
+      else if (k==="enum"){
+        // enum só vale para texto: em número/booleano vira dica na descrição
+        if (tipo==="string") o.enum = v.map(String);
+        else desc = (desc?desc+" ":"") + "Valores aceitos: " + v.join(", ") + ".";
+      }
+      else if (k==="format"){ if ((tipo==="string" && ["enum","date-time"].includes(v)) || (["number","integer"].includes(tipo) && ["float","double","int32","int64"].includes(v))) o.format = v; }
+      else if (k==="required"){ if (Array.isArray(v)) o.required = v; }
+      else if (["minimum","maximum","minItems","maxItems","minLength","maxLength"].includes(k)){ if (typeof v==="number") o[k] = v; }
+      else o[k] = v;
     }
-    if (o.type==="object" && (!o.properties || !Object.keys(o.properties).length)) { o.properties = {texto:{type:"string"}}; delete o.required; }
+    if (desc) o.description = desc;
+    if (o.type==="object"){
+      if (!o.properties || !Object.keys(o.properties).length){ o.properties = {texto:{type:"string"}}; delete o.required; }
+      if (o.required){ o.required = o.required.filter(r=>r in o.properties); if (!o.required.length) delete o.required; }
+    }
+    if (o.type==="array" && !o.items) o.items = {type:"string"};
+    if (o.type!=="array"){ delete o.items; delete o.minItems; delete o.maxItems; }
+    if (o.type!=="object"){ delete o.properties; delete o.required; }
     return o;
   };
   const gemini = (key, model, auth="header") => {
@@ -2490,6 +2572,7 @@ function connectAI(){
 }
 
 /* ---------- voz nativa no Android (plugins Capacitor) ---------- */
+let vozMotivo = "";
 async function setupNativeVoice(){
   if (!NATIVE) return;
   const TTS = plugin("TextToSpeech"), SR = plugin("SpeechRecognition");
@@ -2504,12 +2587,14 @@ async function setupNativeVoice(){
   }
   if (SR){
     const ok = await SR.available().then(r=>r?.available).catch(()=>false);
-    if (!ok) return;
-    let listening=false, last="", cbs={};
-    SR.addListener("partialResults", d=>{ const t=(d?.matches||[])[0]||""; if(!t) return; last=t; cbs.p?.({text:t}); });
+    if (!ok){ vozMotivo = "Este aparelho não tem o reconhecimento de voz do Google ativo. Instale ou atualize o app Google e tente de novo. Enquanto isso, digite o comando."; return; }
+    let listening=false, last="", cbs={}, fim=null, guarda=null;
+    // o Android manda o texto final DEPOIS do aviso de "parou de ouvir": espera um instante por ele
+    const concluir = () => { clearTimeout(fim); clearTimeout(guarda); fim=null; if(!listening && !last) return; listening=false; const t=last; last=""; if (t) cbs.f?.({text:t}); cbs.s?.({state:"idle", reason:"stopped"}); };
+    SR.addListener("partialResults", d=>{ const t=(d?.matches||[])[0]||""; if(!t) return; last=t; cbs.p?.({text:t}); if(fim){ concluir(); } });
     SR.addListener("listeningState", d=>{
-      if (d?.status==="started"){ listening=true; cbs.s?.({state:"listening"}); }
-      else { listening=false; const t=last; last=""; if (t) cbs.f?.({text:t}); cbs.s?.({state:"idle", reason:"stopped"}); }
+      if (d?.status==="started"){ clearTimeout(guarda); listening=true; cbs.s?.({state:"listening"}); }
+      else { clearTimeout(fim); fim=setTimeout(concluir, 900); }
     });
     dict = {
       active: () => listening,
@@ -2518,17 +2603,20 @@ async function setupNativeVoice(){
         let perm = await SR.checkPermissions().catch(()=>({}));
         if (perm.speechRecognition!=="granted") perm = await SR.requestPermissions().catch(()=>({}));
         if (perm.speechRecognition!=="granted") throw {code:"not_granted"};
-        last="";
-        await SR.start({language, maxResults:1, partialResults:true, popup:false});
+        last=""; listening=true; cbs.s?.({state:"listening"});
+        try { await SR.start({language, maxResults:1, partialResults:true, popup:false}); }
+        catch(e){ listening=false; cbs.s?.({state:"idle", reason:"erro"}); throw e; }
+        // se em 8 s ninguém falar, o Android desiste em silêncio: avisa e libera o núcleo
+        clearTimeout(guarda); guarda=setTimeout(()=>{ if(!last){ SR.stop().catch(()=>{}); listening=false; cbs.s?.({state:"idle", reason:"silencio"}); } }, 8000);
       },
-      async stop(){ await SR.stop(); }
+      async stop(){ await SR.stop().catch(()=>{}); if(fim||listening){ clearTimeout(fim); fim=setTimeout(concluir, 900); } }
     };
     $("#mic").hidden=false;
     dict.onPartial(({text})=>{ voiceKick=.6+Math.random()*.4; caption(`<span class="you">${esc(text)}</span>`); });
     dict.onFinal(({text})=>{ voiceKick=.8; heard=text.trim(); caption(`<span class="you">${esc(heard)}</span>`); });
-    dict.onState(({state})=>{
+    dict.onState(({state, reason})=>{
       if (state==="listening") setMode("listening");
-      if (state==="idle"){ if(mode==="listening") setMode("idle"); const q=heard.trim(); heard=""; if(q) ask(q); }
+      if (state==="idle"){ if(mode==="listening") setMode("idle"); const q=heard.trim(); heard=""; if(q) ask(q); else if(reason==="silencio") caption("<em>Não ouvi nada. Toque no núcleo e fale.</em>"); }
     });
   }
 }
