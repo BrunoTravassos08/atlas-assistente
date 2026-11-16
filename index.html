@@ -410,6 +410,7 @@ textarea.inp{height:auto;padding:8px 12px;resize:vertical;font:inherit}
 .lite .track{mask-image:none;-webkit-mask-image:none}
 .lite .bar::after{display:none}
 .lite body::before{background:radial-gradient(120% 70% at 30% 35%,rgba(47,107,255,.14),transparent 60%)}
+.diag{margin-top:8px;font-size:12px;opacity:.9}.diag summary{cursor:pointer;color:var(--cyan,#5fe3ff)}.diag pre{white-space:pre-wrap;word-break:break-word;max-height:30vh;overflow:auto;margin:6px 0 0;padding:8px;border-radius:8px;background:rgba(0,0,0,.35);font:11px/1.45 ui-monospace,monospace}
 </style>
 
 <canvas id="bg" aria-hidden="true"></canvas>
@@ -497,6 +498,7 @@ textarea.inp{height:auto;padding:8px 12px;resize:vertical;font:inherit}
         <div class="keyrow"><input class="inp" id="cnKey" type="password" spellcheck="false" autocapitalize="off" autocomplete="off"><button type="button" class="btn-line" id="cnPaste">Colar</button></div>
       </div>
       <p class="note" id="cnMsg" hidden></p>
+      <details id="cnDiag" class="diag" hidden><summary>Detalhes técnicos</summary><pre id="cnLog"></pre></details>
       <div class="row2"><button type="button" class="btn-line" id="cnBack">‹ Voltar</button><button type="submit" class="btn-solid" id="cnGo">Conectar</button></div>
       <p class="fine">A chave fica salva só neste aparelho e é enviada apenas para a empresa da IA escolhida.</p>
     </form></div>
@@ -1941,7 +1943,7 @@ $("#prov").addEventListener("click", e=>{
   avisosConexao(p);
   $("#cnKey").placeholder=info.prefixo+"…";
   $("#cnKey").value = (cfg?.keys?.[p]) || "";
-  $("#cnMsg").hidden=true;
+  $("#cnMsg").hidden=true; $("#cnDiag").hidden=true;
   setTimeout(()=>$("#cnKey").focus(), 50);
 });
 $("#cnBack").addEventListener("click", ()=>{ $("#connect").hidden=true; $("#prov").hidden=false; $("#provTitle").hidden=false; });
@@ -1983,9 +1985,17 @@ $("#cnForm").addEventListener("submit", async e=>{
   const fail = t => { msgEl.hidden=false; msgEl.className="note bad"; msgEl.textContent=t; go.disabled=false; go.textContent="Conectar"; };
   if(!key) return fail("Cole a chave de API antes de conectar.");
   go.disabled=true; go.textContent="Verificando…"; msgEl.hidden=false; msgEl.className="note"; msgEl.textContent="Verificando a chave com "+AI.INFO[p].empresa+"…";
+  // diário de diagnóstico: cada chamada aparece com status HTTP e tempo
+  const logEl=$("#cnLog"), diag=$("#cnDiag"), inicio=Date.now(); let etapa="";
+  const seg = () => Math.round((Date.now()-inicio)/1000);
+  logEl.textContent=`${AI.INFO[p].nome} · chave ${key.slice(0,3)}… (${key.length} caracteres)\n`; diag.hidden=false;
+  AI.hooks.trace = linha => { logEl.textContent += `[${String(seg()).padStart(3)} s] ${linha}\n`; logEl.scrollTop = logEl.scrollHeight; };
+  const relogio = setInterval(()=>{ if(etapa) msgEl.textContent = `${etapa} (${seg()} s)`; }, 1000);
   let check;
-  try{ check = await AI.validate(p, key); }
-  catch(err){ fail(err?.userMsg || "Não consegui verificar a chave. Confira a internet e tente de novo."); if(err?.detalhe){ const d=document.createElement("small"); d.style.cssText="display:block;margin-top:6px;opacity:.85;word-break:break-word"; d.textContent="Resposta de "+AI.INFO[p].empresa.replace(/^(a|o) /,"")+": "+err.detalhe; msgEl.appendChild(d); } return; }
+  try{ check = await AI.validate(p, key, t=>{ etapa=t.replace(/…$/,"…"); msgEl.textContent=t; AI.hooks.trace(t); }); }
+  catch(err){ clearInterval(relogio); AI.hooks.trace?.(`FALHOU: ${err?.code||"?"} · ${err?.detalhe||err?.message||err}`); AI.hooks.trace=null; diag.open=true; fail(err?.userMsg || "Não consegui verificar a chave. Confira a internet e tente de novo."); if(err?.detalhe){ const d=document.createElement("small"); d.style.cssText="display:block;margin-top:6px;opacity:.85;word-break:break-word"; d.textContent="Resposta de "+AI.INFO[p].empresa.replace(/^(a|o) /,"")+": "+err.detalhe; msgEl.appendChild(d); } return; }
+  clearInterval(relogio); AI.hooks.trace(`OK: modelo ${check.model}${check.auth?" · chave via "+(check.auth==="query"?"endereço":"cabeçalho"):""}`); AI.hooks.trace=null;
+  try {
   cfg = Object.assign({voice:"buttery", speak:true}, cfg||{}, {provider:p, user:$("#uName").value.trim(), name:($("#aName").value.trim()||"ATLAS").toUpperCase()});
   cfg.keys = Object.assign({}, cfg.keys, {[p]:key});
   cfg.model = Object.assign({}, cfg.model, {[p]:check.model});
@@ -1994,6 +2004,8 @@ $("#cnForm").addEventListener("submit", async e=>{
   store.set("cfg", cfg); applyName(); renderTicker();
   go.disabled=false; go.textContent="Conectar";
   connectAI();
+  } catch (err) { console.error(err); diag.open=true; logEl.textContent += `ERRO DEPOIS DA VERIFICAÇÃO: ${err?.message||err}\n`; return fail("A chave funciona, mas algo falhou ao salvar a conexão. Toque em Conectar de novo."); }
+  diag.hidden=true;
   $("#loginView").hidden=true;
   await onboarding();
   await createAgent(check);
@@ -2156,7 +2168,7 @@ function activate({primeira=false}={}){ renderCard(); if (primeira || briefingDe
 
 /* ---------- IA real: OpenAI (ChatGPT) e Anthropic (Claude) com a chave do usuário ---------- */
 const AI = (() => {
-  const hooks = {usage:null, guard:null}; // medição de gasto e limite mensal (definidos fora do módulo)
+  const hooks = {usage:null, guard:null, trace:null}; // medição de gasto e limite mensal (definidos fora do módulo)
   const INFO = {
     gpt: {nome:"ChatGPT", empresa:"a OpenAI", pagina:"página de chaves da OpenAI", prefixo:"sk-", url:"https://platform.openai.com/api-keys", site:"platform.openai.com/api-keys", app:"chatgpt", appNome:"ChatGPT",
       passos:["Toque em <b>Abrir no navegador</b>. A página da OpenAI abre no navegador do celular.", "Entre com a <b>mesma conta do ChatGPT</b> (Google, Apple ou e-mail).", "Toque em <b>Create new secret key</b>, dê um nome (ex.: Atlas) e toque em <b>Create</b>.", "Toque em <b>Copy</b>, volte para o Atlas e toque em <b>Colar</b>."],
@@ -2189,11 +2201,29 @@ const AI = (() => {
     else { e.code="api"; e.userMsg="A IA recusou o pedido ("+(m.slice(0,140)||status)+")."; }
     return e;
   };
-  async function http(url, opt, empresa){
-    let r;
-    try { r = await fetch(url, opt); }
-    catch (err) { if (err?.name==="AbortError") throw Object.assign(new Error("cancelled"),{code:"cancelled"}); throw Object.assign(new Error("rede"),{code:"network", userMsg:"Sem conexão com a internet, ou a rede bloqueou o acesso à IA."}); }
-    const j = await r.json().catch(()=>({}));
+  // toda chamada tem tempo limite: nada fica "carregando" para sempre
+  let limiteMs = 90000;
+  async function http(url, opt={}, empresa){
+    const ctl = new AbortController(); let estourou = false;
+    const timer = setTimeout(()=>{ estourou = true; ctl.abort(); }, limiteMs);
+    const externo = opt.signal;
+    const repassa = () => ctl.abort();
+    if (externo){ if (externo.aborted) ctl.abort(); else externo.addEventListener("abort", repassa, {once:true}); }
+    const nome = empresa==="o Google" ? "O Gemini" : empresa==="a OpenAI" ? "O ChatGPT" : "O Claude";
+    let r, j; const t0 = Date.now();
+    const rota = String(url).replace(/^https:\/\/[^/]+/,"").replace(/key=[^&]+/,"key=•••").replace(/^\/v1(beta)?\//,"").slice(0,70);
+    const marca = (st, extra="") => hooks.trace?.(`${(opt.method||"GET").padEnd(4)} ${rota} → ${st} em ${((Date.now()-t0)/1000).toFixed(1)} s${extra?" · "+extra:""}`);
+    hooks.trace?.(`${(opt.method||"GET").padEnd(4)} ${rota} … enviado`);
+    try {
+      r = await fetch(url, Object.assign({}, opt, {signal:ctl.signal}));
+      j = await r.json().catch(()=>({}));
+      marca(r.status, r.ok ? "" : String(j?.error?.status||j?.error?.type||"")+" "+String(j?.error?.message||"").slice(0,120));
+    } catch (err) {
+      marca(estourou ? "SEM RESPOSTA" : err?.name==="AbortError" ? "cancelado" : "ERRO DE REDE", estourou ? "" : String(err?.message||err).slice(0,120));
+      if (estourou) throw Object.assign(new Error("timeout"),{code:"timeout", detalhe:`sem resposta em ${Math.round(limiteMs/1000)} s`, userMsg:`${nome} demorou demais para responder (mais de ${Math.round(limiteMs/1000)} segundos). Confira a internet e tente de novo.`});
+      if (err?.name==="AbortError") throw Object.assign(new Error("cancelled"),{code:"cancelled"});
+      throw Object.assign(new Error("rede"),{code:"network", detalhe:String(err?.message||err), userMsg:"Sem conexão com a internet, ou a rede bloqueou o acesso à IA."});
+    } finally { clearTimeout(timer); externo?.removeEventListener?.("abort", repassa); }
     if (!r.ok) throw ERR(r.status, j, empresa);
     return j;
   }
@@ -2373,8 +2403,8 @@ const AI = (() => {
     return run;
   };
   function pickGemini(ids){
-    const v = id => { const m = id.match(/^gemini-(\d+(?:\.\d+)?)-flash(-preview[\w-]*)?$/); return m ? parseFloat(m[1]) - (m[2]?0.01:0) : -1; };
-    const flash = ids.filter(x=>v(x)>0).sort((a,b)=>v(b)-v(a));
+    const v = id => { const m = id.match(/^gemini-(\d+(?:\.\d+)?)-flash(-preview[\w-]*)?$/); return m ? parseFloat(m[1]) - (m[2]?10:0) : -99; };
+    const flash = ids.filter(x=>v(x)>-99).sort((a,b)=>v(b)-v(a));
     return [...flash, ...(ids.includes("gemini-flash-latest")?["gemini-flash-latest"]:[]), "gemini-2.5-flash"].filter((x,i,a)=>a.indexOf(x)===i);
   }
 
@@ -2388,27 +2418,37 @@ const AI = (() => {
     const best = ids.filter(x=>v(x)>=4).sort((a,b)=>v(b)-v(a))[0];
     return best || (ids.includes("gpt-4o") ? "gpt-4o" : ids.find(x=>/^gpt-/.test(x)) || "gpt-4o");
   }
-  async function validate(p, key){
+  async function validate(p, key, onStep){
+    const antes = limiteMs; limiteMs = 25000;
+    // prazo total: mesmo que algo fora da rede trave, a verificação termina
+    let tm; const prazo = new Promise((_,no)=>{ tm = setTimeout(()=>no(Object.assign(new Error("timeout"),{code:"timeout", detalhe:"a verificação passou de 2 minutos", userMsg:"A verificação demorou demais. Confira a internet e toque em Conectar de novo."})), 120000); });
+    try { return await Promise.race([validar(p, key, onStep||(()=>{})), prazo]); } finally { clearTimeout(tm); limiteMs = antes; }
+  }
+  async function validar(p, key, onStep){
     if (p==="gemini"){
+      onStep("Conferindo a chave com o Google…");
       // 1) lista de modelos (se a chave não puder listar, segue com a lista padrão)
       let ids = [];
       try {
         const j = await http(`${GBASE}/models?pageSize=200`, {headers:{"x-goog-api-key":key}}, "o Google");
         ids = (j.models||[]).filter(m=>(m.supportedGenerationMethods||[]).includes("generateContent")).map(m=>String(m.name).replace(/^models\//,""));
       } catch (e) { if (e.code==="network") throw e; }
-      const modelos = ids.length ? pickGemini(ids).slice(0,4) : ["gemini-flash-latest","gemini-2.5-flash","gemini-3-flash-preview","gemini-2.0-flash"];
+      const modelos = (ids.length ? pickGemini(ids) : ["gemini-2.5-flash","gemini-flash-latest","gemini-2.0-flash"]).slice(0,3);
       // 2) pedido real; se a chave for recusada no cabeçalho, tenta como ?key=
       let last;
       for (const auth of ["header","query"]){
         for (const model of modelos){
+          onStep(`Testando o modelo ${model}…`);
           try { await gemini(key, model, auth)([{role:"user", content:"Responda apenas: OK"}], {modelTier:"quick"}); return {model, total:ids.length, web:true, auth}; }
           catch (e) {
             last = e;
             if (e.code==="network" || e.code==="cancelled") throw e;
+            if (e.code==="timeout") continue;   // modelo lento ou sobrecarregado: tenta o próximo
             if (e.code==="rate_limited") return {model, total:ids.length, web:true, auth, aviso:e.userMsg};   // a chave funciona; só o limite grátis acabou
             if (e.code==="auth") break;   // mesma resposta para qualquer modelo: tenta o outro jeito de enviar a chave
           }
         }
+        if (last?.code!=="auth") break;   // só vale tentar o outro jeito de enviar a chave se o Google recusou a chave
       }
       throw last || Object.assign(new Error("modelo"),{code:"api", userMsg:"Não achei um modelo do Gemini disponível para esta chave."});
     }
