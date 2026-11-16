@@ -17,21 +17,20 @@ jobs:
   build:
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v5
 
-      - uses: actions/setup-node@v4
+      - uses: actions/setup-node@v5
         with:
           node-version: 22
           cache: npm
 
-      - uses: actions/setup-java@v4
+      - uses: actions/setup-java@v5
         with:
           distribution: temurin
           java-version: 21
           cache: gradle
 
-      - uses: android-actions/setup-android@v3
-
+      # O runner ubuntu-latest já traz o Android SDK (ANDROID_HOME); o Gradle baixa o que faltar.
       - name: Instalar dependências
         run: npm ci
 
@@ -46,7 +45,7 @@ jobs:
           cp app/build/outputs/apk/debug/app-debug.apk ../Atlas.apk
 
       - name: Guardar APK no build
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v5
         with:
           name: Atlas-apk
           path: Atlas.apk
