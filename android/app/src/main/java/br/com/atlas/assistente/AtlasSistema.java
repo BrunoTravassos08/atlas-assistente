@@ -147,6 +147,7 @@ public class AtlasSistema extends Plugin {
         r.put("chrome", pacote("com.android.chrome"));
         r.put("chatgpt", pacote("com.openai.chatgpt"));
         r.put("claude", pacote("com.anthropic.claude"));
+        r.put("gemini", pacote("com.google.android.apps.bard"));
         r.put("android", Build.VERSION.SDK_INT);
         call.resolve(r);
     }

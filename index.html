@@ -472,6 +472,7 @@ textarea.inp{height:auto;padding:8px 12px;resize:vertical;font:inherit}
     <p id="provTitle">Escolha com qual inteligência artificial o seu agente vai ser criado.</p>
     <div class="prov" id="prov">
       <button type="button" data-p="gpt" aria-pressed="false"><span class="logo">GPT</span><span><strong>ChatGPT</strong><small>OpenAI</small></span><span class="arrow">›</span></button>
+      <button type="button" data-p="gemini" aria-pressed="false"><span class="logo">G</span><span><strong>Gemini</strong><small>Google · tem plano grátis</small></span><span class="arrow">›</span></button>
       <button type="button" data-p="claude" aria-pressed="false"><span class="logo">C</span><span><strong>Claude</strong><small>Anthropic</small></span><span class="arrow">›</span></button>
     </div>
     <div id="connect" hidden><form class="connect" id="cnForm" autocomplete="off">
@@ -570,7 +571,7 @@ let tab = "agenda";
 let mode = "idle"; // idle | listening | thinking | speaking
 let sample = null, tts = null, dict = null;
 
-const PROV = {gpt:"GPT", claude:"CLAUDE"};
+const PROV = {gpt:"GPT", claude:"CLAUDE", gemini:"GEMINI"};
 /* app Android (Capacitor) ou navegador/claude.ai */
 const NATIVE = !!window.Capacitor?.isNativePlatform?.();
 const plugin = name => (NATIVE && window.Capacitor?.registerPlugin) ? window.Capacitor.registerPlugin(name) : null;
@@ -1573,6 +1574,7 @@ function renderPdfCard(){
 }
 
 let nextId = Math.max(0,...tasks.map(t=>t.id))+1;
+const TIME_SCHEMA = {type:"object", properties:{nome:{type:"string"}, sigla:{type:"string"}, gols:{type:"number"}, cor_primaria:{type:"string"}, cor_secundaria:{type:"string"}}};
 const CARTAO_SCHEMA = {type:"object", properties:{
   tipo:{type:"string", enum:["destaque","numeros","grafico","agenda","clima","noticias","placar","lista"], description:"destaque: um dado-chave grande; numeros: 2 a 6 indicadores lado a lado; grafico: barras/linha/pizza; agenda: compromissos do dia (sem 'compromissos' usa a agenda do app); clima: tempo de uma cidade; noticias: manchetes de um assunto; placar: jogo (mesmos campos de mostrar_placar); lista: tópicos curtos"},
   categoria:{type:"string"}, titulo:{type:"string"}, valor:{type:"string"}, legenda:{type:"string"}, fonte:{type:"string"},
@@ -1584,7 +1586,7 @@ const CARTAO_SCHEMA = {type:"object", properties:{
   compromissos:{type:"array", items:{type:"object", properties:{hora:{type:"string"}, titulo:{type:"string"}, nota:{type:"string"}}}},
   cidade:{type:"string"}, temperatura:{type:"number"}, minima:{type:"number"}, maxima:{type:"number"}, condicao:{type:"string"}, chuva:{type:"number", description:"chance de chuva em %"},
   resumo:{type:"string"}, manchetes:{type:"array", items:{type:"object", properties:{titulo:{type:"string"}, fonte:{type:"string"}, quando:{type:"string"}}}},
-  competicao:{type:"string"}, status:{type:"string"}, mandante:{type:"object"}, visitante:{type:"object"}, gols:{type:"array", items:{type:"object"}}, estatisticas:{type:"array", items:{type:"object"}}
+  competicao:{type:"string"}, status:{type:"string"}, mandante:TIME_SCHEMA, visitante:TIME_SCHEMA, gols:{type:"array", items:{type:"object", properties:{time:{type:"string"}, jogador:{type:"string"}, minuto:{type:"string"}}}}, estatisticas:{type:"array", items:{type:"object", properties:{nome:{type:"string"}, mandante:{type:"number"}, visitante:{type:"number"}, unidade:{type:"string"}}}}
 }, required:["tipo"]};
 if (NATIVE) setTimeout(()=>SIS?.appsMusica().then(r=>{ appsMusica=r.apps||[]; }).catch(()=>{}), 1500);
 const tools = [
@@ -1833,7 +1835,7 @@ async function avisosConexao(p){
   const inf = await infoSistema(); if(!inf || $("#connect").dataset.p!==p) return;
   const partes=[];
   const velho=navegadorVelho(inf), alt=navegadorAlternativo(inf);
-  if (velho) partes.push(`<div class="aviso"><span>O <b>${esc(velho.nome||"navegador")}</b> deste celular está desatualizado (versão ${esc(String(velho.major))}). A página ${p==="gpt"?"da OpenAI":"da Anthropic"} pode dar erro nele. Atualize primeiro${alt?` ou abra no <b>${esc(alt.nome)}</b>`:""}.</span><div class="duo"><button type="button" class="btn-line" data-cn="loja" data-pkg="${esc(velho.pacote)}">Atualizar ${esc(velho.nome||"navegador")}</button>${alt?`<button type="button" class="btn-line" data-cn="alt" data-pkg="${esc(alt.pacote)}">Abrir no ${esc(alt.nome)}</button>`:""}</div></div>`);
+  if (velho) partes.push(`<div class="aviso"><span>O <b>${esc(velho.nome||"navegador")}</b> deste celular está desatualizado (versão ${esc(String(velho.major))}). A página ${p==="gpt"?"da OpenAI":p==="gemini"?"do Google":"da Anthropic"} pode dar erro nele. Atualize primeiro${alt?` ou abra no <b>${esc(alt.nome)}</b>`:""}.</span><div class="duo"><button type="button" class="btn-line" data-cn="loja" data-pkg="${esc(velho.pacote)}">Atualizar ${esc(velho.nome||"navegador")}</button>${alt?`<button type="button" class="btn-line" data-cn="alt" data-pkg="${esc(alt.pacote)}">Abrir no ${esc(alt.nome)}</button>`:""}</div></div>`);
   if (!(inf.navegadores||[]).length) partes.push(`<div class="aviso"><span>Não encontrei um navegador neste celular. Instale o <b>Chrome</b> pela Play Store.</span><div class="duo"><button type="button" class="btn-line" data-cn="loja" data-pkg="com.android.chrome">Instalar Chrome</button></div></div>`);
   if (inf[info.app]?.instalado) partes.push(`<div class="aviso info"><span>Você tem o app do <b>${info.appNome}</b>. Ele serve para conversar, mas não cria a chave de API: ela só é criada no site. Por isso o Atlas abre o navegador.</span></div>`);
   box.innerHTML=partes.join("");
@@ -1979,13 +1981,13 @@ async function agendarLembrete(){
 const sleep = ms => new Promise(r=>setTimeout(r,ms));
 const hexId = n => Array.from({length:n},()=>"0123456789abcdef"[Math.random()*16|0]).join("");
 async function createAgent(check={}){
-  const gpt = cfg.provider==="gpt", vendor = gpt?"OpenAI":"Anthropic";
+  const gpt = cfg.provider==="gpt", vendor = gpt?"OpenAI":cfg.provider==="gemini"?"Google":"Anthropic";
   const id = check.model || cfg.model?.[cfg.provider] || "—";
   // instalação real: envia a personalidade + todas as skills para o modelo e confirma que ele aceita
   const instalar = sample ? sample([{role:"user", content:rules()+"\n\nVocê acabou de ser criado com as skills acima. Não use nenhuma ferramenta agora. Responda apenas: pronto."}], {tools, modelTier:"quick"}).then(()=>({ok:true})).catch(e=>({ok:false, msg:e?.userMsg||e?.message||"erro"})) : Promise.resolve({ok:false, msg:"sem IA conectada"});
   const SKILLS = ["Agenda","Destaques","Tradução PT/EN/ES","PDF: ler e padronizar","Pesquisa avançada","Briefing de notícias","Tutor de estudos"];
   const steps = [
-    {t:`Autenticando com ${vendor}`, ms:700, log:[gpt?"> GET https://api.openai.com/v1/models":"> GET https://api.anthropic.com/v1/models", `  chave verificada · ${check.total||"?"} modelos disponíveis <b>200 OK</b>`]},
+    {t:`Autenticando com ${vendor}`, ms:700, log:[gpt?"> GET https://api.openai.com/v1/models":cfg.provider==="gemini"?"> GET https://generativelanguage.googleapis.com/v1beta/models":"> GET https://api.anthropic.com/v1/models", `  chave verificada · ${check.total||"?"} modelos disponíveis <b>200 OK</b>`]},
     {t:"Selecionando o modelo", ms:700, log:[`> modelo: ${id} <b>ok</b>`, check.web?"> busca na web: disponível <b>ok</b>":"> busca na web: será testada no primeiro uso"]},
     {t:"Definindo personalidade e idioma", ms:1000, log:["> persona: estilo Jarvis · objetivo · cordial", "> idioma: pt-BR <b>ok</b>"]},
     {t:"Instalando skills: tutor, pesquisa, tradução, PDF e agenda", ms:2000, wait:instalar, log:["> tools.register(plano_de_estudo) <b>ok</b>", "> tools.register(adicionar_tarefa) <b>ok</b>", "> tools.register(concluir_tarefa) <b>ok</b>", "> tools.register(mostrar_destaque) <b>ok</b>", "> skills.install(traducao: pt/en/es) <b>ok</b>", "> skills.install(pdf: ler, padronizar, editar) <b>ok</b>", "> skills.install(pesquisa_avancada) <b>ok</b>"]},
@@ -2046,10 +2048,21 @@ const AI = (() => {
       passos:["Toque em <b>Abrir no navegador</b>. O Console da Anthropic abre no navegador do celular.", "Entre com a <b>mesma conta do Claude</b>.", "Toque em <b>Create Key</b>, dê um nome (ex.: Atlas) e confirme.", "Copie a chave, volte para o Atlas e toque em <b>Colar</b>."],
       ajuda:`A Anthropic não deixa outros apps entrarem pelo login do Claude, nem pelo app do Claude. A ligação é feita com uma <b>chave de API</b>, que só é criada no Console da Anthropic. Leva um minuto. A API é cobrada à parte da assinatura: a conta precisa ter crédito em <b>Billing</b>.`},
   };
+  INFO.gemini = {nome:"Gemini", empresa:"o Google", pagina:"Google AI Studio", prefixo:"AIza", url:"https://aistudio.google.com/apikey", site:"aistudio.google.com/apikey", app:"gemini", appNome:"Gemini",
+    passos:["Toque em <b>Abrir no navegador</b>. O Google AI Studio abre no navegador do celular.", "Entre com sua <b>conta Google</b> (a mesma do Gmail) e aceite os termos, se pedir.", "Toque em <b>Create API key</b> (ou Criar chave de API). Se pedir um projeto, escolha o que aparecer ou crie um.", "Copie a chave (começa com <b>AIza</b>), volte para o Atlas e toque em <b>Colar</b>."],
+    ajuda:`O Gemini tem <b>plano gratuito</b>: a chave é criada no Google AI Studio com sua conta Google, <b>sem cartão</b>. O plano grátis tem um limite de uso por minuto e por dia; quando acabar, o Atlas avisa e volta a funcionar depois. O app do Gemini não cria a chave: ela só sai pelo site.`};
   const ERR = (status, j, empresa) => {
     const m = String(j?.error?.message || j?.message || "");
-    const code = j?.error?.code || j?.error?.type || "";
+    const code = j?.error?.status || j?.error?.code || j?.error?.type || "";
     const e = new Error(m || ("HTTP "+status)); e.status=status; e.apiCode=code;
+    if (empresa==="o Google"){
+      if (/API key not valid|API_KEY_INVALID|API key expired/i.test(m) || status===401 || (status===403 && !/billing|region|location/i.test(m))) { e.code="auth"; e.userMsg="O Google recusou a chave. Confira se copiou a chave inteira (começa com AIza), ou crie uma nova no AI Studio."; }
+      else if (status===429 || code==="RESOURCE_EXHAUSTED") { e.code="rate_limited"; e.userMsg = /per ?day|daily|PerDay/i.test(m) ? "O limite grátis de hoje do Gemini acabou. Ele renova por volta das 4h ou 5h da manhã (horário de Brasília). Se quiser usar sem limite, ative o faturamento no AI Studio." : "O plano grátis do Gemini permite poucos pedidos por minuto. Aguarde uns 30 segundos e tente de novo."; }
+      else if (/location|region|not supported in your country/i.test(m)) { e.code="api"; e.userMsg="O Gemini não está disponível nesta região para esta chave."; }
+      else if (status>=500) { e.code="server"; e.userMsg="O servidor do Gemini está instável agora. Tente de novo em instantes."; }
+      else { e.code="api"; e.userMsg="O Gemini recusou o pedido ("+(m.slice(0,140)||status)+")."; }
+      return e;
+    }
     if (status===401 || status===403) { e.code="auth"; e.userMsg="A chave foi recusada. Confira se copiou a chave inteira, ou crie uma nova."; }
     else if (code==="insufficient_quota" || /credit balance|billing|quota/i.test(m)) { e.code="billing"; e.userMsg=`A chave funciona, mas a conta de API está sem crédito. Adicione crédito em Billing no site da ${empresa==="a OpenAI"?"OpenAI":"Anthropic"}.`; }
     else if (status===429) { e.code="rate_limited"; e.userMsg="Muitas solicitações seguidas. Aguarde alguns segundos."; }
@@ -2159,6 +2172,84 @@ const AI = (() => {
     return run;
   };
 
+  /* ----- Google Gemini (generateContent) ----- */
+  const GBASE = "https://generativelanguage.googleapis.com/v1beta";
+  const gSchema = sch => {
+    // o Gemini aceita só parte do JSON Schema: limpa o que ele recusa
+    if (Array.isArray(sch)) return sch.map(gSchema);
+    if (!sch || typeof sch!=="object") return sch;
+    const o = {};
+    for (const [k,v] of Object.entries(sch)){
+      if (["additionalProperties","$schema","default","examples"].includes(k)) continue;
+      o[k] = (k==="properties") ? Object.fromEntries(Object.entries(v).map(([pk,pv])=>[pk,gSchema(pv)])) : gSchema(v);
+    }
+    if (o.type==="object" && (!o.properties || !Object.keys(o.properties).length)) { o.properties = {texto:{type:"string"}}; delete o.required; }
+    return o;
+  };
+  const gemini = (key, model) => {
+    const H = {"content-type":"application/json", "x-goog-api-key":key};
+    const flags = {thinking:"level"};
+    async function call(body, signal){
+      for (let tries=0; tries<3; tries++){
+        const b = Object.assign({}, body), q = b._quick; delete b._quick;
+        b.generationConfig = Object.assign({}, b.generationConfig);
+        if (flags.thinking==="level") b.generationConfig.thinkingConfig = {thinkingLevel: q?"low":"medium"};
+        else if (flags.thinking==="budget") b.generationConfig.thinkingConfig = {thinkingBudget: q?0:2048};
+        try { return await http(`${GBASE}/models/${encodeURIComponent(model)}:generateContent`, {method:"POST", headers:H, body:JSON.stringify(b), signal}, "o Google"); }
+        catch (e) {
+          if (e.status===400 && /thinking/i.test(e.message) && flags.thinking){ flags.thinking = flags.thinking==="level" ? "budget" : null; continue; }
+          throw e;
+        }
+      }
+    }
+    const textOf = c => (c?.parts||[]).filter(p=>p.text && !p.thought).map(p=>p.text).join("");
+    async function buscar(consulta, signal){
+      // busca no Google numa chamada separada (o Gemini não mistura busca e ferramentas em todos os modelos)
+      const res = await call({contents:[{role:"user", parts:[{text:`Pesquise no Google e responda em português, com fatos, números e datas, citando as fontes: ${consulta}`}]}], tools:[{googleSearch:{}}], generationConfig:{maxOutputTokens:2000}, _quick:true}, signal);
+      const cand = res.candidates?.[0];
+      const fontes = (cand?.groundingMetadata?.groundingChunks||[]).map(g=>g.web?.title).filter(Boolean).slice(0,6);
+      return {resultado: textOf(cand?.content).slice(0,6000), fontes};
+    }
+    async function run(turns, {signal, tools=[], modelTier="quick", onText, web=false}={}){
+      const contents = turns.filter(m=>String(m.content||"").trim()).map(m=>({role: m.role==="assistant"?"model":"user", parts:[{text:String(m.content)}]}));
+      const decl = tools.map(t=>({name:t.name, description:t.description||"", parameters:gSchema(t.inputSchema||{type:"object", properties:{}})}));
+      if (web && tools.length) decl.push({name:"buscar_na_web", description:"Pesquisa no Google para fatos atuais (notícias, placares, clima, cotações, preços). Use antes de responder sobre algo recente.", parameters:{type:"object", properties:{consulta:{type:"string"}}, required:["consulta"]}});
+      const gtools = decl.length ? [{functionDeclarations:decl}] : (web ? [{googleSearch:{}}] : []);
+      const quick = modelTier==="quick";
+      let text = "";
+      for (let step=0; step<10; step++){
+        const res = await call({contents, ...(gtools.length?{tools:gtools}:{}), generationConfig:{maxOutputTokens: quick?4000:8000}, _quick:quick}, signal);
+        const cand = res.candidates?.[0];
+        if (!cand?.content){
+          if (res.promptFeedback?.blockReason || cand?.finishReason==="SAFETY") return {text: text || "Prefiro não responder a esse pedido."};
+          return {text};
+        }
+        contents.push(cand.content);
+        const t = textOf(cand.content); if (t) { text = t; onText?.({text}); }
+        const calls = (cand.content.parts||[]).filter(p=>p.functionCall);
+        if (!calls.length) return {text};
+        const parts = await Promise.all(calls.map(async ({functionCall:c}) => {
+          let out;
+          try {
+            if (c.name==="buscar_na_web") out = await buscar(String(c.args?.consulta||""), signal);
+            else { const tool = tools.find(x=>x.name===c.name); out = tool ? await tool.execute(c.args||{}, {signal}) : {erro:"ferramenta desconhecida"}; }
+          } catch (err) { if (err?.code==="cancelled") throw err; out = {erro:String(err?.userMsg||err?.message||err)}; }
+          const resp = (out && typeof out==="object" && !Array.isArray(out)) ? out : {resultado: out ?? "ok"};
+          const str = JSON.stringify(resp);
+          return {functionResponse:{name:c.name, ...(c.id?{id:c.id}:{}), response: str.length>20000 ? {resultado:str.slice(0,20000)} : resp}};
+        }));
+        contents.push({role:"user", parts});
+      }
+      return {text};
+    }
+    return run;
+  };
+  function pickGemini(ids){
+    const v = id => { const m = id.match(/^gemini-(\d+(?:\.\d+)?)-flash(-preview[\w-]*)?$/); return m ? parseFloat(m[1]) - (m[2]?0.01:0) : -1; };
+    const flash = ids.filter(x=>v(x)>0).sort((a,b)=>v(b)-v(a));
+    return [...flash, ...(ids.includes("gemini-flash-latest")?["gemini-flash-latest"]:[]), "gemini-2.5-flash"].filter((x,i,a)=>a.indexOf(x)===i);
+  }
+
   /* escolhe o melhor modelo da lista que a própria chave enxerga */
   function pickClaude(ids){
     const pref = ["claude-opus-5-5","claude-sonnet-5-5","claude-opus-5","claude-sonnet-5","claude-opus-4-8","claude-sonnet-4-6"];
@@ -2170,6 +2261,16 @@ const AI = (() => {
     return best || (ids.includes("gpt-4o") ? "gpt-4o" : ids.find(x=>/^gpt-/.test(x)) || "gpt-4o");
   }
   async function validate(p, key){
+    if (p==="gemini"){
+      const j = await http(`${GBASE}/models?pageSize=200`, {headers:{"x-goog-api-key":key}}, "o Google");
+      const ids = (j.models||[]).filter(m=>(m.supportedGenerationMethods||[]).includes("generateContent")).map(m=>String(m.name).replace(/^models\//,""));
+      let last;
+      for (const model of pickGemini(ids).slice(0,4)){
+        try { await gemini(key, model)([{role:"user", content:"Responda apenas: OK"}], {modelTier:"quick"}); return {model, total:ids.length, web:true}; }
+        catch (e) { last = e; if (e.code==="auth") throw e; }
+      }
+      throw last || Object.assign(new Error("modelo"),{code:"api", userMsg:"Não achei um modelo do Gemini disponível para esta chave."});
+    }
     if (p==="claude"){
       const j = await http("https://api.anthropic.com/v1/models?limit=100", {headers:{"x-api-key":key, "anthropic-version":"2023-06-01", "anthropic-dangerous-direct-browser-access":"true"}}, "a Anthropic");
       const ids = (j.data||[]).map(m=>m.id);
@@ -2186,7 +2287,7 @@ const AI = (() => {
     }
   }
   function client(p, key, model){
-    const run = p==="claude" ? anthropic(key, model) : openai(key, model);
+    const run = p==="claude" ? anthropic(key, model) : p==="gemini" ? gemini(key, model) : openai(key, model);
     const fn = (turns, opts) => run(turns, opts);
     fn.json = async (prompt, opts={}) => {
       const {text} = await run([{role:"user", content:prompt+"\n\nResponda apenas com o JSON, sem nenhum texto antes ou depois."}], opts);
@@ -2200,7 +2301,7 @@ const AI = (() => {
 function connectAI(){
   if (window.claude?.use) return;
   const p = cfg?.provider, key = cfg?.keys?.[p];
-  sample = (p && key) ? AI.client(p, key, cfg.model?.[p] || (p==="claude"?"claude-opus-5-5":"gpt-4o")) : null;
+  sample = (p && key) ? AI.client(p, key, cfg.model?.[p] || (p==="claude"?"claude-opus-5-5":p==="gemini"?"gemini-flash-latest":"gpt-4o")) : null;
   applyName();
 }
 
