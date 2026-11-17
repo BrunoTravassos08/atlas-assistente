@@ -526,9 +526,9 @@ textarea.inp{height:auto;padding:8px 12px;resize:vertical;font:inherit}
 
     <section id="onbRot" hidden>
       <h2 class="onb-h">Monte sua rotina</h2>
-      <p class="sub">Todo dia, a partir do horário escolhido, a primeira vez que você abrir o app eu faço o briefing: notícias dos seus assuntos e seus compromissos.</p>
+      <p class="sub">Todo dia, na primeira vez que você abrir o app, eu já começo sozinho com o briefing: notícias dos seus assuntos, clima e seus compromissos. No horário escolhido eu te aviso no celular.</p>
       <div class="two">
-        <div><label class="lbl" for="oHora">Horário do briefing</label><input class="inp" id="oHora" type="time" value="07:00"></div>
+        <div><label class="lbl" for="oHora">Horário do aviso</label><input class="inp" id="oHora" type="time" value="07:00"></div>
         <div><label class="lbl" for="oDias">Dias</label><select class="inp" id="oDias"><option value="todos">Todos os dias</option><option value="uteis">Segunda a sexta</option></select></div>
       </div>
       <label class="check"><input type="checkbox" id="oLembrete" checked> <span>Me avisar no celular nesse horário</span></label>
@@ -597,6 +597,65 @@ const plugin = name => {
     return (opts={}) => C.nativePromise(name, m, opts);
   }});
 };
+/* ---------- diário de diagnóstico (Ajustes › Copiar diagnóstico) ---------- */
+const DIAG = (()=>{ try{ return JSON.parse(localStorage.getItem("atlas.diag")||"[]"); }catch{ return []; } })();
+let diagSalvar = null;
+function diario(linha){
+  const t = new Date().toLocaleTimeString("pt-BR",{hour:"2-digit",minute:"2-digit",second:"2-digit"});
+  DIAG.push(`${t} ${String(linha).slice(0,300)}`); if (DIAG.length>300) DIAG.splice(0, DIAG.length-300);
+  clearTimeout(diagSalvar); diagSalvar = setTimeout(()=>{ try{ localStorage.setItem("atlas.diag", JSON.stringify(DIAG)); }catch{} }, 400);
+}
+addEventListener("error", e=>diario(`ERRO JS: ${e.message} (${String(e.filename||"").split("/").pop()}:${e.lineno})`));
+addEventListener("unhandledrejection", e=>diario(`ERRO JS (promessa): ${e.reason?.message||e.reason?.code||e.reason}`));
+diario(`app aberto · ${NATIVE?"Android":"navegador"} · ${navigator.userAgent.match(/Chrome\/[\d.]+/)?.[0]||""}`);
+
+/* ---------- internet sem passar pela IA: Google Notícias e previsão do tempo ---------- */
+// no app usa o HTTP nativo do Capacitor (sem bloqueio de CORS); no navegador, fetch comum
+async function httpTexto(url, ms=15000){
+  const t0 = Date.now(), curto = url.replace(/^https:\/\//,"").slice(0,60);
+  try{
+    let status, data;
+    if (NATIVE && typeof window.Capacitor?.nativePromise==="function"){
+      const r = await Promise.race([window.Capacitor.nativePromise("CapacitorHttp","request",{url, method:"GET", responseType:"text", connectTimeout:ms, readTimeout:ms, headers:{"Accept-Language":"pt-BR,pt;q=0.9"}}), sleep(ms+2000).then(()=>{ throw new Error("sem resposta"); })]);
+      status = r?.status; data = typeof r?.data==="string" ? r.data : JSON.stringify(r?.data??"");
+    } else {
+      const ctl = new AbortController(), tm = setTimeout(()=>ctl.abort(), ms);
+      try{ const r = await fetch(url, {signal:ctl.signal}); status = r.status; data = await r.text(); } finally{ clearTimeout(tm); }
+    }
+    diario(`GET ${curto} → ${status} em ${((Date.now()-t0)/1000).toFixed(1)} s`);
+    if (!(status>=200 && status<300)) throw new Error("HTTP "+status);
+    return data;
+  } catch(e){ diario(`GET ${curto} → ERRO ${e?.message||e}`); throw e; }
+}
+const quandoFoi = d => { const h = (Date.now()-d.getTime())/36e5; if (!(h>=0)) return ""; if (h<1) return `há ${Math.max(1,Math.round(h*60))} min`; if (h<24) return `há ${Math.round(h)} h`; const dd=Math.round(h/24); return dd===1?"ontem":`há ${dd} dias`; };
+async function noticiasGoogle(consulta, n=6){
+  const url = `https://news.google.com/rss/search?q=${encodeURIComponent(consulta+" when:2d")}&hl=pt-BR&gl=BR&ceid=BR:pt-419`;
+  const xml = new DOMParser().parseFromString(await httpTexto(url), "text/xml");
+  const itens = [...xml.querySelectorAll("item")].slice(0, n).map(it=>{
+    const fonte = it.querySelector("source")?.textContent?.trim() || "";
+    let titulo = (it.querySelector("title")?.textContent||"").trim();
+    if (fonte && titulo.endsWith(" - "+fonte)) titulo = titulo.slice(0, -(fonte.length+3));
+    const d = new Date(it.querySelector("pubDate")?.textContent||"");
+    return {titulo, fonte, quando: isNaN(d) ? "" : quandoFoi(d)};
+  }).filter(x=>x.titulo);
+  return itens;
+}
+// usada pela IA (ferramenta buscar_na_web) quando o plano não inclui a busca do Google
+async function buscaLocal(consulta){
+  const itens = await noticiasGoogle(consulta, 8);
+  if (!itens.length) return {resultado:"Nenhuma notícia recente encontrada para essa busca.", fontes:[]};
+  return {resultado: itens.map(i=>`- ${i.titulo} (${i.fonte}${i.quando?", "+i.quando:""})`).join("\n"), fontes:[...new Set(itens.map(i=>i.fonte))].slice(0,6), aviso:"Manchetes do Google Notícias das últimas 48 horas."};
+}
+const TEMPO_COD = c => c===0?"céu limpo":c<=2?"poucas nuvens":c===3?"nublado":c<=48?"neblina":c<=57?"garoa":c<=67?"chuva":c<=77?"neve":c<=82?"pancadas de chuva":"tempestade";
+async function climaHoje(cidade){
+  const g = JSON.parse(await httpTexto(`https://geocoding-api.open-meteo.com/v1/search?name=${encodeURIComponent(cidade)}&count=1&language=pt&format=json`));
+  const l = g?.results?.[0]; if (!l) return null;
+  const w = JSON.parse(await httpTexto(`https://api.open-meteo.com/v1/forecast?latitude=${l.latitude}&longitude=${l.longitude}&current=temperature_2m,weather_code&daily=temperature_2m_max,temperature_2m_min,precipitation_probability_max&timezone=auto&forecast_days=1`));
+  const temp = Math.round(w?.current?.temperature_2m), cond = TEMPO_COD(w?.current?.weather_code??0);
+  const max = Math.round(w?.daily?.temperature_2m_max?.[0]), min = Math.round(w?.daily?.temperature_2m_min?.[0]), chuva = w?.daily?.precipitation_probability_max?.[0] ?? null;
+  if (!isFinite(temp)) return null;
+  return {cidade:l.name, temperatura:temp, minima:min, maxima:max, condicao:cond, chuva, fala:`Em ${l.name}, agora faz ${temp} graus, ${cond}. Máxima de ${max}${chuva!=null?`, com ${chuva}% de chance de chuva`:""}.`};
+}
 /* links: abre no navegador de verdade do aparelho (não numa aba interna) */
 const SIS = plugin("AtlasSistema");
 let appsMusica = null;
@@ -1122,6 +1181,8 @@ function renderCard(){
       <div class="row"><label class="lbl" for="sFx" style="margin:0">Efeitos visuais</label><select class="inp" id="sFx" style="width:auto"><option value="leve" ${FX.lite?"selected":""}>Leve (recomendado)</option><option value="completo" ${FX.lite?"":"selected"}>Completo</option></select></div>
       ${cfg.agent?`<div class="sub">Modelo: <b style="color:var(--fg)">${esc(cfg.model?.[cfg.provider]||cfg.agent.id)}</b><br>Conectado em ${new Date(cfg.agent.criadoEm).toLocaleString("pt-BR")}</div>`:""}
       <div class="row"><span class="sub">Conectado: <b style="color:var(--cyan)">${sample?PROV[cfg.provider]:"nenhuma IA"}</b></span><button class="btn-line warn" id="logout" type="button">Trocar IA</button></div>
+      <div class="gbox"><div class="row"><span class="sub">Diagnóstico: o que o app fez por último (${DIAG.length} linhas)</span><button class="btn-line" data-act="diag-copiar" type="button">Copiar diagnóstico</button></div>
+        <details class="diag"><summary>Ver as últimas linhas</summary><pre>${esc(DIAG.slice(-40).join("\n"))}</pre></details></div>
     </div>`;
   }
 }
@@ -1134,6 +1195,7 @@ $("#card").addEventListener("click", e=>{
   if(act==="desfazer" && pdfUndo.length){ const u=pdfUndo.pop(); Object.assign(pdf,{bytes:u.bytes,pages:u.pages,ops:u.ops}); renderCard(); renderThumbs(); }
   if(act==="baixar") pdfDownload();
   if(act==="briefing") runBriefing();
+  if(act==="diag-copiar"){ const txt=`Atlas · ${new Date().toLocaleString("pt-BR")} · ${cfg.provider} ${cfg.model?.[cfg.provider]||""}\n`+DIAG.join("\n"); (navigator.clipboard?.writeText(txt)||Promise.reject()).then(()=>caption("Diagnóstico copiado. Cole no WhatsApp e mande para quem está te ajudando.")).catch(()=>caption("<em>Não consegui copiar. Abra 'Ver as últimas linhas' e tire um print.</em>")); }
   if(act==="gasto-ver"){ highlight={tipo:"gasto", titulo:"Gasto com a IA"}; tab="destaque"; renderCard(); }
   if(act==="gasto-ajustes"){ tab="ajustes"; renderCard(); setTimeout(()=>$("#sLim")?.focus(),50); }
   if(act==="gasto-liberar"){ const g=gastoAtual(); g.liberado=true; store.set("gasto",g); renderCard(); caption("Uso liberado até o fim do mês."); }
@@ -1170,7 +1232,7 @@ $("#card").addEventListener("change", e=>{
   if(id==="sCot"){ const v=num(e.target.value); if(v>0){ const lim=num(cfg.limite?.usd)*cotacao(); cfg.cotacao=v; if(lim>0) cfg.limite.usd=lim/v; } store.set("cfg",cfg); renderCard(); }
   if(id==="sLim"){ const v=num(e.target.value); cfg.limite=Object.assign({acao:"confirmar"}, cfg.limite, {usd: v>0 ? v/cotacao() : 0}); const g=gastoAtual(); g.aviso80=false; g.liberado=false; store.set("gasto",g); store.set("cfg",cfg); renderCard(); }
   if(id==="sLimAcao"){ cfg.limite=Object.assign({usd:0}, cfg.limite, {acao:e.target.value}); store.set("cfg",cfg); }
-  if(id==="sGemPlano"){ cfg.geminiPlano=e.target.value; store.set("cfg",cfg); renderCard(); }
+  if(id==="sGemPlano"){ cfg.geminiPlano=e.target.value; store.set("cfg",cfg); connectAI(); renderCard(); }
   if(id==="sTopics"){ setTimeout(agendarLembrete,0); const old=topics(); cfg.interesses=e.target.value.split("\n").map(x=>x.trim()).filter(Boolean).slice(0,8).map(n=>old.find(o=>o.nome===n)||{nome:n,q:n}); }
   store.set("cfg",cfg);
 });
@@ -1318,30 +1380,15 @@ function browse(url, max=2500){
 }
 
 let briefingBusy=false, pendingBriefing=false;
-// uma etapa curta do briefing: uma busca na web, uma resposta pequena em JSON, com prazo próprio
-async function etapaWeb(prompt, ms=40000){
-  const ctl=new AbortController(); const tm=setTimeout(()=>ctl.abort(), ms); const t0=Date.now();
-  try{
-    for(let tent=0; tent<2; tent++){
-      try{ return await sample.json(prompt,{modelTier:"quick", web:true, signal:ctl.signal}); }
-      catch(e){ if(e?.code==="rate_limited" && tent===0 && Date.now()-t0<ms-8000){ await sleep(6000); continue; } throw e; }
-    }
-  } catch(e){ if(ctl.signal.aborted) throw Object.assign(new Error("timeout"),{code:"timeout"}); throw e; }
-  finally{ clearTimeout(tm); }
-}
-const promptTopico = (t, cidade) => `Pesquise na web as notícias de HOJE (ou das últimas 48 horas) sobre: ${t.q || t.nome}.${cidade?` O usuário mora em ${cidade}.`:""}
-Ignore resultados que não sejam sobre o assunto. Use só o que encontrar; nunca invente número ou placar. Responda SOMENTE com JSON, curto:
-{"fala": "1 a 2 frases curtas com a manchete mais importante, para ser lida em voz alta", "resumo": "1 frase", "manchetes": [{"titulo": "...", "fonte": "...", "quando": "ex.: há 8 h"}],
- "numeros": "opcional, só números presentes nos resultados: [{\"rotulo\": \"...\", \"valor\": \"...\", \"unidade\": \"...\", \"variacao\": \"+1,2%\"}], até 4",
- "placar": "SOMENTE se o assunto for um time e houver jogo recente: {\"competicao\": \"...\", \"status\": \"encerrado\", \"mandante\": {\"nome\": \"...\", \"sigla\": \"3 letras\", \"gols\": 0, \"cor_primaria\": \"#hex\", \"cor_secundaria\": \"#hex\"}, \"visitante\": {...}}; senão omita"}
-No máximo 3 manchetes.`;
-const promptClima = cidade => `Pesquise na web a previsão do tempo de HOJE em ${cidade}. Responda SOMENTE com JSON: {"cidade": "${cidade}", "temperatura": 29, "minima": 24, "maxima": 31, "condicao": "ensolarado", "chuva": 20, "fala": "1 frase curta"}`;
 async function runBriefing({abertura=false}={}){
   if(briefingBusy) return; briefingBusy=true;
   const h=new Date().getHours(), per=h<12?"Bom dia":h<18?"Boa tarde":"Boa noite";
   let helloP=Promise.resolve();
+  // conta como "feito hoje" já na tentativa: se falhar, não fica repetindo a cada minuto
+  if(abertura) marcarBriefing();
+  diario(`briefing: início${abertura?" (abertura)":""}`);
   if(abertura){
-    const hello=`${per}, ${cfg.user||"senhor"}. Sistemas online. Estou reunindo as notícias dos seus assuntos.`;
+    const hello=`${per}, ${cfg.user||"senhor"}. Estou reunindo as notícias dos seus assuntos.`;
     caption(esc(hello));
     helloP = (cfg.speak&&tts) ? tts.speak(hello,{voice:cfg.voice||"buttery",language:"pt-BR"}).catch(()=>{}) : sleep(1500);
   }
@@ -1361,32 +1408,46 @@ async function runBriefing({abertura=false}={}){
       if(tab==="destaque") renderCard();
     }
   }
-  const webBusca = !textos.length && !!sample?.web;
-  let aoVivo = textos.length>0 || webBusca;
+  const webBusca = false;
+  let aoVivo = textos.length>0;
   try{
     if(!sample) throw {code:"offline"};
     const next=tasks.filter(t=>!t.feito).sort((a,b)=>(a.hora||"").localeCompare(b.hora||""));
     const cidade = cfg.perfil?.cidade || "";
     let r;
-    if (webBusca){
-      // um pedido curto por assunto, 3 de cada vez; cada assunto aparece pronto assim que chega
-      const resultados = new Array(ts.length).fill(null); let clima = null, fila = ts.map((t,i)=>i);
+    if (!textos.length){
+      // 1) manchetes do Google Notícias e clima, direto, sem gastar a IA
+      const resultados = new Array(ts.length).fill(null); let clima = null; const fila = ts.map((t,i)=>i);
       const trabalhador = async () => { while(fila.length){ const i=fila.shift();
         highlight.topicos[i].status="buscando"; if(tab==="destaque") renderCard();
-        try{ const x = await etapaWeb(promptTopico(ts[i], cidade)); resultados[i]=Object.assign({assunto:ts[i].nome}, x); highlight.topicos[i].status="ok"; }
-        catch(e){ highlight.topicos[i].status = e?.code==="timeout" ? "demorou" : e?.code==="rate_limited" ? "limite" : "falhou"; console.warn("briefing", ts[i].nome, e?.code, e?.detalhe||e?.message); }
+        try{ const it = await noticiasGoogle(ts[i].q || ts[i].nome, 5); if(it.length){ resultados[i]={assunto:ts[i].nome, manchetes:it}; highlight.topicos[i].status="ok"; } else highlight.topicos[i].status="sem notícias"; }
+        catch(e){ highlight.topicos[i].status="falhou"; }
         $("#state").textContent=`Notícias: ${highlight.topicos.filter(x=>x.status!=="na fila"&&x.status!=="buscando").length} de ${ts.length}`;
         if(tab==="destaque") renderCard(); } };
-      const climaP = cidade ? etapaWeb(promptClima(cidade), 30000).then(x=>{ clima=x; }).catch(()=>{}) : Promise.resolve();
-      await Promise.all([trabalhador(), trabalhador(), trabalhador(), climaP]);
+      const climaP = cidade ? climaHoje(cidade).then(x=>{ clima=x; }).catch(()=>{}) : Promise.resolve();
+      await Promise.all([trabalhador(), trabalhador(), trabalhador(), trabalhador(), climaP]);
       const ok = resultados.filter(Boolean);
+      diario(`briefing: ${ok.length} de ${ts.length} assuntos com manchetes${clima?", clima ok":""}`);
       if(!ok.length) throw {code:"sem_noticias"};
       aoVivo = true;
+      // 2) um único pedido curto à IA para escrever as falas (se falhar, o app escreve sozinho)
+      let falas = null;
+      $("#state").textContent="Resumindo…";
+      try{
+        falas = await sample.json(`Você é ${cfg.name}, assistente pessoal do ${cfg.user||"usuário"}. Português do Brasil, tom de locutor de telejornal, frases curtas.
+Manchetes reais de hoje por assunto (não invente nada além delas):
+${ok.map(t=>`### ${t.assunto}\n${t.manchetes.map(m=>`- ${m.titulo} (${m.fonte}${m.quando?", "+m.quando:""})`).join("\n")}`).join("\n\n")}
+
+Não cumprimente (a saudação já foi feita). Responda SOMENTE com JSON: {"abertura": "1 frase, sem bom dia/boa noite, com o panorama das notícias", "topicos": [{"assunto": "igual ao título acima", "fala": "1 a 2 frases com o mais importante, para ler em voz alta", "resumo": "1 frase curta"}]}`, {modelTier:"quick", web:false});
+      } catch(e){ diario(`briefing: resumo da IA falhou (${e?.code||"?"} ${e?.detalhe||e?.message||""}); usando as manchetes`); }
+      const porNome = new Map((falas?.topicos||[]).map(t=>[String(t.assunto||"").toLowerCase(), t]));
       const prox = next[0];
-      r = {topicos: ok, clima: clima && clima.temperatura!=null ? clima : null,
-        abertura: `Separei as notícias de ${ok.length} ${ok.length>1?"assuntos":"assunto"}${next.length?` e você tem ${next.length} ${next.length>1?"compromissos":"compromisso"} hoje`:""}.`,
+      r = {clima,
+        topicos: ok.map(t=>{ const f = porNome.get(t.assunto.toLowerCase()) || {}; const m0 = t.manchetes[0];
+          return {assunto:t.assunto, manchetes:t.manchetes.slice(0,3), fala: f.fala || `${t.assunto}: ${m0.titulo}.`, resumo: f.resumo || m0.titulo}; }),
+        abertura: falas?.abertura || `Separei as notícias de ${ok.length} ${ok.length>1?"assuntos":"assunto"}${next.length?` e você tem ${next.length} ${next.length>1?"compromissos":"compromisso"} hoje`:""}.`,
         agenda_fala: next.length ? `Seu próximo compromisso é ${prox.titulo}${prox.hora?` às ${prox.hora}`:""}.` : "Sua agenda de hoje está livre.",
-        encerramento: (ok.length<ts.length ? `Não consegui as notícias de ${ts.length-ok.length} ${ts.length-ok.length>1?"assuntos":"assunto"} agora. ` : "") + "Posso ajudar com mais alguma coisa?"};
+        encerramento: (ok.length<ts.length ? `Não achei notícias recentes de ${ts.length-ok.length} ${ts.length-ok.length>1?"assuntos":"assunto"}. ` : "") + "Posso ajudar com mais alguma coisa?"};
     } else {
     const prompt = `Você é ${cfg.name}, assistente pessoal estilo J.A.R.V.I.S. do ${cfg.user||"usuário"}. Português do Brasil.
 Agora: ${new Date().toLocaleString("pt-BR",{weekday:"long",day:"2-digit",month:"long",hour:"2-digit",minute:"2-digit"})}.
@@ -1429,11 +1490,11 @@ No máximo 3 manchetes por assunto. Use só informação presente nos resultados
     await storyPlay({narrar:true});
     if(abertura) showChips();
   }catch(e){
+    diario(`briefing: FALHOU ${e?.code||""} ${e?.detalhe||e?.message||""}`);
     highlight.run=false; renderCard();
     await helloP;
     if(e?.code==="not_granted") caption("<em>Preciso da sua permissão para usar o Claude. Toque no núcleo e permita.</em>");
-    else if(abertura && e?.code!=="sem_noticias") { briefingBusy=false; return ask("", {greeting:true}); }
-    else caption(`<em>${esc(e?.code==="sem_noticias" ? "Não consegui buscar as notícias agora: a IA não respondeu a tempo para nenhum assunto. Confira a internet e toque em Atualizar notícias." : e?.userMsg || "Não consegui montar o briefing agora. Tente de novo.")}</em>`);
+    else caption(`<em>${esc(e?.code==="sem_noticias" ? "Não consegui acessar o Google Notícias agora. Confira a internet e toque em Atualizar notícias." : e?.userMsg || "Não consegui montar o briefing agora. Tente de novo.")}</em>`);
   }finally{ briefingBusy=false; if(mode!=="listening") setMode("idle"); }
 }
 function renderBriefing(h){
@@ -1894,6 +1955,7 @@ async function ask(userText, {greeting=false}={}){
     if(pendingBriefing){ pendingBriefing=false; setTimeout(()=>runBriefing(),0); }
   }catch(e){
     if (e?.code==="cancelled") return;
+    diario(`conversa: FALHOU ${e?.code||""} ${e?.detalhe||e?.message||""}${e?.cota?" · cota "+e.cota:""}`);
     const msg = e?.userMsg || {not_granted:"Preciso da sua permissão para usar o Claude. Toque no núcleo e permita.", rate_limited:"Muitas solicitações seguidas. Aguarde alguns segundos.", sampling_disabled:"O acesso ao Claude está desativado nesta conta."}[e?.code] || "Não consegui completar a resposta. Tente de novo.";
     caption(esc(e?.text || shown) + (e?.text||shown ? "<br>" : "") + `<em>${esc(msg)}</em>`);
     if (!greeting && !(e?.text||shown)) { history.pop(); saveHist(); }
@@ -2084,12 +2146,12 @@ $("#cnForm").addEventListener("submit", async e=>{
   const logEl=$("#cnLog"), diag=$("#cnDiag"), inicio=Date.now(); let etapa="";
   const seg = () => Math.round((Date.now()-inicio)/1000);
   logEl.textContent=`${AI.INFO[p].nome} · chave ${key.slice(0,3)}… (${key.length} caracteres)\n`; diag.hidden=false;
-  AI.hooks.trace = linha => { logEl.textContent += `[${String(seg()).padStart(3)} s] ${linha}\n`; logEl.scrollTop = logEl.scrollHeight; };
+  AI.hooks.trace = linha => { diario(linha); logEl.textContent += `[${String(seg()).padStart(3)} s] ${linha}\n`; logEl.scrollTop = logEl.scrollHeight; };
   const relogio = setInterval(()=>{ if(etapa) msgEl.textContent = `${etapa} (${seg()} s)`; }, 1000);
   let check;
   try{ check = await AI.validate(p, key, t=>{ etapa=t.replace(/…$/,"…"); msgEl.textContent=t; AI.hooks.trace(t); }); }
-  catch(err){ clearInterval(relogio); AI.hooks.trace?.(`FALHOU: ${err?.code||"?"} · ${err?.detalhe||err?.message||err}`); AI.hooks.trace=null; diag.open=true; fail(err?.userMsg || "Não consegui verificar a chave. Confira a internet e tente de novo."); if(err?.detalhe){ const d=document.createElement("small"); d.style.cssText="display:block;margin-top:6px;opacity:.85;word-break:break-word"; d.textContent="Resposta de "+AI.INFO[p].empresa.replace(/^(a|o) /,"")+": "+err.detalhe; msgEl.appendChild(d); } return; }
-  clearInterval(relogio); AI.hooks.trace(`OK: modelo ${check.model}${check.auth?" · chave via "+(check.auth==="query"?"endereço":"cabeçalho"):""}`); AI.hooks.trace=null;
+  catch(err){ clearInterval(relogio); AI.hooks.trace?.(`FALHOU: ${err?.code||"?"} · ${err?.detalhe||err?.message||err}`); AI.hooks.trace=diario; diag.open=true; fail(err?.userMsg || "Não consegui verificar a chave. Confira a internet e tente de novo."); if(err?.detalhe){ const d=document.createElement("small"); d.style.cssText="display:block;margin-top:6px;opacity:.85;word-break:break-word"; d.textContent="Resposta de "+AI.INFO[p].empresa.replace(/^(a|o) /,"")+": "+err.detalhe; msgEl.appendChild(d); } return; }
+  clearInterval(relogio); AI.hooks.trace(`OK: modelo ${check.model}${check.auth?" · chave via "+(check.auth==="query"?"endereço":"cabeçalho"):""}`); AI.hooks.trace=diario;
   try {
   cfg = Object.assign({voice:"buttery", speak:true}, cfg||{}, {provider:p, user:$("#uName").value.trim(), name:($("#aName").value.trim()||"ATLAS").toUpperCase()});
   cfg.keys = Object.assign({}, cfg.keys, {[p]:key});
@@ -2174,13 +2236,13 @@ $("#oRotGo").addEventListener("click", async ()=>{
 
 /* rotina: briefing uma vez por dia a partir do horário escolhido */
 const hojeISO = () => { const d=new Date(); return `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,"0")}-${String(d.getDate()).padStart(2,"0")}`; };
+// primeira abertura do dia (em qualquer horário): o Atlas já faz o briefing sozinho
 function briefingDevido(){
-  const r = cfg?.rotina; if (!r || !topics().length) return false;
+  if (!cfg || !topics().length) return false;
   if (cfg.ultimoBriefing === hojeISO()) return false;
-  const d = new Date(), dia = d.getDay();
-  if (r.dias==="uteis" && (dia===0 || dia===6)) return false;
-  const [h,m] = String(r.hora||"07:00").split(":").map(Number);
-  return d.getHours()*60+d.getMinutes() >= h*60+(m||0);
+  const dia = new Date().getDay();
+  if (cfg.rotina?.dias==="uteis" && (dia===0 || dia===6)) return false;
+  return true;
 }
 function marcarBriefing(){ cfg.ultimoBriefing = hojeISO(); store.set("cfg", cfg); }
 setInterval(()=>{ if (!document.hidden && cfg?.onboarded && sample && !busy && !briefingBusy && mode==="idle" && $("#loginView").hidden && $("#onbView").hidden && briefingDevido()) runBriefing({abertura:true}); }, 60000);
@@ -2257,9 +2319,18 @@ async function createAgent(check={}){
   await sleep(1100);
   $("#setupView").hidden = true; setMode("idle");
 }
-function showBoot(){ $("#bootView").hidden=false; $("#bootHint").textContent = `Conectado a ${PROV[cfg.provider]}. ${briefingDevido()?"Toque para ouvir o briefing de hoje":"Toque para começar"}`; }
-$("#bootBtn").addEventListener("click", ()=>{ $("#bootView").hidden=true; activate(); });
-function activate({primeira=false}={}){ renderCard(); if (primeira || briefingDevido()) runBriefing({abertura:true}); else ask("", {greeting:true}); }
+function showBoot(){ $("#bootView").hidden=false; if (NATIVE) setTimeout(()=>$("#bootBtn").click(), 1200); $("#bootHint").textContent = `Conectado a ${PROV[cfg.provider]}. ${briefingDevido()?"Toque para ouvir o briefing de hoje":"Toque para começar"}`; }
+let bootFeito=false;
+$("#bootBtn").addEventListener("click", ()=>{ if(bootFeito) return; bootFeito=true; $("#bootView").hidden=true; activate(); });
+function activate({primeira=false}={}){
+  renderCard();
+  if (primeira || briefingDevido()) return runBriefing({abertura:true});
+  // nas outras aberturas do dia: só cumprimenta e aguarda (sem gastar a cota da IA)
+  const h=new Date().getHours(), per=h<12?"Bom dia":h<18?"Boa tarde":"Boa noite";
+  const prox=tasks.filter(t=>!t.feito).sort((a,b)=>(a.hora||"").localeCompare(b.hora||""))[0];
+  const txt=`${per}, ${cfg.user||"senhor"}. Estou pronto.${prox?` Seu próximo compromisso: ${prox.titulo}${prox.hora?` às ${prox.hora}`:""}.`:""} Como posso ajudar?`;
+  caption(esc(txt)); showChips(); speak(txt);
+}
 
 /* ---------- IA real: OpenAI (ChatGPT) e Anthropic (Claude) com a chave do usuário ---------- */
 const AI = (() => {
@@ -2280,10 +2351,15 @@ const AI = (() => {
     const code = j?.error?.status || j?.error?.code || j?.error?.type || "";
     const e = new Error(m || ("HTTP "+status)); e.status=status; e.apiCode=code;
     const motivo = (j?.error?.details||[]).map(d=>d?.reason).filter(Boolean)[0] || "";
+    const det = j?.error?.details||[];
+    const espera = det.map(d=>d?.retryDelay).filter(Boolean)[0]; if (espera) e.retryMs = Math.ceil(parseFloat(espera)*1000);
+    const cotas = det.flatMap(d=>d?.violations||[]).map(v=>`${v.quotaId||""} ${v.quotaValue||""}`.trim());
+    if (cotas.length) e.cota = cotas.join("; ");
+    e.porDia = /PerDay/i.test(e.cota||m);
     e.detalhe = `${status}${code?" "+code:""}${motivo?" · "+motivo:""}${m?" · "+m.slice(0,220):""}`;
     if (empresa==="o Google"){
       if (/API key not valid|API_KEY_INVALID|API key expired/i.test(m) || status===401 || (status===403 && !/billing|region|location/i.test(m))) { e.code="auth"; e.userMsg="O Google recusou a chave. Confira se copiou a chave inteira pelo ícone de copiar do AI Studio, ou crie uma nova."; }
-      else if (status===429 || code==="RESOURCE_EXHAUSTED") { e.code="rate_limited"; e.userMsg = /per ?day|daily|PerDay/i.test(m) ? "O limite grátis de hoje do Gemini acabou. Ele renova por volta das 4h ou 5h da manhã (horário de Brasília). Se quiser usar sem limite, ative o faturamento no AI Studio." : "O plano grátis do Gemini permite poucos pedidos por minuto. Aguarde uns 30 segundos e tente de novo."; }
+      else if (status===429 || code==="RESOURCE_EXHAUSTED") { e.code="rate_limited"; e.userMsg = (e.porDia || /per ?day|daily|PerDay/i.test(m)) ? "O limite grátis de hoje do Gemini acabou. Ele renova por volta das 4h ou 5h da manhã (horário de Brasília). Se quiser usar sem limite, ative o faturamento no AI Studio." : "O plano grátis do Gemini permite poucos pedidos por minuto. Aguarde uns 30 segundos e tente de novo."; }
       else if (/location|region|not supported in your country/i.test(m)) { e.code="api"; e.userMsg="O Gemini não está disponível nesta região para esta chave."; }
       else if (status>=500) { e.code="server"; e.userMsg="O servidor do Gemini está instável agora. Tente de novo em instantes."; }
       else { e.code="api"; e.userMsg="O Gemini recusou o pedido ("+(m.slice(0,140)||status)+")."; }
@@ -2462,29 +2538,42 @@ const AI = (() => {
     if (o.type!=="object"){ delete o.properties; delete o.required; }
     return o;
   };
-  const gemini = (key, model, auth="header") => {
+  // ritmo: no plano grátis o Google limita pedidos por minuto; espaçamos antes de bater no limite
+  const gemHist = [];
+  async function vagaGemini(rpm){
+    if (!rpm) return;
+    for(;;){ const agora=Date.now(); while(gemHist.length && agora-gemHist[0]>60000) gemHist.shift();
+      if (gemHist.length < rpm){ gemHist.push(agora); return; }
+      const ms = 60000-(agora-gemHist[0])+300; hooks.espera?.(Math.ceil(ms/1000)); hooks.trace?.(`ritmo: aguardando ${Math.ceil(ms/1000)} s pelo limite por minuto`); await new Promise(r=>setTimeout(r, ms)); }
+  }
+  const gemini = (key, model, auth="header", extra={}) => {
     // chaves novas do AI Studio ("AQ.", chaves de autenticação) e antigas ("AIza") vão no cabeçalho x-goog-api-key; ?key= fica como alternativa
     const H = auth==="query" ? {"content-type":"application/json"} : {"content-type":"application/json", "x-goog-api-key":key};
     const Q = auth==="query" ? `?key=${encodeURIComponent(key)}` : "";
-    const flags = {thinking:"level"};
+    // Gemini 3 usa thinkingLevel; o 2.5 usa thinkingBudget (evita um pedido recusado à toa)
+    const flags = {thinking: /^gemini-[3-9]/.test(model) ? "level" : /^gemini-2\.5/.test(model) ? "budget" : null};
     async function call(body, signal){
       for (let tries=0; tries<3; tries++){
         const b = Object.assign({}, body), q = b._quick; delete b._quick;
         b.generationConfig = Object.assign({}, b.generationConfig);
         if (flags.thinking==="level") b.generationConfig.thinkingConfig = {thinkingLevel: q?"low":"medium"};
         else if (flags.thinking==="budget") b.generationConfig.thinkingConfig = {thinkingBudget: q?0:2048};
+        await vagaGemini(extra.rpm);
         try { const r = await http(`${GBASE}/models/${encodeURIComponent(model)}:generateContent${Q}`, {method:"POST", headers:H, body:JSON.stringify(b), signal}, "o Google");
           const u = r.usageMetadata||{}, q = r.candidates?.[0]?.groundingMetadata?.webSearchQueries?.length||0;
           hooks.usage?.({p:"gemini", model, inTok:u.promptTokenCount||0, outTok:(u.candidatesTokenCount||0)+(u.thoughtsTokenCount||0), buscas: q ? (/gemini-[3-9]/.test(model) ? q : 1) : 0});
           return r; }
         catch (e) {
           if (e.status===400 && /thinking/i.test(e.message) && flags.thinking){ flags.thinking = flags.thinking==="level" ? "budget" : null; continue; }
+          // limite por minuto: espera o tempo que o Google pede (até 35 s) e tenta de novo
+          if (e.code==="rate_limited" && !e.porDia && tries<2 && (e.retryMs||15000)<=35000){ const ms=(e.retryMs||15000)+500; hooks.espera?.(Math.ceil(ms/1000)); hooks.trace?.(`429: aguardando ${Math.ceil(ms/1000)} s (${e.cota||"limite por minuto"})`); await new Promise(r=>setTimeout(r, ms)); continue; }
           throw e;
         }
       }
     }
     const textOf = c => (c?.parts||[]).filter(p=>p.text && !p.thought).map(p=>p.text).join("");
     async function buscar(consulta, signal){
+      if (extra.buscaLocal) return extra.buscaLocal(consulta);   // plano grátis: a busca do Google não está liberada; usa o Google Notícias direto
       // busca no Google numa chamada separada (o Gemini não mistura busca e ferramentas em todos os modelos)
       const res = await call({contents:[{role:"user", parts:[{text:`Pesquise no Google e responda em português, com fatos, números e datas, citando as fontes: ${consulta}`}]}], tools:[{googleSearch:{}}], generationConfig:{maxOutputTokens:2000}, _quick:true}, signal);
       const cand = res.candidates?.[0];
@@ -2494,7 +2583,7 @@ const AI = (() => {
     async function run(turns, {signal, tools=[], modelTier="quick", onText, web=false}={}){
       const contents = turns.filter(m=>String(m.content||"").trim()).map(m=>({role: m.role==="assistant"?"model":"user", parts:[{text:String(m.content)}]}));
       const decl = tools.map(t=>({name:t.name, description:t.description||"", parameters:gSchema(t.inputSchema||{type:"object", properties:{}})}));
-      if (web && tools.length) decl.push({name:"buscar_na_web", description:"Pesquisa no Google para fatos atuais (notícias, placares, clima, cotações, preços). Use antes de responder sobre algo recente.", parameters:{type:"object", properties:{consulta:{type:"string"}}, required:["consulta"]}});
+      if (web && (tools.length || extra.buscaLocal)) decl.push({name:"buscar_na_web", description:"Pesquisa no Google para fatos atuais (notícias, placares, clima, cotações, preços). Use antes de responder sobre algo recente.", parameters:{type:"object", properties:{consulta:{type:"string"}}, required:["consulta"]}});
       const gtools = decl.length ? [{functionDeclarations:decl}] : (web ? [{googleSearch:{}}] : []);
       const quick = modelTier==="quick";
       let text = "";
@@ -2525,7 +2614,13 @@ const AI = (() => {
     }
     return run;
   };
-  function pickGemini(ids){
+  function pickGemini(ids, gratis=true){
+    const vl = id => { const m = id.match(/^gemini-(\d+(?:\.\d+)?)-flash-lite$/); return m ? parseFloat(m[1]) : -99; };
+    const lite = ids.filter(x=>vl(x)>-99).sort((a,b)=>vl(b)-vl(a));
+    const resto = pickGeminiFlash(ids);
+    return (gratis ? [...lite, ...(ids.includes("gemini-flash-lite-latest")?["gemini-flash-lite-latest"]:[]), ...resto] : [...resto, ...lite]).filter((x,i,a)=>a.indexOf(x)===i);
+  }
+  function pickGeminiFlash(ids){
     const v = id => { const m = id.match(/^gemini-(\d+(?:\.\d+)?)-flash(-preview[\w-]*)?$/); return m ? parseFloat(m[1]) - (m[2]?10:0) : -99; };
     const flash = ids.filter(x=>v(x)>-99).sort((a,b)=>v(b)-v(a));
     return [...flash, ...(ids.includes("gemini-flash-latest")?["gemini-flash-latest"]:[]), "gemini-2.5-flash"].filter((x,i,a)=>a.indexOf(x)===i);
@@ -2556,7 +2651,7 @@ const AI = (() => {
         const j = await http(`${GBASE}/models?pageSize=200`, {headers:{"x-goog-api-key":key}}, "o Google");
         ids = (j.models||[]).filter(m=>(m.supportedGenerationMethods||[]).includes("generateContent")).map(m=>String(m.name).replace(/^models\//,""));
       } catch (e) { if (e.code==="network") throw e; }
-      const modelos = (ids.length ? pickGemini(ids) : ["gemini-2.5-flash","gemini-flash-latest","gemini-2.0-flash"]).slice(0,3);
+      const modelos = (ids.length ? pickGemini(ids) : ["gemini-flash-lite-latest","gemini-2.5-flash-lite","gemini-2.5-flash"]).slice(0,3);
       // 2) pedido real; se a chave for recusada no cabeçalho, tenta como ?key=
       let last;
       for (const auth of ["header","query"]){
@@ -2591,7 +2686,7 @@ const AI = (() => {
     }
   }
   function client(p, key, model, opts={}){
-    const run = p==="claude" ? anthropic(key, model) : p==="gemini" ? gemini(key, model, opts.auth||"header") : openai(key, model);
+    const run = p==="claude" ? anthropic(key, model) : p==="gemini" ? gemini(key, model, opts.auth||"header", {buscaLocal:opts.buscaLocal, rpm:opts.rpm}) : openai(key, model);
     const fn = (turns, opts) => { hooks.guard?.(); return run(turns, opts); };
     fn.json = async (prompt, opts={}) => {
       hooks.guard?.();
@@ -2601,14 +2696,31 @@ const AI = (() => {
     fn.web = true;
     return fn;
   }
-  return {INFO, validate, client, hooks};
+  // troca para o melhor Flash-Lite que a chave enxerga (usado na migração do plano grátis)
+  async function modeloLeve(key, auth="header"){
+    const H = auth==="query" ? {} : {"x-goog-api-key":key}, Q = auth==="query" ? `&key=${encodeURIComponent(key)}` : "";
+    const j = await http(`${GBASE}/models?pageSize=200${Q}`, {headers:H}, "o Google");
+    const ids = (j.models||[]).filter(m=>(m.supportedGenerationMethods||[]).includes("generateContent")).map(m=>String(m.name).replace(/^models\//,""));
+    return pickGemini(ids).find(x=>/lite/.test(x)) || null;
+  }
+  return {INFO, validate, client, hooks, modeloLeve};
 })();
 AI.hooks.usage = registrarUso;
+AI.hooks.trace = diario;
+AI.hooks.espera = s => { if (mode==="thinking") $("#state").textContent = `Aguardando o limite do Gemini (${s} s)…`; };
 AI.hooks.guard = checarLimite;
 function connectAI(){
   if (window.claude?.use) return;
   const p = cfg?.provider, key = cfg?.keys?.[p];
-  sample = (p && key) ? AI.client(p, key, cfg.model?.[p] || (p==="claude"?"claude-opus-5-5":p==="gemini"?"gemini-flash-latest":"gpt-4o"), {auth: p==="gemini" ? (cfg.gemAuth||"header") : undefined}) : null;
+  const modelo = cfg?.model?.[p] || (p==="claude"?"claude-opus-5-5":p==="gemini"?"gemini-flash-lite-latest":"gpt-4o");
+  const gGratis = p==="gemini" && geminiGratis();
+  sample = (p && key) ? AI.client(p, key, modelo, {auth: p==="gemini" ? (cfg.gemAuth||"header") : undefined, buscaLocal: gGratis ? buscaLocal : null, rpm: gGratis ? (/lite/.test(modelo) ? 14 : 4) : 0}) : null;
+  if (p) diario(`IA: ${p} · modelo ${modelo}${gGratis?" · plano grátis (busca pelo Google Notícias)":""}`);
+  // plano grátis num modelo Flash comum (20 pedidos por dia): troca uma vez para o Flash-Lite
+  if (gGratis && key && !/lite/.test(modelo) && !cfg.liteMigrado){
+    cfg.liteMigrado = true; store.set("cfg", cfg);
+    AI.modeloLeve(key, cfg.gemAuth||"header").then(m=>{ if(!m) return; diario(`IA: trocando ${modelo} → ${m} (cota grátis maior)`); cfg.model = Object.assign({}, cfg.model, {gemini:m}); store.set("cfg", cfg); connectAI(); }).catch(e=>diario(`IA: não consegui listar modelos (${e?.code||e?.message})`));
+  }
   applyName();
 }
 
