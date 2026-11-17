@@ -526,9 +526,9 @@ textarea.inp{height:auto;padding:8px 12px;resize:vertical;font:inherit}
 
     <section id="onbRot" hidden>
       <h2 class="onb-h">Monte sua rotina</h2>
-      <p class="sub">Todo dia, a partir do horário escolhido, a primeira vez que você abrir o app eu faço o briefing: notícias dos seus assuntos e seus compromissos.</p>
+      <p class="sub">Todo dia, na primeira vez que você abrir o app, eu já começo sozinho com o briefing: notícias dos seus assuntos, clima e seus compromissos. No horário escolhido eu te aviso no celular.</p>
       <div class="two">
-        <div><label class="lbl" for="oHora">Horário do briefing</label><input class="inp" id="oHora" type="time" value="07:00"></div>
+        <div><label class="lbl" for="oHora">Horário do aviso</label><input class="inp" id="oHora" type="time" value="07:00"></div>
         <div><label class="lbl" for="oDias">Dias</label><select class="inp" id="oDias"><option value="todos">Todos os dias</option><option value="uteis">Segunda a sexta</option></select></div>
       </div>
       <label class="check"><input type="checkbox" id="oLembrete" checked> <span>Me avisar no celular nesse horário</span></label>
@@ -2236,13 +2236,13 @@ $("#oRotGo").addEventListener("click", async ()=>{
 
 /* rotina: briefing uma vez por dia a partir do horário escolhido */
 const hojeISO = () => { const d=new Date(); return `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,"0")}-${String(d.getDate()).padStart(2,"0")}`; };
+// primeira abertura do dia (em qualquer horário): o Atlas já faz o briefing sozinho
 function briefingDevido(){
-  const r = cfg?.rotina; if (!r || !topics().length) return false;
+  if (!cfg || !topics().length) return false;
   if (cfg.ultimoBriefing === hojeISO()) return false;
-  const d = new Date(), dia = d.getDay();
-  if (r.dias==="uteis" && (dia===0 || dia===6)) return false;
-  const [h,m] = String(r.hora||"07:00").split(":").map(Number);
-  return d.getHours()*60+d.getMinutes() >= h*60+(m||0);
+  const dia = new Date().getDay();
+  if (cfg.rotina?.dias==="uteis" && (dia===0 || dia===6)) return false;
+  return true;
 }
 function marcarBriefing(){ cfg.ultimoBriefing = hojeISO(); store.set("cfg", cfg); }
 setInterval(()=>{ if (!document.hidden && cfg?.onboarded && sample && !busy && !briefingBusy && mode==="idle" && $("#loginView").hidden && $("#onbView").hidden && briefingDevido()) runBriefing({abertura:true}); }, 60000);
@@ -2319,9 +2319,18 @@ async function createAgent(check={}){
   await sleep(1100);
   $("#setupView").hidden = true; setMode("idle");
 }
-function showBoot(){ $("#bootView").hidden=false; $("#bootHint").textContent = `Conectado a ${PROV[cfg.provider]}. ${briefingDevido()?"Toque para ouvir o briefing de hoje":"Toque para começar"}`; }
-$("#bootBtn").addEventListener("click", ()=>{ $("#bootView").hidden=true; activate(); });
-function activate({primeira=false}={}){ renderCard(); if (primeira || briefingDevido()) runBriefing({abertura:true}); else ask("", {greeting:true}); }
+function showBoot(){ $("#bootView").hidden=false; if (NATIVE) setTimeout(()=>$("#bootBtn").click(), 1200); $("#bootHint").textContent = `Conectado a ${PROV[cfg.provider]}. ${briefingDevido()?"Toque para ouvir o briefing de hoje":"Toque para começar"}`; }
+let bootFeito=false;
+$("#bootBtn").addEventListener("click", ()=>{ if(bootFeito) return; bootFeito=true; $("#bootView").hidden=true; activate(); });
+function activate({primeira=false}={}){
+  renderCard();
+  if (primeira || briefingDevido()) return runBriefing({abertura:true});
+  // nas outras aberturas do dia: só cumprimenta e aguarda (sem gastar a cota da IA)
+  const h=new Date().getHours(), per=h<12?"Bom dia":h<18?"Boa tarde":"Boa noite";
+  const prox=tasks.filter(t=>!t.feito).sort((a,b)=>(a.hora||"").localeCompare(b.hora||""))[0];
+  const txt=`${per}, ${cfg.user||"senhor"}. Estou pronto.${prox?` Seu próximo compromisso: ${prox.titulo}${prox.hora?` às ${prox.hora}`:""}.`:""} Como posso ajudar?`;
+  caption(esc(txt)); showChips(); speak(txt);
+}
 
 /* ---------- IA real: OpenAI (ChatGPT) e Anthropic (Claude) com a chave do usuário ---------- */
 const AI = (() => {
