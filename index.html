@@ -96,6 +96,9 @@ button{cursor:pointer}
 .mic svg{width:22px;height:22px}
 .mic.on{border-color:var(--green);box-shadow:0 0 0 6px rgba(61,255,138,.12),0 0 22px rgba(61,255,138,.4)}
 .mic[hidden]{display:none!important}
+.mic.stop svg{display:none}
+.mic.stop::after{content:"";width:14px;height:14px;border-radius:3px;background:var(--red);box-shadow:0 0 12px var(--red)}
+.mic.stop{border-color:var(--red)}
 .mic.clip{width:40px;height:40px;background:transparent}
 .mic.wake{width:40px;height:40px;background:transparent;color:var(--fg-dim)}
 .mic.wake[aria-pressed="true"]{color:var(--green);border-color:var(--green);box-shadow:0 0 0 5px rgba(61,255,138,.1),0 0 18px rgba(61,255,138,.35);animation:pulse 2.4s infinite}
@@ -1205,7 +1208,7 @@ function frame(now){
 applyFx(); fxReady=true; applyFx();
 requestAnimationFrame(frame);
 
-function setMode(m){ if(m!==mode) bgDirty=performance.now()+1500; mode=m; $("#state").textContent=PAL[m].label; $("#state").style.color = m==="listening"?"var(--green)": m==="thinking"?"var(--violet)":"var(--cyan)"; $("#mic").classList.toggle("on", m==="listening"); }
+function setMode(m){ if(m!==mode) bgDirty=performance.now()+1500; mode=m; $("#state").textContent=PAL[m].label; $("#state").style.color = m==="listening"?"var(--green)": m==="thinking"?"var(--violet)":"var(--cyan)"; $("#mic").classList.toggle("on", m==="listening"); const ativo = m==="listening"||m==="thinking"||m==="speaking"; $("#mic").classList.toggle("stop", ativo); $("#mic").setAttribute("aria-label", ativo ? "Cancelar" : "Falar com o assistente"); }
 
 /* ---------- panel ---------- */
 const esc = s => String(s??"").replace(/[&<>"]/g, c=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;"}[c]));
@@ -1480,6 +1483,7 @@ function browse(url, max=2500){
 let briefingBusy=false, pendingBriefing=false;
 async function runBriefing({abertura=false}={}){
   if(briefingBusy) return; briefingBusy=true;
+  const minhaVez = cancelGen;
   const h=new Date().getHours(), per=h<12?"Bom dia":h<18?"Boa tarde":"Boa noite";
   let helloP=Promise.resolve();
   // conta como "feito hoje" já na tentativa: se falhar, não fica repetindo a cada minuto
@@ -1525,7 +1529,7 @@ async function runBriefing({abertura=false}={}){
         highlight.topicos[i].status="buscando"; if(tab==="destaque") renderCard();
         try{ const it = await noticiasGoogle(ts[i].q || ts[i].nome, 5); if(it.length){ resultados[i]={assunto:ts[i].nome, manchetes:it}; highlight.topicos[i].status="ok"; } else highlight.topicos[i].status="sem notícias"; }
         catch(e){ highlight.topicos[i].status="falhou"; }
-        $("#state").textContent=`Notícias: ${highlight.topicos.filter(x=>x.status!=="na fila"&&x.status!=="buscando").length} de ${ts.length}`;
+        if(minhaVez===cancelGen) $("#state").textContent=`Notícias: ${highlight.topicos.filter(x=>x.status!=="na fila"&&x.status!=="buscando").length} de ${ts.length}`;
         if(tab==="destaque") renderCard(); } };
       const climaP = cidadeClima ? climaHoje(cidadeClima).then(x=>{ clima=x; }).catch(e=>diario(`clima: falhou (${e?.message||e})`)) : Promise.resolve();
       const cotP = ts.some(ehCot) ? cotacoes().then(x=>{ cot=x; }).catch(e=>diario(`cotação: falhou (${e?.message||e})`)) : Promise.resolve();
@@ -1538,7 +1542,7 @@ async function runBriefing({abertura=false}={}){
       aoVivo = true;
       // 2) um único pedido curto à IA para escrever as falas (se falhar, o app escreve sozinho)
       let falas = null;
-      $("#state").textContent="Resumindo…";
+      if(minhaVez===cancelGen) $("#state").textContent="Resumindo…";
       try{
         falas = await sample.json(`Você é ${cfg.name}, assistente pessoal do ${cfg.user||"usuário"}. Português do Brasil, tom de locutor de telejornal, frases curtas.
 Manchetes reais de hoje por assunto (não invente nada além delas):
@@ -1597,6 +1601,7 @@ No máximo 3 manchetes por assunto. Use só informação presente nos resultados
     highlight={tipo:"apresentacao", briefing:true, titulo:"Briefing do dia", aoVivo, em:new Date().toISOString(), slides, i:0};
     store.set("hl",highlight); renderTicker();
     await helloP;
+    if(minhaVez!==cancelGen){ diario("briefing: cancelado pelo usuário"); renderCard(); return; }
     const fala=slides.map(c=>c.fala).filter(Boolean).join(" ");
     history.push({role:"assistant",content:(abertura?`${per}, ${cfg.user||""}. `:"")+fala}); saveHist();
     marcarBriefing();
@@ -1607,9 +1612,10 @@ No máximo 3 manchetes por assunto. Use só informação presente nos resultados
     diario(`briefing: FALHOU ${e?.code||""} ${e?.detalhe||e?.message||""}`);
     highlight.run=false; renderCard();
     await helloP;
+    if(minhaVez!==cancelGen) return;
     if(e?.code==="not_granted") caption("<em>Preciso da sua permissão para usar o Claude. Toque no núcleo e permita.</em>");
     else caption(`<em>${esc(e?.code==="sem_noticias" ? "Não consegui acessar o Google Notícias agora. Confira a internet e toque em Atualizar notícias." : e?.userMsg || "Não consegui montar o briefing agora. Tente de novo.")}</em>`);
-  }finally{ briefingBusy=false; if(mode!=="listening") setMode("idle"); }
+  }finally{ briefingBusy=false; if(mode!=="listening" && minhaVez===cancelGen) setMode("idle"); }
 }
 function renderBriefing(h){
   const head=`<div class="eyebrow">Briefing de notícias${h.run?"":h.aoVivo?` · <span style="color:var(--green)">ao vivo</span>`:` · <span style="color:var(--amber)">sem notícias ao vivo</span>`}</div>`;
@@ -2117,14 +2123,29 @@ $("#qchips").addEventListener("click", e=>{ const b=e.target.closest("button"); 
 /* ---------- input ---------- */
 $("#form").addEventListener("submit", e=>{ e.preventDefault(); $("#qchips").hidden=true; const v=$("#msg").value.trim(); if(!v) return; $("#msg").value=""; ask(v); });
 let heard="", silence=null;
+// "Cancelar": para de ouvir (descartando o que foi dito), cancela a resposta em andamento, cala a voz e o briefing
+let cancelGen = 0, escutaCancelada = false;
+function cancelarTudo(msg="Ok, cancelei."){
+  cancelGen++;
+  if (mode==="listening" && dict){ escutaCancelada=true; heard=""; clearTimeout(silence); (dict.cancel ? dict.cancel() : dict.stop()).catch?.(()=>{}); }
+  if (busy){ busy.abort(); busy=null; }
+  pendingBriefing=false;
+  storyStop();
+  if (tts) try{ tts.stop(); }catch{}
+  synth?.cancel();
+  if (highlight?.tipo==="briefing" && highlight.run){ highlight.run=false; if(tab==="destaque") renderCard(); }
+  setMode("idle");
+  caption(msg);
+  diario("usuário cancelou");
+}
+const ocupado = () => mode==="listening" || mode==="thinking" || mode==="speaking" || !!busy || briefingBusy || !!(story && !story.dead);
 function toggleMic(){
   $("#qchips").hidden=true;
-  if (!dict) { if (vozMotivo) caption(`<em>${esc(vozMotivo)}</em>`); $("#msg").focus(); return; }
   if (wakeOn){ wakeHit(); caption(`<span class="you">Estou ouvindo…</span>`); awaitUntil=Date.now()+9000; return; }
-  if (mode==="listening"){ dict.stop().catch(()=>{}); return; }
-  if (busy) busy.abort();
-  if (tts) try{ tts.stop(); }catch{}
-  heard=""; caption(`<span class="you">Pode falar…</span>`);
+  if (ocupado()){ cancelarTudo(mode==="listening" ? "Ok, cancelei. Toque de novo quando quiser falar." : "Ok, parei. Toque de novo quando quiser falar."); return; }
+  if (!dict) { if (vozMotivo) caption(`<em>${esc(vozMotivo)}</em>`); $("#msg").focus(); return; }
+  escutaCancelada=false;
+  heard=""; caption(`<span class="you">Pode falar… (toque de novo para cancelar)</span>`);
   dict.start({language:"pt-BR"}).catch(err=>{ if(err?.code==="not_granted"){ caption("<em>O microfone não foi liberado. Toque no núcleo de novo e permita, ou libere em Configurações › Apps › Atlas › Permissões.</em>"); } else caption(`<em>Não consegui ligar o microfone (${esc(String(err?.message||err?.code||err))}). Tente de novo.</em>`); });
 }
 $("#mic").addEventListener("click", toggleMic);
@@ -2911,30 +2932,35 @@ async function setupNativeVoice(){
       return auto ? auto.i : -1;
     };
     const falarNativo = (text, language) => TTS.speak({text:String(text), lang:LANGS[language]||language, rate:cfg?.vozVelocidade||1.0, pitch:1.0, volume:1.0, voice:indiceVoz(language), category:"playback"});
-    const falarGemini = async (text) => {
+    let falaGen = 0;
+    const falarGemini = async (text, g) => {
       const a = await AI.falar(cfg.keys.gemini, cfg.gemAuth||"header", text, cfg.vozGemini||"Charon");
+      if (g!==falaGen) return;   // cancelado enquanto o áudio chegava
       await tocarPCM(a.b64, a.mime);
     };
     tts = {
       async speak(text, {language="pt-BR"}={}){
+        const g = ++falaGen;
         stateCb?.({state:"speaking"});
         try {
           if (VOZ && motorVoz()==="piper" && language==="pt-BR" && Date.now()>piperPausaAte){
             try { await VOZ.falar({texto:String(text), voz:cfg.vozPiper||"faber", velocidade:cfg?.vozVelocidade||1}); return; }
-            catch(e){ piperPausaAte = Date.now()+5*60e3; diario(`voz neural falhou (${e?.message||e}); usando a voz do aparelho`); }
+            catch(e){ if (g!==falaGen) return; piperPausaAte = Date.now()+5*60e3; diario(`voz neural falhou (${e?.message||e}); usando a voz do aparelho`); }
           }
+          if (g!==falaGen) return;
           if (motorVoz()==="gemini" && cfg.keys?.gemini && Date.now()>vozGeminiPausaAte){
-            try { return await falarGemini(text); }
+            try { return await falarGemini(text, g); }
             catch(e){
               if (e?.code==="cancelled") return;
               vozGeminiPausaAte = Date.now() + (e?.porDia ? 6*3600e3 : e?.code==="rate_limited" ? 60e3 : 10*60e3);
               diario(`voz do Gemini falhou (${e?.code||""} ${e?.detalhe||e?.message||""}); usando a voz do aparelho`);
             }
           }
+          if (g!==falaGen) return;
           await falarNativo(text, language);
         } finally { stateCb?.({state:"idle"}); }
       },
-      stop(){ try{ fonteVoz?.stop(); }catch{} fonteVoz=null; VOZ?.parar().catch(()=>{}); return TTS.stop().catch(()=>{}); },
+      stop(){ falaGen++; try{ fonteVoz?.stop(); }catch{} fonteVoz=null; VOZ?.parar().catch(()=>{}); return TTS.stop().catch(()=>{}); },
       onState(cb){ stateCb = cb; },
       recarregar: carregarVozes
     };
@@ -2942,10 +2968,10 @@ async function setupNativeVoice(){
   if (SR){
     const ok = await SR.available().then(r=>r?.available).catch(()=>false);
     if (!ok){ vozMotivo = "Este aparelho não tem o reconhecimento de voz do Google ativo. Instale ou atualize o app Google e tente de novo. Enquanto isso, digite o comando."; return; }
-    let listening=false, last="", cbs={}, fim=null, guarda=null;
+    let listening=false, last="", cbs={}, fim=null, guarda=null, cancelado=false;
     // o Android manda o texto final DEPOIS do aviso de "parou de ouvir": espera um instante por ele
-    const concluir = () => { clearTimeout(fim); clearTimeout(guarda); fim=null; if(!listening && !last) return; listening=false; const t=last; last=""; if (t) cbs.f?.({text:t}); cbs.s?.({state:"idle", reason:"stopped"}); };
-    SR.addListener("partialResults", d=>{ const t=(d?.matches||[])[0]||""; if(!t) return; last=t; cbs.p?.({text:t}); if(fim){ concluir(); } });
+    const concluir = () => { clearTimeout(fim); clearTimeout(guarda); fim=null; if(cancelado){ last=""; listening=false; return; } if(!listening && !last) return; listening=false; const t=last; last=""; if (t) cbs.f?.({text:t}); cbs.s?.({state:"idle", reason:"stopped"}); };
+    SR.addListener("partialResults", d=>{ const t=(d?.matches||[])[0]||""; if(!t || cancelado) return; last=t; cbs.p?.({text:t}); if(fim){ concluir(); } });
     SR.addListener("listeningState", d=>{
       if (d?.status==="started"){ clearTimeout(guarda); listening=true; cbs.s?.({state:"listening"}); }
       else { clearTimeout(fim); fim=setTimeout(concluir, 900); }
@@ -2957,20 +2983,22 @@ async function setupNativeVoice(){
         let perm = await SR.checkPermissions().catch(()=>({}));
         if (perm.speechRecognition!=="granted") perm = await SR.requestPermissions().catch(()=>({}));
         if (perm.speechRecognition!=="granted") throw {code:"not_granted"};
-        last=""; listening=true; cbs.s?.({state:"listening"});
+        last=""; cancelado=false; listening=true; cbs.s?.({state:"listening"});
         try { await SR.start({language, maxResults:1, partialResults:true, popup:false}); }
         catch(e){ listening=false; cbs.s?.({state:"idle", reason:"erro"}); throw e; }
         // se em 8 s ninguém falar, o Android desiste em silêncio: avisa e libera o núcleo
         clearTimeout(guarda); guarda=setTimeout(()=>{ if(!last){ SR.stop().catch(()=>{}); listening=false; cbs.s?.({state:"idle", reason:"silencio"}); } }, 8000);
       },
-      async stop(){ await SR.stop().catch(()=>{}); if(fim||listening){ clearTimeout(fim); fim=setTimeout(concluir, 900); } }
+      async stop(){ await SR.stop().catch(()=>{}); if(fim||listening){ clearTimeout(fim); fim=setTimeout(concluir, 900); } },
+      // para de ouvir e joga fora o que foi dito
+      async cancel(){ cancelado=true; last=""; listening=false; clearTimeout(fim); clearTimeout(guarda); fim=null; await SR.stop().catch(()=>{}); }
     };
     $("#mic").hidden=false;
     dict.onPartial(({text})=>{ voiceKick=.6+Math.random()*.4; caption(`<span class="you">${esc(text)}</span>`); });
-    dict.onFinal(({text})=>{ voiceKick=.8; heard=text.trim(); caption(`<span class="you">${esc(heard)}</span>`); });
+    dict.onFinal(({text})=>{ if(escutaCancelada) return; voiceKick=.8; heard=text.trim(); caption(`<span class="you">${esc(heard)}</span>`); });
     dict.onState(({state, reason})=>{
       if (state==="listening") setMode("listening");
-      if (state==="idle"){ if(mode==="listening") setMode("idle"); const q=heard.trim(); heard=""; if(q) ask(q); else if(reason==="silencio") caption("<em>Não ouvi nada. Toque no núcleo e fale.</em>"); }
+      if (state==="idle"){ if(mode==="listening") setMode("idle"); const q=heard.trim(); heard=""; if(escutaCancelada){ escutaCancelada=false; return; } if(q) ask(q); else if(reason==="silencio") caption("<em>Não ouvi nada. Toque no núcleo e fale.</em>"); }
     });
   }
 }
@@ -2995,7 +3023,7 @@ async function setupNativeVoice(){
         return;
       }
       if (state==="listening") setMode("listening");
-      if (state==="idle"){ clearTimeout(silence); if(mode==="listening") setMode("idle"); const q=heard.trim(); heard=""; if(q) ask(q); }
+      if (state==="idle"){ clearTimeout(silence); if(mode==="listening") setMode("idle"); const q=heard.trim(); heard=""; if(escutaCancelada){ escutaCancelada=false; return; } if(q) ask(q); }
     });
   }
 })();
