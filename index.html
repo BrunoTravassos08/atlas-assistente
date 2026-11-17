@@ -86,7 +86,7 @@ button{cursor:pointer}
 .rows li.done .t{color:var(--fg-faint);text-decoration:line-through}
 .chk{width:22px;height:22px;border:1px solid var(--line-hi);background:transparent;display:grid;place-items:center;color:var(--green);font-size:13px;padding:0}
 .empty{color:var(--fg-faint);font-size:13px}
-.tabs{display:flex;gap:4px;overflow-x:auto;scrollbar-width:none}
+.tabs{display:flex;gap:4px;overflow-x:auto;scrollbar-width:none;flex:0 0 auto}
 .tabs button{flex:1 0 auto;background:transparent;border:1px solid transparent;border-bottom-color:var(--line);padding:8px 10px;font-family:var(--f-hud);font-size:10px;letter-spacing:.2em;text-transform:uppercase;color:var(--fg-faint)}
 .tabs button[aria-selected="true"]{color:var(--cyan);border-color:var(--line-hi);background:rgba(67,217,255,.06)}
 
@@ -96,6 +96,9 @@ button{cursor:pointer}
 .mic svg{width:22px;height:22px}
 .mic.on{border-color:var(--green);box-shadow:0 0 0 6px rgba(61,255,138,.12),0 0 22px rgba(61,255,138,.4)}
 .mic[hidden]{display:none!important}
+.mic.stop svg{display:none}
+.mic.stop::after{content:"";width:14px;height:14px;border-radius:3px;background:var(--red);box-shadow:0 0 12px var(--red)}
+.mic.stop{border-color:var(--red)}
 .mic.clip{width:40px;height:40px;background:transparent}
 .mic.wake{width:40px;height:40px;background:transparent;color:var(--fg-dim)}
 .mic.wake[aria-pressed="true"]{color:var(--green);border-color:var(--green);box-shadow:0 0 0 5px rgba(61,255,138,.1),0 0 18px rgba(61,255,138,.35);animation:pulse 2.4s infinite}
@@ -269,7 +272,7 @@ textarea.inp{height:auto;padding:8px 12px;resize:vertical;font:inherit}
 /* ---------- respostas visuais: placar e gráficos ---------- */
 .card.rich{max-height:48vh}
 @media (min-width:860px){.card.rich{max-height:none}}
-@media (max-width:859px){.app:has(.qchips:not([hidden])) .card.rich{max-height:40vh}.app:has(.card.rich) .orb-wrap{width:min(62vw,27vh,420px)}}
+@media (max-width:859px){.app:has(.qchips:not([hidden])) .card.rich{max-height:40vh}.app:has(.card.rich) .orb-wrap{width:min(62vw,27vh,420px)}.app:has(.card.rich):has(.qchips:not([hidden])) .orb-wrap{width:min(50vw,20vh,420px)}}
 .score{display:grid;grid-template-columns:1fr auto 1fr;align-items:center;gap:8px;margin:6px 0 4px}
 .team{display:flex;flex-direction:column;align-items:center;gap:6px;text-align:center;min-width:0}
 .team b{font-family:var(--f-hud);font-size:14px;line-height:1.15;overflow-wrap:anywhere}
@@ -594,6 +597,9 @@ textarea.inp{height:auto;padding:8px 12px;resize:vertical;font:inherit}
 <script>
 (() => {
 const $ = s => document.querySelector(s);
+// saudação pelo relógio do aparelho: 5h–11h59 bom dia, 12h–17h59 boa tarde, 18h–4h59 boa noite
+const periodo = (d=new Date()) => { const h=d.getHours(); return h>=5&&h<12 ? "Bom dia" : h>=12&&h<18 ? "Boa tarde" : "Boa noite"; };
+const hojeData = (d=new Date()) => `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,"0")}-${String(d.getDate()).padStart(2,"0")}`;
 const store = {
   get(k, d){ try{ const v = localStorage.getItem("atlas."+k); return v==null ? d : JSON.parse(v); }catch{ return d; } },
   set(k, v){ try{ localStorage.setItem("atlas."+k, JSON.stringify(v)); }catch{} }
@@ -658,10 +664,16 @@ async function httpTexto(url, ms=15000){
   } catch(e){ diario(`GET ${curto} → ERRO ${e?.message||e}`); throw e; }
 }
 const quandoFoi = d => { const h = (Date.now()-d.getTime())/36e5; if (!(h>=0)) return ""; if (h<1) return `há ${Math.max(1,Math.round(h*60))} min`; if (h<24) return `há ${Math.round(h)} h`; const dd=Math.round(h/24); return dd===1?"ontem":`há ${dd} dias`; };
-async function noticiasGoogle(consulta, n=6){
-  const url = `https://news.google.com/rss/search?q=${encodeURIComponent(consulta+" when:2d")}&hl=pt-BR&gl=BR&ceid=BR:pt-419`;
+// manchetes do Google Notícias, das mais novas para as mais antigas. maxHoras corta as velhas;
+// a lista devolvida traz .total (quantas o Google achou) e .antigas (quantas foram cortadas por idade)
+async function noticiasGoogle(consulta, n=6, {maxHoras=48}={}){
+  const janela = maxHoras<=24 ? "1d" : "2d";
+  const url = `https://news.google.com/rss/search?q=${encodeURIComponent(consulta+" when:"+janela)}&hl=pt-BR&gl=BR&ceid=BR:pt-419`;
   const xml = new DOMParser().parseFromString(await httpTexto(url), "text/xml");
-  const itens = [...xml.querySelectorAll("item")].slice(0, n).map(it=>{
+  const brutos = [...xml.querySelectorAll("item")].map(it=>({it, t: new Date(it.querySelector("pubDate")?.textContent||"").getTime()}));
+  const limite = Date.now() - maxHoras*36e5;
+  const frescos = brutos.filter(x=>isFinite(x.t) && x.t>=limite).sort((a,b)=>b.t-a.t);
+  const itens = frescos.slice(0, n).map(({it})=>{
     const fonte = it.querySelector("source")?.textContent?.trim() || "";
     let titulo = (it.querySelector("title")?.textContent||"").trim();
     if (fonte && titulo.endsWith(" - "+fonte)) titulo = titulo.slice(0, -(fonte.length+3));
@@ -669,8 +681,10 @@ async function noticiasGoogle(consulta, n=6){
     const link = (it.querySelector("link")?.textContent||"").trim();
     return {titulo, fonte, quando: isNaN(d) ? "" : quandoFoi(d), link: /^https:\/\//.test(link) ? link : ""};
   }).filter(x=>x.titulo);
+  itens.total = brutos.length; itens.antigas = brutos.length - frescos.length;
   return itens;
 }
+const BRIEF_HORAS = 12;   // briefing: só novidades das últimas 12 horas
 // usada pela IA (ferramenta buscar_na_web) quando o plano não inclui a busca do Google
 async function buscaLocal(consulta){
   const itens = await noticiasGoogle(consulta, 8);
@@ -759,6 +773,24 @@ function applyFx(){
   if (fxReady){ resize(); bgResize(); fxResize(); bgDirty=performance.now(); }
 }
 const saveTasks = () => store.set("tasks", tasks);
+// hora em HH:MM a partir de "15h", "15:30", "3 da tarde"…
+function horaHHMM(v){
+  const t=String(v||"").toLowerCase().trim(); if(!t) return "";
+  const m=t.match(/(\d{1,2})\s*(?:[:h]\s*(\d{2})?)?/); if(!m) return "";
+  let h=+m[1], mi=+(m[2]||0); if(/tarde|noite|pm/.test(t) && h<12) h+=12;
+  if(h>23||mi>59) return ""; return `${String(h).padStart(2,"0")}:${String(mi).padStart(2,"0")}`;
+}
+let tarefasCriadas = 0;
+function novaTarefa(i){
+  const data = /^\d{4}-\d{2}-\d{2}$/.test(String(i.data||"")) && i.data!==hojeData() ? i.data : "";
+  const x={id:nextId++, titulo:String(i.titulo||"Lembrete").slice(0,80), hora:horaHHMM(i.hora), data, nota:i.nota?String(i.nota).slice(0,60):"", feito:false};
+  tasks.push(x); saveTasks(); tarefasCriadas++; tab="agenda"; renderCard(); renderTicker();
+  diario(`agenda: "${x.titulo}" ${x.data||"hoje"} ${x.hora||""}`);
+  return x;
+}
+const rotuloData = d => { if(!d) return ""; const hj=hojeData(), am=hojeData(new Date(Date.now()+864e5)); if(d===hj) return ""; if(d===am) return "amanhã"; const [y,m,dd]=d.split("-"); return new Date(+y,+m-1,+dd).toLocaleDateString("pt-BR",{weekday:"short",day:"2-digit",month:"2-digit"}).replace(".",""); };
+const tarefasVisiveis = () => tasks.filter(t=>!t.data || t.data>=hojeData()).sort((a,b)=>((a.data||hojeData())+(a.hora||"99")).localeCompare((b.data||hojeData())+(b.hora||"99")));
+const PEDE_AGENDA = /\b(me lembr|lembr[ae] de|lembrete|anot[ae]|agend[ae]|marc[ae] (um|uma|na|o|a)|adicion[ae]|coloc[ae] na agenda|bot[ae] na agenda|p[õo]e na agenda|na agenda|compromisso|tarefa)/i;
 
 /* ---------- clock ---------- */
 const fmtDate = d => d.toLocaleDateString("pt-BR",{weekday:"short", day:"2-digit", month:"short"}).replace(/\./g,"").toUpperCase();
@@ -1205,7 +1237,7 @@ function frame(now){
 applyFx(); fxReady=true; applyFx();
 requestAnimationFrame(frame);
 
-function setMode(m){ if(m!==mode) bgDirty=performance.now()+1500; mode=m; $("#state").textContent=PAL[m].label; $("#state").style.color = m==="listening"?"var(--green)": m==="thinking"?"var(--violet)":"var(--cyan)"; $("#mic").classList.toggle("on", m==="listening"); }
+function setMode(m){ if(m!==mode) bgDirty=performance.now()+1500; mode=m; $("#state").textContent=PAL[m].label; $("#state").style.color = m==="listening"?"var(--green)": m==="thinking"?"var(--violet)":"var(--cyan)"; $("#mic").classList.toggle("on", m==="listening"); const ativo = m==="listening"||m==="thinking"||m==="speaking"; $("#mic").classList.toggle("stop", ativo); $("#mic").setAttribute("aria-label", ativo ? "Cancelar" : "Falar com o assistente"); }
 
 /* ---------- panel ---------- */
 const esc = s => String(s??"").replace(/[&<>"]/g, c=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;"}[c]));
@@ -1225,8 +1257,8 @@ function renderCard(){
   el.classList.toggle("rich", tab==="destaque" && ["placar","grafico","briefing","apresentacao","gasto"].includes(highlight?.tipo));
   document.querySelectorAll(".tabs button").forEach(b=>b.setAttribute("aria-selected", String(b.dataset.tab===tab)));
   if (tab==="agenda"){
-    const list=[...tasks].sort((a,b)=>(a.hora||"99").localeCompare(b.hora||"99"));
-    el.innerHTML = `<div class="eyebrow">Agenda do dia</div>` + (list.length ? `<ul class="rows">${list.map(x=>`<li class="${x.feito?"done":""}"><span class="time">${esc(x.hora||"--:--")}</span><span class="t">${esc(x.titulo)}${x.nota?`<small>${esc(x.nota)}</small>`:""}</span><button class="chk" data-id="${x.id}" aria-label="Marcar ${esc(x.titulo)} como feito">${x.feito?"✓":""}</button></li>`).join("")}</ul>` : `<p class="empty">Nada na agenda. Diga "me lembra de ligar para o João às 15h".</p>`);
+    const list=tarefasVisiveis();
+    el.innerHTML = `<div class="eyebrow">Agenda</div>` + (list.length ? `<ul class="rows">${list.map(x=>`<li class="${x.feito?"done":""}"><span class="time">${x.data?`<small style="display:block;color:var(--amber)">${esc(rotuloData(x.data))}</small>`:""}${esc(x.hora||"--:--")}</span><span class="t">${esc(x.titulo)}${x.nota?`<small>${esc(x.nota)}</small>`:""}</span><button class="chk" data-id="${x.id}" aria-label="Marcar ${esc(x.titulo)} como feito">${x.feito?"✓":""}</button></li>`).join("")}</ul>` : `<p class="empty">Nada na agenda. Diga "me lembra de ligar para o João às 15h".</p>`);
   } else if (tab==="destaque"){
     const novo = shown.h!==highlight || shown.i!==highlight.i;
     const atual = el.querySelector(".slide:not(.out)");
@@ -1289,7 +1321,8 @@ $("#card").addEventListener("click", e=>{
   if(act==="abrir-noticia"){ const u=e.target.closest("[data-url]")?.dataset.url; if(u && /^https:\/\//.test(u)){ if(story){ storyStop(); try{ tts?.stop(); }catch{} } openExternal(u); } }
   if(act==="voz-testar"){ store.set("cfg",cfg); vozGeminiPausaAte=0; const t=`Olá, ${cfg.user||"senhor"}. Eu sou o ${cfg.name.charAt(0)+cfg.name.slice(1).toLowerCase()}. É assim que eu vou falar com você.`; caption(esc(t)); if(tts){ tts.stop(); setMode("speaking"); tts.speak(t,{language:"pt-BR"}).catch(()=>{}).finally(()=>setMode("idle")); } }
   if(act==="diag-copiar"){ const txt=`Atlas · ${new Date().toLocaleString("pt-BR")} · ${cfg.provider} ${cfg.model?.[cfg.provider]||""}\n`+DIAG.join("\n"); (navigator.clipboard?.writeText(txt)||Promise.reject()).then(()=>caption("Diagnóstico copiado. Cole no WhatsApp e mande para quem está te ajudando.")).catch(()=>caption("<em>Não consegui copiar. Abra 'Ver as últimas linhas' e tire um print.</em>")); }
-  if(act==="gasto-ver"){ highlight={tipo:"gasto", titulo:"Gasto com a IA"}; tab="destaque"; renderCard(); }
+  if(act==="gasto-ver"){ highlight={tipo:"gasto", titulo:"Gasto com a IA", deAjustes:true}; tab="destaque"; renderCard(); }
+  if(act==="voltar-ajustes"){ tab="ajustes"; renderCard(); $("#card").scrollTop=0; }
   if(act==="gasto-ajustes"){ tab="ajustes"; renderCard(); setTimeout(()=>$("#sLim")?.focus(),50); }
   if(act==="gasto-liberar"){ const g=gastoAtual(); g.liberado=true; store.set("gasto",g); renderCard(); caption("Uso liberado até o fim do mês."); }
   if(act?.startsWith("mus-")) controleMusica(act.slice(4)).catch(err=>caption(`<em>${esc(err.message)}</em>`));
@@ -1335,7 +1368,7 @@ $("#card").addEventListener("change", e=>{
   store.set("cfg",cfg);
 });
 function renderTicker(){
-  const pend=tasks.filter(t=>!t.feito).map(t=>`${t.hora||""} ${t.titulo}`.trim());
+  const pend=tarefasVisiveis().filter(t=>!t.feito).map(t=>`${rotuloData(t.data)} ${t.hora||""} ${t.titulo}`.trim());
   const items=[`${PROV[cfg?.provider]||""} conectado`, highlight?.titulo, ...pend.map(p=>"Agenda: "+p)].filter(Boolean);
   $("#ticker").textContent = items.join("   ◆   ");
 }
@@ -1347,8 +1380,8 @@ function caption(html){ $("#caption").innerHTML=html; }
 /* ---------- AI ---------- */
 function context(){
   const d=new Date();
-  return `Data e hora agora: ${d.toLocaleString("pt-BR",{weekday:"long",day:"2-digit",month:"long",year:"numeric",hour:"2-digit",minute:"2-digit"})}.
-Agenda atual (JSON): ${JSON.stringify(tasks)}
+  return `Data e hora agora: ${d.toLocaleString("pt-BR",{weekday:"long",day:"2-digit",month:"long",year:"numeric",hour:"2-digit",minute:"2-digit"})} (hoje é ${hojeData(d)}). Se for cumprimentar, a saudação certa AGORA é "${periodo(d)}" (nunca use outra, mesmo que a conversa anterior tenha usado).
+Agenda atual (JSON; "data" vazia = hoje): ${JSON.stringify(tasks)}
 Destaque exibido no painel: ${JSON.stringify(highlight.tipo==="pesquisa"?{tipo:"pesquisa",titulo:highlight.titulo,resumo:highlight.resumo}:highlight)}
 PDF aberto: ${pdf?JSON.stringify(pdfInfo()):"nenhum"}`;
 }
@@ -1480,7 +1513,9 @@ function browse(url, max=2500){
 let briefingBusy=false, pendingBriefing=false;
 async function runBriefing({abertura=false}={}){
   if(briefingBusy) return; briefingBusy=true;
-  const h=new Date().getHours(), per=h<12?"Bom dia":h<18?"Boa tarde":"Boa noite";
+  const minhaVez = cancelGen;
+  let faltou = [];
+  const per=periodo();
   let helloP=Promise.resolve();
   // conta como "feito hoje" já na tentativa: se falhar, não fica repetindo a cada minuto
   if(abertura) marcarBriefing();
@@ -1510,12 +1545,12 @@ async function runBriefing({abertura=false}={}){
   let aoVivo = textos.length>0;
   try{
     if(!sample) throw {code:"offline"};
-    const next=tasks.filter(t=>!t.feito).sort((a,b)=>(a.hora||"").localeCompare(b.hora||""));
+    const next=tasks.filter(t=>!t.feito && (!t.data||t.data===hojeData())).sort((a,b)=>(a.hora||"").localeCompare(b.hora||""));
     const cidade = cfg.perfil?.cidade || "";
     let r;
     if (!textos.length){
       // 1) manchetes do Google Notícias e clima, direto, sem gastar a IA
-      const resultados = new Array(ts.length).fill(null); let clima = null, cot = null;
+      const resultados = new Array(ts.length).fill(null); let clima = null, cot = null; faltou = [];
       const ehClima = t => /\b(tempo|clima|previs[ãa]o)\b/i.test(t.nome), ehCot = t => /d[óo]lar|c[âa]mbio|cota[çc][ãa]o|\beuro\b|bitcoin/i.test(t.nome);
       const tClima = ts.find(ehClima);
       const cidadeClima = cidade || (tClima ? tClima.nome : "");
@@ -1523,25 +1558,28 @@ async function runBriefing({abertura=false}={}){
       const fila = ts.map((t,i)=>i).filter(i=>!ehClima(ts[i]));
       const trabalhador = async () => { while(fila.length){ const i=fila.shift();
         highlight.topicos[i].status="buscando"; if(tab==="destaque") renderCard();
-        try{ const it = await noticiasGoogle(ts[i].q || ts[i].nome, 5); if(it.length){ resultados[i]={assunto:ts[i].nome, manchetes:it}; highlight.topicos[i].status="ok"; } else highlight.topicos[i].status="sem notícias"; }
-        catch(e){ highlight.topicos[i].status="falhou"; }
-        $("#state").textContent=`Notícias: ${highlight.topicos.filter(x=>x.status!=="na fila"&&x.status!=="buscando").length} de ${ts.length}`;
+        try{ const it = await noticiasGoogle(ts[i].q || ts[i].nome, 5, {maxHoras:BRIEF_HORAS});
+          if(it.length){ resultados[i]={assunto:ts[i].nome, manchetes:it}; highlight.topicos[i].status="ok"; }
+          else { highlight.topicos[i].status="sem novidades"; faltou.push({assunto:ts[i].nome, motivo: it.antigas ? `só havia notícias com mais de ${BRIEF_HORAS} horas` : `o Google Notícias não tem nada sobre isso nas últimas ${BRIEF_HORAS} horas`}); } }
+        catch(e){ highlight.topicos[i].status="falhou"; faltou.push({assunto:ts[i].nome, motivo:`não consegui acessar o Google Notícias (${String(e?.message||e).slice(0,60)})`}); }
+        if(minhaVez===cancelGen) $("#state").textContent=`Notícias: ${highlight.topicos.filter(x=>x.status!=="na fila"&&x.status!=="buscando").length} de ${ts.length}`;
         if(tab==="destaque") renderCard(); } };
       const climaP = cidadeClima ? climaHoje(cidadeClima).then(x=>{ clima=x; }).catch(e=>diario(`clima: falhou (${e?.message||e})`)) : Promise.resolve();
       const cotP = ts.some(ehCot) ? cotacoes().then(x=>{ cot=x; }).catch(e=>diario(`cotação: falhou (${e?.message||e})`)) : Promise.resolve();
       await Promise.all([trabalhador(), trabalhador(), trabalhador(), trabalhador(), climaP, cotP]);
-      ts.forEach((t,i)=>{ if(ehClima(t)) highlight.topicos[i].status = clima ? "ok" : "sem dados"; });
+      ts.forEach((t,i)=>{ if(ehClima(t)){ highlight.topicos[i].status = clima ? "ok" : "sem dados"; if(!clima) faltou.push({assunto:t.nome, motivo: cidadeClima ? "o serviço de previsão do tempo não respondeu ou não achou a cidade" : "a cidade não foi informada"}); } });
       if(tab==="destaque") renderCard();
       const ok = resultados.filter(Boolean);
       diario(`briefing: ${ok.length} de ${ts.length} assuntos com manchetes${clima?", clima ok":""}${cot?", cotação ok":""}`);
-      if(!ok.length && !clima) throw {code:"sem_noticias"};
+      if(faltou.length) diario(`briefing: sem novidades → ${faltou.map(f=>f.assunto+": "+f.motivo).join("; ")}`);
+      if(!ok.length && !clima) throw {code:"sem_noticias", faltou};
       aoVivo = true;
       // 2) um único pedido curto à IA para escrever as falas (se falhar, o app escreve sozinho)
       let falas = null;
-      $("#state").textContent="Resumindo…";
+      if(minhaVez===cancelGen) $("#state").textContent="Resumindo…";
       try{
         falas = await sample.json(`Você é ${cfg.name}, assistente pessoal do ${cfg.user||"usuário"}. Português do Brasil, tom de locutor de telejornal, frases curtas.
-Manchetes reais de hoje por assunto (não invente nada além delas):
+Manchetes reais das últimas ${BRIEF_HORAS} horas por assunto, da mais nova para a mais antiga (não invente nada além delas; dê prioridade às mais novas):
 ${ok.map(t=>`### ${t.assunto}\n${t.manchetes.map(m=>`- ${m.titulo} (${m.fonte}${m.quando?", "+m.quando:""})`).join("\n")}`).join("\n\n")}
 
 Não cumprimente (a saudação já foi feita). As falas viram cartões animados num painel. Responda SOMENTE com JSON:
@@ -1558,7 +1596,8 @@ Não cumprimente (a saudação já foi feita). As falas viram cartões animados 
         cot, ehCot,
         abertura: falas?.abertura || `Separei as notícias de ${ok.length} ${ok.length>1?"assuntos":"assunto"}${next.length?` e você tem ${next.length} ${next.length>1?"compromissos":"compromisso"} hoje`:""}.`,
         agenda_fala: next.length ? `Seu próximo compromisso é ${prox.titulo}${prox.hora?` às ${prox.hora}`:""}.` : "Sua agenda de hoje está livre.",
-        encerramento: (ok.length<ts.length ? `Não achei notícias recentes de ${ts.length-ok.length} ${ts.length-ok.length>1?"assuntos":"assunto"}. ` : "") + "Posso ajudar com mais alguma coisa?"};
+        faltou,
+        encerramento: "Posso ajudar com mais alguma coisa?"};
     } else {
     const prompt = `Você é ${cfg.name}, assistente pessoal estilo J.A.R.V.I.S. do ${cfg.user||"usuário"}. Português do Brasil.
 Agora: ${new Date().toLocaleString("pt-BR",{weekday:"long",day:"2-digit",month:"long",hour:"2-digit",minute:"2-digit"})}.
@@ -1581,9 +1620,9 @@ No máximo 3 manchetes por assunto. Use só informação presente nos resultados
     }
     const tops=(r.topicos||[]).slice(0,8).map(t=>({assunto:String(t.assunto||""), fala:String(t.fala||""), resumo:String(t.resumo||""), manchetes:(Array.isArray(t.manchetes)?t.manchetes:[]).slice(0,4).map(m=>({titulo:String(m.titulo||""), fonte:String(m.fonte||""), quando:String(m.quando||""), link:String(m.link||"")})), numeros:Array.isArray(t.numeros)?t.numeros.filter(n=>n&&n.valor!=null&&String(n.valor).trim()).slice(0,4):null, placar:(t.placar&&typeof t.placar==="object"&&t.placar.mandante&&t.placar.visitante)?t.placar:null}));
     const cotT = r.cot ? tops.find(t=>r.ehCot({nome:t.assunto})) : null;
-    const next2=tasks.filter(t=>!t.feito);
+    const next2=tasks.filter(t=>!t.feito && (!t.data||t.data===hojeData()));
     const slides=[];
-    slides.push({tipo:"numeros", categoria:new Date().toLocaleDateString("pt-BR",{weekday:"long", day:"2-digit", month:"long"}), titulo:`${per}, ${cfg.user||""}`.trim(), legenda:String(r.abertura||""), fala:String(r.abertura||""),
+    slides.push({tipo:"numeros", saudacao:true, categoria:new Date().toLocaleDateString("pt-BR",{weekday:"long", day:"2-digit", month:"long"}), titulo:`${per}, ${cfg.user||""}`.trim(), legenda:String(r.abertura||""), fala:String(r.abertura||""),
       numeros:[{rotulo:"Compromissos", valor:next2.length}, ...(r.clima?.temperatura!=null?[{rotulo:r.clima.cidade||"Agora", valor:Math.round(num(r.clima.temperatura)), unidade:"°"}]:[]), ...(r.cot?[r.cot.numeros[0]]:[]), {rotulo:"Assuntos", valor:tops.length}]});
     if(r.clima && typeof r.clima==="object" && r.clima.temperatura!=null) slides.push(Object.assign({}, r.clima, {tipo:"clima", fala:String(r.clima.fala||"")}));
     slides.push({tipo:"agenda", fala:String(r.agenda_fala||"")});
@@ -1593,10 +1632,20 @@ No máximo 3 manchetes por assunto. Use só informação presente nos resultados
       if(t.placar) slides.push(Object.assign({}, t.placar, {tipo:"placar", competicao:t.placar.competicao||t.assunto, fala:t.fala, legenda:t.resumo}));
       slides.push({tipo:"noticias", categoria:t.placar?"Mais notícias":"Notícias", titulo:t.assunto, resumo:t.resumo, manchetes:t.manchetes, numeros:t.placar?null:t.numeros, fala:t.placar?"":t.fala});
     });
+    if(r.faltou?.length){
+      const nomes = r.faltou.map(f=>f.assunto);
+      const lista = nomes.length>1 ? nomes.slice(0,-1).join(", ")+" e "+nomes.slice(-1) : nomes[0];
+      const motivos = [...new Set(r.faltou.map(f=>f.motivo))];
+      slides.push({tipo:"destaque", categoria:"Sem novidades", titulo: nomes.length>1 ? `${nomes.length} assuntos sem notícias novas` : "Um assunto sem notícias novas",
+        itens: r.faltou.map(f=>`${f.assunto}: ${f.motivo}.`),
+        legenda: `Mostro só o que saiu nas últimas ${BRIEF_HORAS} horas. Se quiser, me peça notícias de um assunto e eu procuro de novo.`,
+        fala: motivos.length===1 ? `Não encontrei novidades de ${lista}: ${motivos[0]}.` : r.faltou.map(f=>`Sobre ${f.assunto}, ${f.motivo}.`).join(" ")});
+    }
     slides.push({tipo:"destaque", categoria:"Resumo do briefing", titulo:"Seus assuntos de hoje", itens:tops.map(t=>`${t.assunto}: ${t.resumo}`), legenda:aoVivo?"":"Sem notícias ao vivo agora. Confira a conexão e a chave em Ajustes.", fala:String(r.encerramento||"Posso ajudar com mais alguma coisa?")});
     highlight={tipo:"apresentacao", briefing:true, titulo:"Briefing do dia", aoVivo, em:new Date().toISOString(), slides, i:0};
     store.set("hl",highlight); renderTicker();
     await helloP;
+    if(minhaVez!==cancelGen){ diario("briefing: cancelado pelo usuário"); renderCard(); return; }
     const fala=slides.map(c=>c.fala).filter(Boolean).join(" ");
     history.push({role:"assistant",content:(abertura?`${per}, ${cfg.user||""}. `:"")+fala}); saveHist();
     marcarBriefing();
@@ -1607,9 +1656,11 @@ No máximo 3 manchetes por assunto. Use só informação presente nos resultados
     diario(`briefing: FALHOU ${e?.code||""} ${e?.detalhe||e?.message||""}`);
     highlight.run=false; renderCard();
     await helloP;
+    if(minhaVez!==cancelGen) return;
     if(e?.code==="not_granted") caption("<em>Preciso da sua permissão para usar o Claude. Toque no núcleo e permita.</em>");
+    else if(e?.code==="sem_noticias" && e.faltou?.length){ const t=`Não encontrei novidades nos seus assuntos. ${e.faltou.map(f=>`${f.assunto}: ${f.motivo}.`).join(" ")}`; caption(`<em>${esc(t)}</em>`); if(cfg.speak&&tts) speak(t); }
     else caption(`<em>${esc(e?.code==="sem_noticias" ? "Não consegui acessar o Google Notícias agora. Confira a internet e toque em Atualizar notícias." : e?.userMsg || "Não consegui montar o briefing agora. Tente de novo.")}</em>`);
-  }finally{ briefingBusy=false; if(mode!=="listening") setMode("idle"); }
+  }finally{ briefingBusy=false; if(mode!=="listening" && minhaVez===cancelGen) setMode("idle"); }
 }
 function renderBriefing(h){
   const head=`<div class="eyebrow">Briefing de notícias${h.run?"":h.aoVivo?` · <span style="color:var(--green)">ao vivo</span>`:` · <span style="color:var(--amber)">sem notícias ao vivo</span>`}</div>`;
@@ -1700,11 +1751,12 @@ function kpiTiles(lista){
     return `<div class="kpi" style="animation-delay:${.1+i*.09}s"><small>${esc(k.rotulo||"")}</small><b class="${cls}" ${isNum?`data-count="${num(v)}" data-unit="${esc(k.unidade||"")}" data-pre="${esc(pre)}"${dec}`:""}>${esc(pre+(typeof v==="number"?v.toLocaleString("pt-BR"):String(v??""))+(isNum?(k.unidade||""):""))}</b>${k.variacao?`<em class="${sinal(k.variacao)}">${sinal(k.variacao)==="down"?"▼":sinal(k.variacao)==="up"?"▲":""} ${esc(k.variacao)}</em>`:""}</div>`; }).join("")}</div>`;
 }
 function renderNumeros(s){
-  return `<div class="eyebrow">${esc(s.categoria||"Em números")}</div>${s.titulo?`<h3>${esc(s.titulo)}</h3>`:""}${kpiTiles(s.numeros)}${s.legenda?`<p class="sub" style="margin-top:10px">${esc(s.legenda)}</p>`:""}${s.fonte?`<p class="src">Fonte: ${esc(s.fonte)}</p>`:""}`;
+  const titulo = s.saudacao ? `${periodo()}, ${cfg?.user||""}`.trim().replace(/,$/,"") : s.titulo;
+  return `<div class="eyebrow">${esc(s.categoria||"Em números")}</div>${titulo?`<h3>${esc(titulo)}</h3>`:""}${kpiTiles(s.numeros)}${s.legenda?`<p class="sub" style="margin-top:10px">${esc(s.legenda)}</p>`:""}${s.fonte?`<p class="src">Fonte: ${esc(s.fonte)}</p>`:""}`;
 }
 function agendaHoje(s){
   if (Array.isArray(s.compromissos) && s.compromissos.length) return s.compromissos.slice(0,8).map(c=>({hora:String(c.hora||""), titulo:String(c.titulo||""), nota:String(c.nota||""), feito:false}));
-  return [...tasks].sort((a,b)=>(a.hora||"99").localeCompare(b.hora||"99")).slice(0,8);
+  return tasks.filter(t=>!t.data || t.data===hojeData()).sort((a,b)=>(a.hora||"99").localeCompare(b.hora||"99")).slice(0,8);
 }
 function renderAgendaSlide(s){
   const lista=agendaHoje(s), pend=lista.filter(x=>!x.feito), agora=new Date().toTimeString().slice(0,5);
@@ -1901,13 +1953,14 @@ function renderGasto(){
   const mes = new Date().toLocaleDateString("pt-BR",{month:"long", year:"numeric"});
   const fmtN = n => n.toLocaleString("pt-BR");
   const gem = g.porIA.gemini || cfg?.provider==="gemini";
-  return `<div class="eyebrow">Gasto com a IA · ${esc(mes)}</div>
+  return `<div class="row" style="margin-bottom:6px"><div class="eyebrow" style="margin:0">Gasto com a IA · ${esc(mes)}</div><button class="btn-line" data-act="voltar-ajustes" type="button" aria-label="Voltar para Ajustes">‹ Ajustes</button></div>
     <div class="gasto">${lim>0?anel(pct, cor):""}<div><div class="big" style="color:${lim>0?cor:"var(--green)"}"><span data-count="${(g.usd*cotacao()).toFixed(2).replace(".",",")}" data-pre="R$ " data-dec="2">${esc(brl(g.usd))}</span></div>
       <p class="sub" style="margin:0">${esc(usdTxt(g.usd))} · dólar a R$ ${cotacao().toLocaleString("pt-BR",{minimumFractionDigits:2})}${lim>0?` · limite ${esc(brl(lim))}`:" · sem limite definido"}</p></div></div>
     ${pct>=1 && !g.liberado ? `<div class="aviso" style="margin-top:10px"><span>O limite do mês foi atingido. ${cfg?.limite?.acao==="bloquear"?"O Atlas está pausado até o dia 1º ou até você aumentar o limite.":"Você pode liberar o uso até o fim do mês."}</span><div class="duo">${cfg?.limite?.acao==="bloquear"?"":`<button type="button" class="btn-line" data-act="gasto-liberar">Continuar este mês</button>`}<button type="button" class="btn-line" data-act="gasto-ajustes">Mudar limite</button></div></div>` : ""}
     ${kpiTiles([{rotulo:"Respostas", valor:g.chamadas}, {rotulo:"Tokens", valor:fmtN(g.tokIn+g.tokOut)}, {rotulo:"Buscas na web", valor:g.buscas}])}
     ${ias.length?`<div class="chart-h" style="margin-top:12px">${ias.map(([k,v],i)=>{ const mx=Math.max(...ias.map(([,x])=>x.usd))||1; const c=PALETA[i%PALETA.length]; return `<div class="hb" style="animation-delay:${i*.08}s"><span>${esc(nomes[k]||k)}</span><div class="tr2"><i style="--w:${Math.max(2,(v.usd/mx*100)).toFixed(1)}%;--c:${c}"></i></div><b>${esc(k==="gemini"&&geminiGratis()?"grátis":brl(v.usd))}</b></div>`; }).join("")}</div>`:""}
     ${gem?`<p class="sub" style="margin-top:10px">${geminiGratis()?`<b style="color:var(--green)">Gemini no plano grátis: custo zero.</b> Hoje: <b style="color:var(--fg)">${g.gemDia.pedidos}</b> pedidos e ${g.gemDia.buscas} buscas no Google. O Google limita o plano grátis por minuto e por dia (o número muda por modelo); quando acabar, o Atlas avisa. A cota renova por volta das 4h ou 5h (Brasília).`:"Gemini com faturamento ativado: custo estimado pela tabela do Google."}</p>`:""}
+    <div class="acts" style="margin-top:10px"><button class="btn-line" data-act="voltar-ajustes" type="button">Voltar para Ajustes</button></div>
     <p class="note" style="margin-top:10px">Estimativa feita pelo Atlas a partir dos tokens e buscas de cada resposta, com os preços de tabela de cada empresa. A cobrança oficial é a do site da empresa.</p>`;
 }
 
@@ -2028,8 +2081,8 @@ const tools = [
      store.set("hl",highlight); tab="destaque";
      let salvos=0; if(i.salvar_na_agenda){ for(const e of et){ tasks.push({id:nextId++, titulo:`${String(i.materia||"Estudo").slice(0,20)}: ${String(e.titulo).slice(0,55)}`, hora:e.hora?String(e.hora).slice(0,5):"", nota:i.prazo?("prazo "+String(i.prazo).slice(0,20)):"", feito:false}); salvos++; } saveTasks(); }
      renderCard(); renderTicker(); return {ok:true, etapas:et.length, salvos_na_agenda:salvos}; }},
-  {name:"adicionar_tarefa", description:"Adiciona um compromisso ou lembrete à agenda do dia.", inputSchema:{type:"object",properties:{titulo:{type:"string"},hora:{type:"string",description:"HH:MM, opcional"},nota:{type:"string"}},required:["titulo"]},
-   execute(i){ const x={id:nextId++, titulo:String(i.titulo).slice(0,80), hora:i.hora?String(i.hora).slice(0,5):"", nota:i.nota?String(i.nota).slice(0,60):"", feito:false}; tasks.push(x); saveTasks(); tab="agenda"; renderCard(); renderTicker(); return {ok:true, id:x.id}; }},
+  {name:"adicionar_tarefa", description:"Adiciona um compromisso, tarefa ou lembrete à agenda. SEMPRE chame esta ferramenta quando o usuário pedir para anotar, agendar, marcar, lembrar ou adicionar algo; nunca diga que anotou sem chamá-la.", inputSchema:{type:"object",properties:{titulo:{type:"string"},hora:{type:"string",description:"HH:MM, opcional"},data:{type:"string",description:"AAAA-MM-DD, opcional; omita para hoje. Use para amanhã ou outro dia."},nota:{type:"string"}},required:["titulo"]},
+   execute(i){ const x=novaTarefa(i); return {ok:true, id:x.id, data:x.data||hojeData(), hora:x.hora}; }},
   {name:"concluir_tarefa", description:"Marca um item da agenda como feito, pelo id.", inputSchema:{type:"object",properties:{id:{type:"number"}},required:["id"]},
    execute(i){ const x=tasks.find(t=>t.id==Number(i.id)); if(!x) throw new Error("id não encontrado"); x.feito=true; saveTasks(); tab="agenda"; renderCard(); renderTicker(); return {ok:true}; }},
   {name:"remover_tarefa", description:"Remove um item da agenda, pelo id.", inputSchema:{type:"object",properties:{id:{type:"number"}},required:["id"]},
@@ -2071,15 +2124,28 @@ async function ask(userText, {greeting=false}={}){
     ? [{role:"user", content: rules()+"\n\nO usuário acabou de abrir o app. Cumprimente pelo período do dia e faça um briefing de no máximo 3 frases sobre a agenda de hoje (o que vem a seguir) e termine perguntando se pode ajudar com alguma coisa. Use apresentar com 2 cartões: um numeros com o resumo do dia (compromissos, próximo horário) e um agenda."}]
     : [{role:"user", content: rules()+"\n\nResponda à conversa a seguir."},{role:"assistant",content:"Entendido."}, ...history.slice(-12)];
   let shown = "";
+  const criadasAntes = tarefasCriadas;
   try{
     const {text} = await sample(turns, {signal:ctl.signal, tools, modelTier:"quick", web:!!sample.web,
       onText:({text})=>{ shown=text; if(mode==="thinking" && !(cfg.speak&&tts)) setMode("speaking"); caption(esc(text)); }});
     if (ctl!==busy) return;
-    history.push({role:"assistant",content:text}); saveHist();
-    caption(esc(text));
+    let resposta = text;
+    // a IA às vezes responde sem chamar a ferramenta da agenda: nesse caso o app extrai e anota sozinho
+    if (!greeting && PEDE_AGENDA.test(userText) && tarefasCriadas===criadasAntes){
+      try{
+        const t = await sample.json(`Agora: ${new Date().toLocaleString("pt-BR",{weekday:"long",day:"2-digit",month:"long",year:"numeric",hour:"2-digit",minute:"2-digit"})} (hoje é ${hojeData()}).
+O usuário pediu: "${userText.replace(/"/g,"'")}"
+Se ele pediu para anotar/agendar/lembrar algo, responda SOMENTE com JSON {"anotar": true, "titulo": "curto, sem a hora", "hora": "HH:MM ou vazio", "data": "AAAA-MM-DD (hoje se não disse)"}. Se não pediu, responda {"anotar": false}.`, {modelTier:"quick", web:false, signal:ctl.signal});
+        if (ctl!==busy) return;
+        if (t?.anotar && t.titulo){ const x=novaTarefa(t); diario("agenda: anotada pelo plano B (a IA não chamou a ferramenta)"); resposta = `Pronto, anotei na agenda: ${x.titulo}${x.data?`, ${rotuloData(x.data)}`:""}${x.hora?` às ${x.hora}`:""}.`; }
+      }catch(e){ if (e?.code==="cancelled") return; diario(`agenda: plano B falhou (${e?.code||e?.message||e})`); }
+    }
+    const text2 = resposta;
+    history.push({role:"assistant",content:text2}); saveHist();
+    caption(esc(text2));
     if (tab==="historico") renderCard();
     if (greeting) showChips();
-    await speak(text);
+    await speak(text2);
     if(pendingBriefing){ pendingBriefing=false; setTimeout(()=>runBriefing(),0); }
   }catch(e){
     if (e?.code==="cancelled") return;
@@ -2099,8 +2165,8 @@ async function speak(text){
   if(pendingSpeak){ const p=pendingSpeak; pendingSpeak=null; await speakIn(p.text, p.lang); }
 }
 async function offline(userText, greeting){
-  const h=new Date().getHours(), per=h<12?"Bom dia":h<18?"Boa tarde":"Boa noite";
-  const next=tasks.filter(t=>!t.feito).sort((a,b)=>(a.hora||"").localeCompare(b.hora||""))[0];
+  const per=periodo();
+  const next=tasks.filter(t=>!t.feito && (!t.data||t.data===hojeData())).sort((a,b)=>(a.hora||"").localeCompare(b.hora||""))[0];
   const text = greeting ? `${per}, ${cfg.user||"senhor"}. Todos os sistemas online.${next?` Seu próximo compromisso é ${next.titulo}${next.hora?" às "+next.hora:""}.`:""} Posso ajudar com alguma coisa?`
     : "Ainda não estou conectado a uma inteligência artificial. Vá em Ajustes, toque em Trocar IA e conecte sua chave do ChatGPT ou do Claude.";
   await new Promise(r=>setTimeout(r,700));
@@ -2117,14 +2183,29 @@ $("#qchips").addEventListener("click", e=>{ const b=e.target.closest("button"); 
 /* ---------- input ---------- */
 $("#form").addEventListener("submit", e=>{ e.preventDefault(); $("#qchips").hidden=true; const v=$("#msg").value.trim(); if(!v) return; $("#msg").value=""; ask(v); });
 let heard="", silence=null;
+// "Cancelar": para de ouvir (descartando o que foi dito), cancela a resposta em andamento, cala a voz e o briefing
+let cancelGen = 0, escutaCancelada = false;
+function cancelarTudo(msg="Ok, cancelei."){
+  cancelGen++;
+  if (mode==="listening" && dict){ escutaCancelada=true; heard=""; clearTimeout(silence); (dict.cancel ? dict.cancel() : dict.stop()).catch?.(()=>{}); }
+  if (busy){ busy.abort(); busy=null; }
+  pendingBriefing=false;
+  storyStop();
+  if (tts) try{ tts.stop(); }catch{}
+  synth?.cancel();
+  if (highlight?.tipo==="briefing" && highlight.run){ highlight.run=false; if(tab==="destaque") renderCard(); }
+  setMode("idle");
+  caption(msg);
+  diario("usuário cancelou");
+}
+const ocupado = () => mode==="listening" || mode==="thinking" || mode==="speaking" || !!busy || briefingBusy || !!(story && !story.dead);
 function toggleMic(){
   $("#qchips").hidden=true;
-  if (!dict) { if (vozMotivo) caption(`<em>${esc(vozMotivo)}</em>`); $("#msg").focus(); return; }
   if (wakeOn){ wakeHit(); caption(`<span class="you">Estou ouvindo…</span>`); awaitUntil=Date.now()+9000; return; }
-  if (mode==="listening"){ dict.stop().catch(()=>{}); return; }
-  if (busy) busy.abort();
-  if (tts) try{ tts.stop(); }catch{}
-  heard=""; caption(`<span class="you">Pode falar…</span>`);
+  if (ocupado()){ cancelarTudo(mode==="listening" ? "Ok, cancelei. Toque de novo quando quiser falar." : "Ok, parei. Toque de novo quando quiser falar."); return; }
+  if (!dict) { if (vozMotivo) caption(`<em>${esc(vozMotivo)}</em>`); $("#msg").focus(); return; }
+  escutaCancelada=false;
+  heard=""; caption(`<span class="you">Pode falar… (toque de novo para cancelar)</span>`);
   dict.start({language:"pt-BR"}).catch(err=>{ if(err?.code==="not_granted"){ caption("<em>O microfone não foi liberado. Toque no núcleo de novo e permita, ou libere em Configurações › Apps › Atlas › Permissões.</em>"); } else caption(`<em>Não consegui ligar o microfone (${esc(String(err?.message||err?.code||err))}). Tente de novo.</em>`); });
 }
 $("#mic").addEventListener("click", toggleMic);
@@ -2454,7 +2535,7 @@ function activate({primeira=false}={}){
   renderCard();
   if (primeira || briefingDevido()) return runBriefing({abertura:true});
   // nas outras aberturas do dia: só cumprimenta e aguarda (sem gastar a cota da IA)
-  const h=new Date().getHours(), per=h<12?"Bom dia":h<18?"Boa tarde":"Boa noite";
+  const per=periodo();
   const prox=tasks.filter(t=>!t.feito).sort((a,b)=>(a.hora||"").localeCompare(b.hora||""))[0];
   const txt=`${per}, ${cfg.user||"senhor"}. Estou pronto.${prox?` Seu próximo compromisso: ${prox.titulo}${prox.hora?` às ${prox.hora}`:""}.`:""} Como posso ajudar?`;
   caption(esc(txt)); showChips(); speak(txt);
@@ -2911,30 +2992,35 @@ async function setupNativeVoice(){
       return auto ? auto.i : -1;
     };
     const falarNativo = (text, language) => TTS.speak({text:String(text), lang:LANGS[language]||language, rate:cfg?.vozVelocidade||1.0, pitch:1.0, volume:1.0, voice:indiceVoz(language), category:"playback"});
-    const falarGemini = async (text) => {
+    let falaGen = 0;
+    const falarGemini = async (text, g) => {
       const a = await AI.falar(cfg.keys.gemini, cfg.gemAuth||"header", text, cfg.vozGemini||"Charon");
+      if (g!==falaGen) return;   // cancelado enquanto o áudio chegava
       await tocarPCM(a.b64, a.mime);
     };
     tts = {
       async speak(text, {language="pt-BR"}={}){
+        const g = ++falaGen;
         stateCb?.({state:"speaking"});
         try {
           if (VOZ && motorVoz()==="piper" && language==="pt-BR" && Date.now()>piperPausaAte){
             try { await VOZ.falar({texto:String(text), voz:cfg.vozPiper||"faber", velocidade:cfg?.vozVelocidade||1}); return; }
-            catch(e){ piperPausaAte = Date.now()+5*60e3; diario(`voz neural falhou (${e?.message||e}); usando a voz do aparelho`); }
+            catch(e){ if (g!==falaGen) return; piperPausaAte = Date.now()+5*60e3; diario(`voz neural falhou (${e?.message||e}); usando a voz do aparelho`); }
           }
+          if (g!==falaGen) return;
           if (motorVoz()==="gemini" && cfg.keys?.gemini && Date.now()>vozGeminiPausaAte){
-            try { return await falarGemini(text); }
+            try { return await falarGemini(text, g); }
             catch(e){
               if (e?.code==="cancelled") return;
               vozGeminiPausaAte = Date.now() + (e?.porDia ? 6*3600e3 : e?.code==="rate_limited" ? 60e3 : 10*60e3);
               diario(`voz do Gemini falhou (${e?.code||""} ${e?.detalhe||e?.message||""}); usando a voz do aparelho`);
             }
           }
+          if (g!==falaGen) return;
           await falarNativo(text, language);
         } finally { stateCb?.({state:"idle"}); }
       },
-      stop(){ try{ fonteVoz?.stop(); }catch{} fonteVoz=null; VOZ?.parar().catch(()=>{}); return TTS.stop().catch(()=>{}); },
+      stop(){ falaGen++; try{ fonteVoz?.stop(); }catch{} fonteVoz=null; VOZ?.parar().catch(()=>{}); return TTS.stop().catch(()=>{}); },
       onState(cb){ stateCb = cb; },
       recarregar: carregarVozes
     };
@@ -2942,10 +3028,10 @@ async function setupNativeVoice(){
   if (SR){
     const ok = await SR.available().then(r=>r?.available).catch(()=>false);
     if (!ok){ vozMotivo = "Este aparelho não tem o reconhecimento de voz do Google ativo. Instale ou atualize o app Google e tente de novo. Enquanto isso, digite o comando."; return; }
-    let listening=false, last="", cbs={}, fim=null, guarda=null;
+    let listening=false, last="", cbs={}, fim=null, guarda=null, cancelado=false;
     // o Android manda o texto final DEPOIS do aviso de "parou de ouvir": espera um instante por ele
-    const concluir = () => { clearTimeout(fim); clearTimeout(guarda); fim=null; if(!listening && !last) return; listening=false; const t=last; last=""; if (t) cbs.f?.({text:t}); cbs.s?.({state:"idle", reason:"stopped"}); };
-    SR.addListener("partialResults", d=>{ const t=(d?.matches||[])[0]||""; if(!t) return; last=t; cbs.p?.({text:t}); if(fim){ concluir(); } });
+    const concluir = () => { clearTimeout(fim); clearTimeout(guarda); fim=null; if(cancelado){ last=""; listening=false; return; } if(!listening && !last) return; listening=false; const t=last; last=""; if (t) cbs.f?.({text:t}); cbs.s?.({state:"idle", reason:"stopped"}); };
+    SR.addListener("partialResults", d=>{ const t=(d?.matches||[])[0]||""; if(!t || cancelado) return; last=t; cbs.p?.({text:t}); if(fim){ concluir(); } });
     SR.addListener("listeningState", d=>{
       if (d?.status==="started"){ clearTimeout(guarda); listening=true; cbs.s?.({state:"listening"}); }
       else { clearTimeout(fim); fim=setTimeout(concluir, 900); }
@@ -2957,20 +3043,22 @@ async function setupNativeVoice(){
         let perm = await SR.checkPermissions().catch(()=>({}));
         if (perm.speechRecognition!=="granted") perm = await SR.requestPermissions().catch(()=>({}));
         if (perm.speechRecognition!=="granted") throw {code:"not_granted"};
-        last=""; listening=true; cbs.s?.({state:"listening"});
+        last=""; cancelado=false; listening=true; cbs.s?.({state:"listening"});
         try { await SR.start({language, maxResults:1, partialResults:true, popup:false}); }
         catch(e){ listening=false; cbs.s?.({state:"idle", reason:"erro"}); throw e; }
         // se em 8 s ninguém falar, o Android desiste em silêncio: avisa e libera o núcleo
         clearTimeout(guarda); guarda=setTimeout(()=>{ if(!last){ SR.stop().catch(()=>{}); listening=false; cbs.s?.({state:"idle", reason:"silencio"}); } }, 8000);
       },
-      async stop(){ await SR.stop().catch(()=>{}); if(fim||listening){ clearTimeout(fim); fim=setTimeout(concluir, 900); } }
+      async stop(){ await SR.stop().catch(()=>{}); if(fim||listening){ clearTimeout(fim); fim=setTimeout(concluir, 900); } },
+      // para de ouvir e joga fora o que foi dito
+      async cancel(){ cancelado=true; last=""; listening=false; clearTimeout(fim); clearTimeout(guarda); fim=null; await SR.stop().catch(()=>{}); }
     };
     $("#mic").hidden=false;
     dict.onPartial(({text})=>{ voiceKick=.6+Math.random()*.4; caption(`<span class="you">${esc(text)}</span>`); });
-    dict.onFinal(({text})=>{ voiceKick=.8; heard=text.trim(); caption(`<span class="you">${esc(heard)}</span>`); });
+    dict.onFinal(({text})=>{ if(escutaCancelada) return; voiceKick=.8; heard=text.trim(); caption(`<span class="you">${esc(heard)}</span>`); });
     dict.onState(({state, reason})=>{
       if (state==="listening") setMode("listening");
-      if (state==="idle"){ if(mode==="listening") setMode("idle"); const q=heard.trim(); heard=""; if(q) ask(q); else if(reason==="silencio") caption("<em>Não ouvi nada. Toque no núcleo e fale.</em>"); }
+      if (state==="idle"){ if(mode==="listening") setMode("idle"); const q=heard.trim(); heard=""; if(escutaCancelada){ escutaCancelada=false; return; } if(q) ask(q); else if(reason==="silencio") caption("<em>Não ouvi nada. Toque no núcleo e fale.</em>"); }
     });
   }
 }
@@ -2995,7 +3083,7 @@ async function setupNativeVoice(){
         return;
       }
       if (state==="listening") setMode("listening");
-      if (state==="idle"){ clearTimeout(silence); if(mode==="listening") setMode("idle"); const q=heard.trim(); heard=""; if(q) ask(q); }
+      if (state==="idle"){ clearTimeout(silence); if(mode==="listening") setMode("idle"); const q=heard.trim(); heard=""; if(escutaCancelada){ escutaCancelada=false; return; } if(q) ask(q); }
     });
   }
 })();

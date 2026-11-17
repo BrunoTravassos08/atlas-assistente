@@ -206,6 +206,7 @@ public class AtlasVoz extends Plugin {
         new Thread(() -> {
             AudioTrack at = null;
             boolean tocouAlgo = false;
+            long escritos = 0;   // amostras já entregues ao AudioTrack
             try {
                 while (minha == geracao) {
                     float[] s = fila.poll(200, TimeUnit.MILLISECONDS);
@@ -226,20 +227,25 @@ public class AtlasVoz extends Plugin {
                             .build();
                         trilha = at;
                         at.play();
+                        // um respiro curto antes de começar, para o alto-falante "acordar" sem comer a primeira sílaba
+                        escritos += escrever(at, new float[taxa[0] / 12], minha);
                     }
-                    int pos = 0;
-                    while (pos < s.length && minha == geracao) {
-                        int n = at.write(s, pos, Math.min(4096, s.length - pos), AudioTrack.WRITE_BLOCKING);
-                        if (n <= 0) break;
-                        pos += n;
-                    }
+                    escritos += escrever(at, suavizar(s, taxa[0]), minha);
+                    // pausa natural entre frases (~180 ms)
+                    escritos += escrever(at, new float[taxa[0] * 18 / 100], minha);
                     tocouAlgo = true;
                 }
                 if (at != null && minha == geracao) {
-                    // espera o fim do que já foi escrito
-                    long fimMs = SystemClock.elapsedRealtime() + 15000;
-                    at.stop();
-                    while (at.getPlayState() == AudioTrack.PLAYSTATE_PLAYING && SystemClock.elapsedRealtime() < fimMs && minha == geracao) Thread.sleep(40);
+                    // silêncio extra no fim, para o último som não ser cortado pelo buffer
+                    escritos += escrever(at, new float[taxa[0] / 4], minha);
+                    // espera o alto-falante tocar TUDO o que foi escrito antes de liberar
+                    long limite = SystemClock.elapsedRealtime() + 20000;
+                    while (minha == geracao && SystemClock.elapsedRealtime() < limite) {
+                        long tocadas = at.getPlaybackHeadPosition() & 0xffffffffL;
+                        if (tocadas >= escritos) break;
+                        Thread.sleep(30);
+                    }
+                    try { at.stop(); } catch (Throwable ignored) {}
                 }
             } catch (Throwable e) {
                 if (erro[0] == null) erro[0] = String.valueOf(e);
@@ -250,6 +256,26 @@ public class AtlasVoz extends Plugin {
             if (erro[0] != null && !tocouAlgo) call.reject(erro[0]);
             else { JSObject r = new JSObject(); r.put("interrompido", minha != geracao); call.resolve(r); }
         }, "atlas-voz").start();
+    }
+
+    /** Escreve as amostras (bloqueando) e devolve quantas foram aceitas. */
+    private int escrever(AudioTrack at, float[] s, int minha) {
+        int pos = 0;
+        while (pos < s.length && minha == geracao) {
+            int n = at.write(s, pos, Math.min(4096, s.length - pos), AudioTrack.WRITE_BLOCKING);
+            if (n <= 0) break;
+            pos += n;
+        }
+        return pos;
+    }
+
+    /** Fade curto no início e no fim da frase: evita estalos e o fim "cortado seco". */
+    private static float[] suavizar(float[] s, int taxa) {
+        int ini = Math.min(s.length / 4, taxa / 200);   // 5 ms
+        int fim = Math.min(s.length / 4, taxa / 25);    // 40 ms
+        for (int i = 0; i < ini; i++) s[i] *= (float) i / ini;
+        for (int i = 0; i < fim; i++) s[s.length - 1 - i] *= (float) i / fim;
+        return s;
     }
 
     private void pararAudio() {
