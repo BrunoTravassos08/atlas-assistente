@@ -439,6 +439,40 @@ textarea.inp{height:auto;padding:8px 12px;resize:vertical;font:inherit}
 /* ---------- modo leve (aparelhos médios) ---------- */
 .lite .card,.lite .overlay,.lite .overlay.setup{backdrop-filter:none;-webkit-backdrop-filter:none}
 .lite .card{background:rgba(9,24,48,.88)}
+/* Ajustes em popup */
+.gear{display:grid;place-items:center;width:36px;height:36px;padding:0;background:rgba(8,20,40,.6);border:1px solid var(--line-hi);color:var(--cyan);box-shadow:0 0 14px rgba(67,217,255,.2);transition:transform .45s cubic-bezier(.2,1.3,.4,1)}
+.gear svg{width:19px;height:19px}
+.gear:active,.gear[aria-expanded="true"]{transform:rotate(90deg)}
+#ajModal{z-index:30}
+.aj-box{position:relative;width:100%;max-width:580px;max-height:100%;display:flex;flex-direction:column;border:1px solid var(--line-hi);background:rgba(7,18,38,.95);box-shadow:0 0 44px rgba(67,217,255,.2),inset 0 0 30px rgba(67,217,255,.05);animation:ajIn .35s cubic-bezier(.2,1.2,.4,1) both}
+.aj-box::before,.aj-box::after{content:"";position:absolute;width:14px;height:14px;border-color:var(--cyan);border-style:solid}
+.aj-box::before{top:-1px;left:-1px;border-width:2px 0 0 2px}.aj-box::after{bottom:-1px;right:-1px;border-width:0 2px 2px 0}
+@keyframes ajIn{from{opacity:0;transform:translateY(18px) scale(.97)}}
+.aj-head{display:flex;align-items:center;justify-content:space-between;gap:10px;padding:10px 12px 10px 16px;border-bottom:1px solid var(--line);flex:0 0 auto}
+.aj-head b{font-family:var(--f-hud);font-size:13px;letter-spacing:.32em;text-transform:uppercase;color:var(--cyan);text-shadow:0 0 12px rgba(67,217,255,.5)}
+.aj-head button{background:transparent;border:1px solid var(--line-hi);color:var(--fg);width:36px;height:36px;font-size:16px}
+#ajModal .card{border:0;max-height:none;min-height:0;flex:1 1 auto;overflow:auto;background:transparent;backdrop-filter:none;-webkit-backdrop-filter:none;overscroll-behavior:contain}
+#ajModal .card::before,#ajModal .card::after{display:none}
+.aj-sec{font-family:var(--f-hud);font-size:10px;font-weight:600;letter-spacing:.26em;text-transform:uppercase;color:var(--cyan);margin-top:6px;padding-bottom:4px;border-bottom:1px solid var(--line)}
+.aj-passos{margin:6px 0 0;padding-left:20px;font-size:13px;line-height:1.5;color:var(--fg-dim)}.aj-passos li{margin-bottom:6px}.aj-passos b{color:var(--fg)}
+.aj-passos a{color:var(--cyan);text-decoration:underline;cursor:pointer}
+/* cartão do Instagram */
+.ig-head{display:flex;align-items:center;gap:12px;margin:2px 0 10px}
+.ig-head h3{margin:0}
+.ig-av{position:relative;width:50px;height:50px;flex:0 0 auto}
+.ig-av::before{content:"";position:absolute;inset:0;border-radius:50%;background:conic-gradient(#feda75,#fa7e1e,#d62976,#962fbf,#4f5bd5,#feda75);animation:igGira 4s linear infinite;box-shadow:0 0 16px rgba(214,41,118,.5)}
+.ig-av img,.ig-av i{position:absolute;inset:3px;width:calc(100% - 6px);height:calc(100% - 6px);border-radius:50%;object-fit:cover;background:#0b1830;border:2px solid #0b1830;display:grid;place-items:center;font-style:normal;font-weight:700;color:var(--fg)}
+@keyframes igGira{to{transform:rotate(360deg)}}
+.ig-post{display:flex;gap:12px;align-items:flex-start;padding:10px;border:1px solid rgba(214,41,118,.45);background:linear-gradient(120deg,rgba(214,41,118,.16),rgba(79,91,213,.08) 60%,rgba(67,217,255,.02));cursor:pointer;animation:pop .6s cubic-bezier(.2,1.3,.4,1) .15s both}
+.ig-post:active{background:rgba(214,41,118,.25)}
+.ig-img{flex:0 0 auto;width:min(40%,180px);aspect-ratio:1;object-fit:cover;border:1px solid var(--line-hi)}
+.ig-vid{display:grid;place-items:center;font-size:26px;color:#fff;background:linear-gradient(135deg,#962fbf,#d62976)}
+.ig-post p{margin:0;font-size:15px;line-height:1.35;color:var(--fg);display:-webkit-box;-webkit-line-clamp:7;-webkit-box-orient:vertical;overflow:hidden}
+.ig-post .qd{display:block;margin-top:8px;font-family:var(--f-hud);font-size:11px;letter-spacing:.12em;text-transform:uppercase;color:#ff8fc4}
+.ig-mais{display:flex;gap:8px;margin-top:8px}
+.ig-mais>*{width:62px;height:62px;object-fit:cover;border:1px solid var(--line);cursor:pointer;animation:pop .5s ease both}
+.ig-mais>*>*{width:100%;height:100%;object-fit:cover;display:grid;place-items:center;font-size:20px}
+.lite .ig-av::before{animation:none}
 .lite .overlay{background:rgba(4,9,20,.9)}
 .lite .track{mask-image:none;-webkit-mask-image:none}
 .lite .bar::after{display:none}
@@ -456,6 +490,7 @@ textarea.inp{height:auto;padding:8px 12px;resize:vertical;font:inherit}
       <span class="engine" id="engine">—</span>
       <span class="hide-sm" id="date">—</span>
       <span id="clock">--:--</span>
+      <button type="button" class="gear" id="ajBtn" aria-label="Ajustes" aria-haspopup="dialog" aria-expanded="false"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7"><circle cx="12" cy="12" r="3.2"/><path d="M19.4 15a1.7 1.7 0 0 0 .3 1.8l.1.1a2 2 0 1 1-2.8 2.8l-.1-.1a1.7 1.7 0 0 0-1.8-.3 1.7 1.7 0 0 0-1 1.5V21a2 2 0 1 1-4 0v-.1a1.7 1.7 0 0 0-1.1-1.5 1.7 1.7 0 0 0-1.8.3l-.1.1a2 2 0 1 1-2.8-2.8l.1-.1a1.7 1.7 0 0 0 .3-1.8 1.7 1.7 0 0 0-1.5-1H3a2 2 0 1 1 0-4h.1a1.7 1.7 0 0 0 1.5-1.1 1.7 1.7 0 0 0-.3-1.8l-.1-.1a2 2 0 1 1 2.8-2.8l.1.1a1.7 1.7 0 0 0 1.8.3H9a1.7 1.7 0 0 0 1-1.5V3a2 2 0 1 1 4 0v.1a1.7 1.7 0 0 0 1 1.5 1.7 1.7 0 0 0 1.8-.3l.1-.1a2 2 0 1 1 2.8 2.8l-.1.1a1.7 1.7 0 0 0-.3 1.8V9a1.7 1.7 0 0 0 1.5 1H21a2 2 0 1 1 0 4h-.1a1.7 1.7 0 0 0-1.5 1z"/></svg></button>
     </div>
   </header>
 
@@ -479,7 +514,6 @@ textarea.inp{height:auto;padding:8px 12px;resize:vertical;font:inherit}
         <button role="tab" data-tab="destaque" aria-selected="false">Destaque</button>
         <button role="tab" data-tab="pdf" aria-selected="false">PDF</button>
         <button role="tab" data-tab="historico" aria-selected="false">Histórico</button>
-        <button role="tab" data-tab="ajustes" aria-selected="false">Ajustes</button>
       </nav>
     </section>
   </main>
@@ -500,6 +534,13 @@ textarea.inp{height:auto;padding:8px 12px;resize:vertical;font:inherit}
   </form>
 
   <div class="ticker"><span class="live">AO VIVO</span><div class="track"><span id="ticker">Sistema iniciado</span></div></div>
+</div>
+
+<div class="overlay" id="ajModal" hidden role="dialog" aria-modal="true" aria-labelledby="ajTitulo">
+  <div class="aj-box">
+    <div class="aj-head"><b id="ajTitulo">Ajustes</b><button type="button" id="ajFechar" aria-label="Fechar ajustes">✕</button></div>
+    <div class="card" id="ajCard"></div>
+  </div>
 </div>
 
 <div class="overlay" id="loginView" hidden>
@@ -612,7 +653,7 @@ if (!tasks) tasks = [];
 let highlight = store.get("hl", {categoria:"Sistema", titulo:"Pronto para começar", valor:"100%", legenda:"Todos os módulos online. Peça algo por voz ou texto."});
 let history = store.get("conversa", []); // conversa dedicada do agente, salva no aparelho
 const saveHist = () => { if (history.length>80) history.splice(0, history.length-80); store.set("conversa", history); };
-let tab = "agenda";
+let tab = "agenda", ajOpen = false;
 let mode = "idle"; // idle | listening | thinking | speaking
 let sample = null, tts = null, dict = null;
 
@@ -692,6 +733,120 @@ async function buscaLocal(consulta){
   if (!itens.length) return {resultado:"Nenhuma notícia recente encontrada para essa busca.", fontes:[]};
   return {resultado: itens.map(i=>`- ${i.titulo} (${i.fonte}${i.quando?", "+i.quando:""})`).join("\n"), fontes:[...new Set(itens.map(i=>i.fonte))].slice(0,6), aviso:"Manchetes do Google Notícias das últimas 48 horas."};
 }
+/* ---------- Instagram: API oficial da Meta (Business Discovery), com o token do próprio usuário ----------
+   Só lê perfis públicos de empresa ou criador. Nada de raspar o site. */
+const IG_API = "https://graph.facebook.com/v25.0/";
+let instaErro = "";
+const nomePerfil = u => String(u||"").trim().replace(/^https?:\/\/(www\.)?instagram\.com\//i,"").replace(/[/?#].*$/,"").replace(/^@/,"").toLowerCase();
+const instaPronto = () => !!(cfg?.insta?.token && cfg.insta.igId && !cfg.insta.vencido);
+const instaDias = () => cfg?.insta?.tokenEm ? Math.floor((Date.now()-cfg.insta.tokenEm)/864e5) : 0;
+async function graphGet(caminho, params={}, token=cfg?.insta?.token){
+  if (!token) throw Object.assign(new Error("Instagram não conectado"), {code:"sem_token"});
+  const url = IG_API + caminho + "?" + new URLSearchParams(Object.assign({}, params, {access_token:token})).toString();
+  let status, data;
+  try{
+    if (NATIVE && typeof window.Capacitor?.nativePromise==="function"){
+      const r = await Promise.race([window.Capacitor.nativePromise("CapacitorHttp","request",{url, method:"GET", responseType:"json", connectTimeout:15000, readTimeout:15000}), sleep(17000).then(()=>{ throw new Error("sem resposta"); })]);
+      status = r?.status; data = r?.data;
+    } else {
+      const r = await fetch(url); status = r.status; data = await r.text();
+    }
+    if (typeof data==="string"){ try{ data = JSON.parse(data); }catch{} }
+  } catch(e){ diario(`Instagram ${caminho.slice(0,24)} → ERRO ${e?.message||e}`); throw Object.assign(new Error("sem internet ou a Meta não respondeu"), {code:"rede"}); }
+  diario(`Instagram ${caminho.slice(0,24)} → ${status}`);
+  if (data?.error){
+    const er = data.error;
+    const code = er.code===190 ? "token_expirado" : (er.code===110 || er.error_subcode===2207013 || /cannot find user|invalid user/i.test(er.message||"")) ? "perfil" : er.code===4 || er.code===17 || er.code===32 ? "limite" : "meta";
+    throw Object.assign(new Error(er.message||"erro da Meta"), {code, meta:er.code});
+  }
+  if (!(status>=200 && status<300)) throw Object.assign(new Error("HTTP "+status), {code:"meta"});
+  return data;
+}
+function instaMsgErro(e){
+  if (e?.code==="token_expirado") return "Esse token não vale mais (venceu ou foi gerado errado). Gere um novo pelos passos 4 e 5 e cole aqui.";
+  if (e?.code==="sem_conta") return e.message;
+  if (e?.code==="rede") return "Não consegui falar com a Meta. Confira a internet e tente de novo.";
+  if (e?.code==="limite") return "A Meta pediu uma pausa (muitos pedidos). Tente de novo daqui a alguns minutos.";
+  return `A Meta recusou: ${String(e?.message||e).slice(0,160)}`;
+}
+async function instaConectar(token){
+  const r = await graphGet("me/accounts", {fields:"name,instagram_business_account{id,username}", limit:"50"}, token);
+  const pg = (r?.data||[]).find(x=>x.instagram_business_account?.id);
+  if (!pg) throw Object.assign(new Error("O token funcionou, mas não achei uma conta profissional do Instagram ligada às suas páginas do Facebook. Confira os passos 1 e 2 e, no passo 4, marque a página certa."), {code:"sem_conta"});
+  cfg.insta = Object.assign({perfis:[]}, cfg.insta, {token, igId:pg.instagram_business_account.id, conta:pg.instagram_business_account.username||pg.name||"", tokenEm:Date.now(), vencido:false});
+  store.set("cfg",cfg); diario(`Instagram conectado (@${cfg.insta.conta})`);
+}
+async function instaPosts(usuario, n=4){
+  const u = nomePerfil(usuario);
+  if (!/^[a-z0-9._]{1,30}$/.test(u)) throw Object.assign(new Error("nome de perfil inválido"), {code:"perfil"});
+  const r = await graphGet(cfg.insta.igId, {fields:`business_discovery.username(${u}){username,name,profile_picture_url,media.limit(${n}){caption,media_type,media_url,permalink,timestamp}}`});
+  const b = r?.business_discovery || {};
+  return {usuario:b.username||u, nome:b.name||b.username||u, foto:/^https:\/\//.test(b.profile_picture_url||"")?b.profile_picture_url:"",
+    posts:(b.media?.data||[]).map(m=>({legenda:String(m.caption||""), video:m.media_type==="VIDEO", img:m.media_type!=="VIDEO" && /^https:\/\//.test(m.media_url||"") ? m.media_url : "", link:/^https:\/\//.test(m.permalink||"")?m.permalink:"", t:new Date(m.timestamp).getTime()})).filter(x=>isFinite(x.t)).sort((a,b)=>b.t-a.t)};
+}
+// postagens das últimas `horas` de cada perfil acompanhado; erros por perfil não derrubam os outros
+async function instaNovidades(perfis, horas=24){
+  const lista = (perfis || cfg.insta?.perfis || []).map(nomePerfil).filter(Boolean).slice(0,10);
+  const limite = Date.now() - horas*36e5, perfisOk = [], erros = [];
+  await Promise.all(lista.map(async u=>{
+    try{ const p = await instaPosts(u); p.ultimo = p.posts[0] || null; p.posts = p.posts.filter(x=>x.t>=limite); perfisOk.push(p); }
+    catch(e){
+      if (e?.code==="token_expirado"){ cfg.insta.vencido = true; store.set("cfg",cfg); instaErro = instaMsgErro(e); throw e; }
+      erros.push({usuario:u, motivo: e?.code==="perfil" ? "esse perfil não existe ou não é uma conta pública de empresa ou criador" : e?.code==="rede" ? "não consegui falar com a Meta" : String(e?.message||e).slice(0,80)});
+    }
+  }));
+  perfisOk.sort((a,b)=>lista.indexOf(a.usuario.toLowerCase())-lista.indexOf(b.usuario.toLowerCase()));
+  return {perfis:perfisOk, erros};
+}
+const quandoFala = t => { const h=(Date.now()-t)/36e5; if (h<1){ const m=Math.max(1,Math.round(h*60)); return `há ${m} ${m>1?"minutos":"minuto"}`; } if (h<24){ const x=Math.round(h); return `há ${x} ${x>1?"horas":"hora"}`; } const d=Math.round(h/24); return d<=1?"ontem":`há ${d} dias`; };
+function legendaCurta(txt, max=170){
+  let t = String(txt||"").replace(/https?:\/\/\S+/g,"").replace(/[#@][\p{L}\p{N}_.]+/gu,"").replace(/(\p{Extended_Pictographic}|️|‍)+/gu,"\u0001").replace(/\s*\u0001[\s\u0001]*(?=\p{Lu})/gu,". ").replace(/\u0001/g," ").replace(/\s+/g," ").replace(/([.!?])\.\s/g,"$1 ").trim();
+  const frase = t.match(/^.{20,}?[.!?](\s|$)/); if (frase) t = frase[0].trim();
+  if (t.length>max) t = t.slice(0, t.lastIndexOf(" ", max) > 40 ? t.lastIndexOf(" ", max) : max) + "…";
+  return t.replace(/[\s,;:–-]+$/,"");
+}
+function falaInsta(p){
+  const m = p.posts[0] || p.ultimo; if (!m) return `${p.nome} não postou nada recente no Instagram.`;
+  const leg = legendaCurta(m.legenda), q = p.posts.length;
+  const oque = leg ? `: ${leg.replace(/[.…]+$/,"")}.` : (m.video ? " um vídeo, sem legenda." : " uma foto, sem legenda.");
+  return q>1 ? `No Instagram, ${p.nome} fez ${q} postagens. A mais recente, ${quandoFala(m.t)}${oque}` : `No Instagram, ${p.nome} postou ${quandoFala(m.t)}${oque}`;
+}
+function slideInsta(p){ return {tipo:"instagram", usuario:p.usuario, nome:p.nome, foto:p.foto, posts:(p.posts.length?p.posts:[p.ultimo]).filter(Boolean).slice(0,4), antigo:!p.posts.length, fala:falaInsta(p)}; }
+// usado pela IA (ver_instagram) e pelo botão "Ver agora" dos Ajustes
+async function mostrarInstagram(perfis, horas=48){
+  if (!cfg.insta?.token || !cfg.insta?.igId) return {erro:"O Instagram ainda não está conectado. Diga ao usuário para abrir os Ajustes (engrenagem), seção Instagram, e seguir o passo a passo."};
+  if (cfg.insta.vencido) return {erro:"O acesso ao Instagram venceu. Diga ao usuário para gerar um token novo em Ajustes, seção Instagram."};
+  if (!(perfis||cfg.insta.perfis||[]).length) return {erro:"Nenhum perfil para acompanhar. Diga ao usuário para escrever os perfis em Ajustes, seção Instagram (ex.: @raquellyra)."};
+  let r; try{ r = await instaNovidades(perfis, horas); } catch(e){ return {erro: instaMsgErro(e)}; }
+  const slides = r.perfis.filter(p=>p.posts.length || p.ultimo).map(slideInsta);
+  if (slides.length){
+    highlight={tipo:"apresentacao", titulo:"Instagram", slides, i:0}; store.set("hl",highlight); tab="destaque"; renderCard(); renderTicker(); storyPlay();
+  }
+  const novos = r.perfis.filter(p=>p.posts.length);
+  const resumo = novos.length ? novos.map(falaInsta).join(" ") : `Nenhum perfil postou nas últimas ${horas} horas.`;
+  return {ok:true, horas, resumo, perfis:r.perfis.map(p=>({perfil:"@"+p.usuario, nome:p.nome, postagens_recentes:p.posts.length, ultima: p.ultimo ? {quando:quandoFala(p.ultimo.t), legenda:legendaCurta(p.ultimo.legenda, 300)} : null})), erros:r.erros, nota:"os cartões já estão passando na tela; responda em 1 ou 2 frases"};
+}
+function ajustesInsta(){
+  const ig = cfg.insta || {}, ok = ig.token && ig.igId && !ig.vencido, dias = instaDias();
+  const link = (u, t) => `<a data-act="abrir-noticia" data-url="${u}" role="link" tabindex="0">${t}</a>`;
+  const passos = `<details class="diag"${ok?"":" open"}><summary>Como gerar o token (faça no computador, uns 10 minutos)</summary><ol class="aj-passos">
+    <li>No app do Instagram que vai fazer a consulta: <b>Configurações › Tipo de conta e ferramentas › Mudar para conta profissional</b> (Criador de conteúdo ou Empresa). É grátis.</li>
+    <li>Ligue essa conta a uma <b>Página do Facebook</b>: Instagram › Editar perfil › Página › Conectar. Se não tiver página, crie uma simples na hora.</li>
+    <li>Entre em ${link("https://developers.facebook.com/apps","developers.facebook.com/apps")} com o seu Facebook e toque em <b>Criar app</b>. Escolha o caso de uso de <b>Instagram</b> (ou "Outro" › tipo "Empresa") e conclua.</li>
+    <li>Abra o ${link("https://developers.facebook.com/tools/explorer","Explorador da Graph API")}, escolha o app que você criou e, em Permissões, adicione <b>instagram_basic</b>, <b>pages_show_list</b>, <b>pages_read_engagement</b> e <b>business_management</b>. Toque em <b>Gerar token de acesso</b>, entre com o Facebook e marque a sua página.</li>
+    <li>Copie o token, abra o ${link("https://developers.facebook.com/tools/debug/accesstoken","Depurador de token")}, cole, toque em <b>Depurar</b> e depois em <b>Estender token de acesso</b>. Copie o token novo: ele vale 60 dias.</li>
+    <li>Cole o token aqui embaixo e toque em <b>Conectar</b>. Depois escreva os perfis que quer acompanhar.</li></ol></details>`;
+  return `<div class="aj-sec">Instagram</div>
+    ${ok ? `<div class="row"><span class="sub">Conectado como <b style="color:var(--fg)">@${esc(ig.conta||"")}</b>${dias>=50?` · <span style="color:var(--amber)">o acesso vence em ${Math.max(0,60-dias)} dias: gere um token novo</span>`:""}</span><button class="btn-line" data-act="insta-sair" type="button">Desconectar</button></div>
+      <div><label class="lbl" for="sInstaPerfis">Perfis para acompanhar (um por linha)</label><textarea class="inp" id="sInstaPerfis" rows="3" placeholder="@raquellyra" style="height:auto;padding:8px 12px;resize:vertical">${esc((ig.perfis||[]).map(u=>"@"+u).join("\n"))}</textarea></div>
+      <div class="row"><span class="sub">Postagens das últimas 24 horas entram no briefing. Só funciona com perfis públicos de empresa ou criador.</span><button class="btn-line" data-act="insta-testar" type="button">Ver agora</button></div>
+      ${dias>=50?passos:""}`
+    : `<p class="note" style="margin:0">O ${esc(cfg.name)} pode avisar no briefing quando um perfil postar. Ele usa o caminho oficial da Meta, com um token seu${ig.vencido?". <b>O token anterior venceu</b>: gere outro e cole aqui":""}.</p>
+      ${passos}
+      <div><label class="lbl" for="sInstaTok">Token de acesso da Meta</label><input class="inp" id="sInstaTok" placeholder="cole o token aqui" autocomplete="off" autocapitalize="off" spellcheck="false"></div>
+      <div class="row"><span class="sub">O token fica só neste celular.</span><button class="btn-line" data-act="insta-conectar" type="button">Conectar</button></div>`}
+    ${instaErro?`<p class="note bad" style="margin:0">${esc(instaErro)}</p>`:""}`;
+}
 const TEMPO_COD = c => c===0?"céu limpo":c<=2?"poucas nuvens":c===3?"nublado":c<=48?"neblina":c<=57?"garoa":c<=67?"chuva":c<=77?"neve":c<=82?"pancadas de chuva":"tempestade";
 const UFS = "acre|alagoas|amapá|amazonas|bahia|ceará|distrito federal|espírito santo|goiás|maranhão|mato grosso do sul|mato grosso|minas gerais|pará|paraíba|paraná|pernambuco|piauí|rio de janeiro|rio grande do norte|rio grande do sul|rondônia|roraima|santa catarina|são paulo|sergipe|tocantins";
 async function geoCidade(cidade){
@@ -754,7 +909,7 @@ function escutaNome(){
         if (!escutaPediuPerm){ escutaPediuPerm=true; const SR=plugin("SpeechRecognition"); const r=await SR?.requestPermissions().catch(()=>null); if (r?.speechRecognition==="granted"){ escutaErro=""; escutaNome(); } }
       } else if (e?.code==="sem_google" && cfg.escutaModo!=="offline"){ cfg.escutaModo="offline"; store.set("cfg",cfg); diario("escuta do nome: sem reconhecimento do Google, usando o modo sem internet"); escutaNome(); return;
       } else { escutaErro = "Não consegui ligar a escuta do nome neste aparelho."; cfg.chamarNome=false; diario(`escuta do nome falhou (${e?.code||""} ${e?.message||e})`); }
-      if (tab==="ajustes") renderCard();
+      if (ajOpen) renderAjustes();
     }
   }, 500);
 }
@@ -768,7 +923,7 @@ async function bolhaLigar(){
   bolhaPendente = false;
   bolhaInfo = await BOLHA.ligar().catch(e=>{ diario(`botão flutuante falhou (${e?.code||""} ${e?.message||e})`); return null; });
   if (bolhaInfo?.ligada) caption("Pronto. Quando você sair do Atlas, a bolinha aparece por cima dos apps. Toque nela para falar comigo.");
-  if (tab==="ajustes") renderCard();
+  if (ajOpen) renderAjustes();
 }
 let pedidoBolha = "", briefingBolha = false;
 function ouvirPelaBolha(tentativa=0){
@@ -802,7 +957,7 @@ if (BOLHA){
     if (document.hidden) return;
     await bolhaAtualizar();
     if (bolhaPendente && bolhaInfo?.permissao) bolhaLigar();
-    else if (tab==="ajustes") renderCard();
+    else if (ajOpen) renderAjustes();
   });
 }
 if (ESCUTA){
@@ -825,7 +980,7 @@ if (ESCUTA){
 }
 let piperInfo = null, piperBaixa = null;
 const motorVoz = () => cfg?.vozMotor || (VOZ ? "piper" : "aparelho");
-async function atualizarPiper(){ if(!VOZ) return null; try{ piperInfo = await VOZ.info(); }catch(e){ piperInfo = null; } if(tab==="ajustes" && !$("#card").contains(document.activeElement)) renderCard(); return piperInfo; }
+async function atualizarPiper(){ if(!VOZ) return null; try{ piperInfo = await VOZ.info(); }catch(e){ piperInfo = null; } if(ajOpen && !$("#ajCard").contains(document.activeElement)) renderAjustes(); return piperInfo; }
 if (VOZ){
   VOZ.addListener("progresso", d=>{ piperBaixa = d; const el=$("#piperPct"); if(el) el.textContent = d.pct>=0 ? `Baixando… ${d.pct}%` : `Baixando… ${d.mb} MB`; });
   setTimeout(atualizarPiper, 1500); setTimeout(atualizarPiper, 8000);
@@ -1361,10 +1516,27 @@ function renderCard(){
   } else if (tab==="historico"){
     el.innerHTML = `<div class="eyebrow">Conversa</div>` + (history.length ? `<div class="hist">${history.slice(-30).map(m=>`<div><b>${m.role==="user"?esc(cfg?.user||"VOCÊ").toUpperCase():esc(cfg?.name||"ATLAS")}</b>${esc(m.content)}</div>`).join("")}</div>` : `<p class="empty">A conversa desta sessão aparece aqui.</p>`);
     el.scrollTop = el.scrollHeight;
-  } else {
-    el.innerHTML = `<div class="eyebrow">Ajustes</div><div class="set">
+  }
+}
+function abrirAjustes(foco){
+  ajOpen = true; $("#ajModal").hidden = false; $("#ajBtn").setAttribute("aria-expanded","true");
+  renderAjustes(); $("#ajCard").scrollTop = 0;
+  if (foco) setTimeout(()=>{ const f=$(foco); if(f){ f.scrollIntoView({block:"center"}); f.focus(); } }, 80);
+}
+function fecharAjustes(){
+  if (!ajOpen) return;
+  document.activeElement?.blur?.();
+  store.set("cfg",cfg); ajOpen = false; $("#ajModal").hidden = true; $("#ajBtn").setAttribute("aria-expanded","false"); $("#ajCard").innerHTML = "";
+}
+function renderAjustes(){
+  if (!ajOpen) return;
+  const el=$("#ajCard");
+  {
+    el.innerHTML = `<div class="set">
+      <div class="aj-sec">Você e o assistente</div>
       <div><label class="lbl" for="sName">Nome do assistente</label><input class="inp" id="sName" value="${esc(cfg.name)}"></div>
       <div><label class="lbl" for="sUser">Seu nome</label><input class="inp" id="sUser" value="${esc(cfg.user)}"></div>
+      <div class="aj-sec">Voz</div>
       ${NATIVE ? `<div class="gbox">
         <div class="row"><label class="lbl" for="sMotor" style="margin:0">Voz do ${esc(cfg.name)}</label><select class="inp" id="sMotor" style="width:auto">${VOZ?`<option value="piper" ${motorVoz()==="piper"?"selected":""}>Neural offline (recomendada)</option>`:""}${cfg.keys?.gemini?`<option value="gemini" ${motorVoz()==="gemini"?"selected":""}>Gemini (online)</option>`:""}<option value="aparelho" ${motorVoz()==="aparelho"?"selected":""}>Do aparelho</option></select></div>
         ${motorVoz()==="piper" ? ajustesPiper()
@@ -1377,8 +1549,12 @@ function renderCard(){
         <div class="row"><span class="sub">Ouça como fica</span><button class="btn-line" data-act="voz-testar" type="button">Testar voz</button></div>
       </div>` : `<div class="row"><label class="lbl" for="sVoice" style="margin:0">Voz</label><select class="inp" id="sVoice" style="width:auto">${["buttery","airy","glassy","rounded"].map(v=>`<option ${cfg.voice===v?"selected":""}>${v}</option>`).join("")}</select></div>`}
       <div class="row"><label class="lbl" for="sSpeak" style="margin:0">Responder em voz alta</label><input type="checkbox" id="sSpeak" ${cfg.speak?"checked":""}></div>
+      <div class="aj-sec">Briefing</div>
       <div><label class="lbl" for="sTopics">Assuntos do briefing (um por linha)</label><textarea class="inp" id="sTopics" rows="4" style="height:auto;padding:8px 12px;resize:vertical">${esc(topics().map(t=>t.nome).join("\n"))}</textarea></div>
       <div class="row"><span class="sub">Rotina: ${cfg.rotina?`briefing às <b style="color:var(--fg)">${esc(cfg.rotina.hora)}</b>${cfg.rotina.dias==="uteis"?", seg a sex":", todos os dias"}${cfg.rotina.lembrete?" · com aviso":""}`:"não configurada"}</span><button class="btn-line" data-act="onboarding" type="button">Refazer configuração</button></div>
+      <div class="row"><label class="lbl" for="sBrAbrir" style="margin:0">Briefing ao abrir</label><select class="inp" id="sBrAbrir" style="width:auto"><option value="sempre" ${briefingSempre()?"selected":""}>Toda vez que abrir</option><option value="dia" ${briefingSempre()?"":"selected"}>Só 1 vez por dia</option></select></div>
+      ${ajustesInsta()}
+      <div class="aj-sec">Inteligência artificial</div>
       <div><span class="lbl">Skills instaladas</span><div class="chips">${(cfg.agent?.skills||["Agenda","Destaques","Tradução PT/EN/ES","PDF: ler e padronizar","Pesquisa avançada","Briefing de notícias","Tutor de estudos"]).map(x=>`<span>✓ ${x}</span>`).join("")}</div></div>
       <div class="gbox"><div class="row"><span class="sub">Gasto com a IA neste mês: <b style="color:var(--green)">${esc(brl(gastoAtual().usd))}</b>${cfg.provider==="gemini"&&geminiGratis()?" · Gemini grátis":""}</span><button class="btn-line" data-act="gasto-ver" type="button">Ver gasto</button></div>
         <div class="row"><label class="lbl" for="sLim" style="margin:0">Limite por mês (R$)</label><input class="inp" id="sLim" inputmode="decimal" placeholder="sem limite" style="width:120px" value="${num(cfg.limite?.usd)>0?(num(cfg.limite.usd)*cotacao()).toFixed(2).replace(".",","):""}"></div>
@@ -1387,10 +1563,11 @@ function renderCard(){
         ${cfg.provider==="gemini"||cfg.keys?.gemini?`<div class="row"><label class="lbl" for="sGemPlano" style="margin:0">Plano do Gemini</label><select class="inp" id="sGemPlano" style="width:auto"><option value="gratis" ${geminiGratis()?"selected":""}>Grátis</option><option value="pago" ${geminiGratis()?"":"selected"}>Pago (faturamento ativo)</option></select></div>`:""}
         <p class="note" style="margin:0">Aviso aos 80% do limite. O valor é uma estimativa pelos preços de tabela.</p></div>
       <div class="row"><span class="sub">Conversa salva: ${history.length} mensagens</span><button class="btn-line" data-act="limpar" type="button">Limpar conversa</button></div>
+      <div class="aj-sec">Atalhos e música</div>
       ${NATIVE?`<div class="row"><label class="lbl" for="sMus" style="margin:0">App de música</label><select class="inp" id="sMus" style="width:auto"><option value="">Automático</option>${(appsMusica||[]).map(a=>`<option value="${esc(a.id)}" ${cfg.musicaApp===a.id?"selected":""}>${esc(a.nome)}</option>`).join("")}</select></div>`:""}
-      <div class="row"><label class="lbl" for="sBrAbrir" style="margin:0">Briefing ao abrir</label><select class="inp" id="sBrAbrir" style="width:auto"><option value="sempre" ${briefingSempre()?"selected":""}>Toda vez que abrir</option><option value="dia" ${briefingSempre()?"":"selected"}>Só 1 vez por dia</option></select></div>
       ${ESCUTA?`<div class="row"><label class="lbl" for="sNome" style="margin:0">Chamar pelo nome: diga "Atlas" com o app aberto</label><input type="checkbox" id="sNome" ${cfg.chamarNome!==false?"checked":""}></div>${cfg.chamarNome!==false?`<div class="row"><label class="lbl" for="sNomeModo" style="margin:0">Como ouvir o nome</label><select class="inp" id="sNomeModo" style="width:auto"><option value="google" ${(cfg.escutaModo||"google")==="google"?"selected":""}>Google (mais preciso)</option><option value="offline" ${cfg.escutaModo==="offline"?"selected":""}>Sem internet (menos preciso)</option></select></div>`:""}${escutaErro?`<p class="note bad" style="margin:0">${esc(escutaErro)}</p>`:""}`:""}
       ${BOLHA?`<div class="row"><label class="lbl" for="sBolha" style="margin:0">Botão flutuante: bolinha do Atlas por cima dos outros apps</label><input type="checkbox" id="sBolha" ${bolhaInfo?.ligada?"checked":""}></div>${bolhaInfo?.ligada&&!bolhaInfo?.permissao?`<p class="note bad" style="margin:0">A permissão "Sobrepor a outros apps" foi tirada. Desmarque e marque de novo para liberar.</p>`:""}`:""}
+      <div class="aj-sec">Sistema</div>
       <div class="row"><label class="lbl" for="sFx" style="margin:0">Efeitos visuais</label><select class="inp" id="sFx" style="width:auto"><option value="leve" ${FX.lite?"selected":""}>Leve (recomendado)</option><option value="completo" ${FX.lite?"":"selected"}>Completo</option></select></div>
       ${cfg.agent?`<div class="sub">Modelo: <b style="color:var(--fg)">${esc(cfg.model?.[cfg.provider]||cfg.agent.id)}</b><br>Conectado em ${new Date(cfg.agent.criadoEm).toLocaleString("pt-BR")}</div>`:""}
       <div class="row"><span class="sub">Conectado: <b style="color:var(--cyan)">${sample?PROV[cfg.provider]:"nenhuma IA"}</b></span><button class="btn-line warn" id="logout" type="button">Trocar IA</button></div>
@@ -1401,7 +1578,11 @@ function renderCard(){
   }
 }
 $(".tabs").addEventListener("click", e=>{ const b=e.target.closest("button"); if(!b) return; tab=b.dataset.tab; renderCard(); });
-$("#card").addEventListener("click", e=>{
+$("#ajBtn").addEventListener("click", ()=> ajOpen ? fecharAjustes() : abrirAjustes());
+$("#ajFechar").addEventListener("click", fecharAjustes);
+$("#ajModal").addEventListener("click", e=>{ if (e.target.id==="ajModal") fecharAjustes(); });
+addEventListener("keydown", e=>{ if (e.key==="Escape" && ajOpen) fecharAjustes(); });
+function cliqueCartao(e){
   const c=e.target.closest(".chk"); if(c){ const x=tasks.find(t=>t.id==c.dataset.id); if(x){x.feito=!x.feito; saveTasks(); renderCard(); renderTicker();} }
   const act=e.target.closest("[data-act]")?.dataset.act;
   if(act==="anexar") $("#file").click();
@@ -1415,9 +1596,9 @@ $("#card").addEventListener("click", e=>{
   if(act==="abrir-noticia"){ const u=e.target.closest("[data-url]")?.dataset.url; if(u && /^https:\/\//.test(u)){ if(story){ storyStop(); try{ tts?.stop(); }catch{} } openExternal(u); } }
   if(act==="voz-testar"){ store.set("cfg",cfg); vozGeminiPausaAte=0; const t=`Olá, ${cfg.user||"senhor"}. Eu sou o ${cfg.name.charAt(0)+cfg.name.slice(1).toLowerCase()}. É assim que eu vou falar com você.`; caption(esc(t)); if(tts){ tts.stop(); setMode("speaking"); tts.speak(t,{language:"pt-BR"}).catch(()=>{}).finally(()=>setMode("idle")); } }
   if(act==="diag-copiar"){ const txt=`Atlas ${VERSAO_APP} · ${new Date().toLocaleString("pt-BR")} · ${cfg.provider} ${cfg.model?.[cfg.provider]||""}\n`+DIAG.join("\n"); (navigator.clipboard?.writeText(txt)||Promise.reject()).then(()=>caption("Diagnóstico copiado. Cole no WhatsApp e mande para quem está te ajudando.")).catch(()=>caption("<em>Não consegui copiar. Abra 'Ver as últimas linhas' e tire um print.</em>")); }
-  if(act==="gasto-ver"){ highlight={tipo:"gasto", titulo:"Gasto com a IA", deAjustes:true}; tab="destaque"; renderCard(); }
-  if(act==="voltar-ajustes"){ tab="ajustes"; renderCard(); $("#card").scrollTop=0; }
-  if(act==="gasto-ajustes"){ tab="ajustes"; renderCard(); setTimeout(()=>$("#sLim")?.focus(),50); }
+  if(act==="gasto-ver"){ fecharAjustes(); highlight={tipo:"gasto", titulo:"Gasto com a IA", deAjustes:true}; tab="destaque"; renderCard(); }
+  if(act==="voltar-ajustes") abrirAjustes();
+  if(act==="gasto-ajustes") abrirAjustes("#sLim");
   if(act==="gasto-liberar"){ const g=gastoAtual(); g.liberado=true; store.set("gasto",g); renderCard(); caption("Uso liberado até o fim do mês."); }
   if(act?.startsWith("mus-")) controleMusica(act.slice(4)).catch(err=>caption(`<em>${esc(err.message)}</em>`));
   if(highlight.tipo==="apresentacao"){
@@ -1427,13 +1608,21 @@ $("#card").addEventListener("click", e=>{
     if(act==="story-next") storyManual((highlight.i||0)+1);
     if(act==="story-replay"){ highlight.i=0; storyPlay(); }
   }
-  if(act==="limpar"){ history.length=0; saveHist(); renderCard(); caption("Conversa apagada. Podemos começar do zero."); }
-  if(act==="onboarding") onboarding().then(()=>{ renderCard(); renderTicker(); runBriefing({abertura:true}); });
+  if(act==="limpar"){ history.length=0; saveHist(); renderCard(); renderAjustes(); caption("Conversa apagada. Podemos começar do zero."); }
+  if(act==="onboarding"){ fecharAjustes(); } if(act==="onboarding") onboarding().then(()=>{ renderCard(); renderTicker(); runBriefing({abertura:true}); });
   if(act==="resumir") ask("Leia o PDF aberto e me faça um resumo.");
   if(act==="ouvir" && highlight.tipo==="traducao") speakIn(highlight.traducao, highlight.para);
   if(act==="copiar" && highlight.tipo==="traducao"){ navigator.clipboard?.writeText(highlight.traducao).then(()=>{ e.target.textContent="Copiado"; }).catch(()=>{}); }
-  if (e.target.id==="logout"){ cfg.provider=null; store.set("cfg",cfg); sample=null; showLogin(); }
-});
+  if (e.target.id==="logout"){ fecharAjustes(); cfg.provider=null; store.set("cfg",cfg); sample=null; showLogin(); }
+  if(act==="insta-conectar"){ const tk=($("#sInstaTok")?.value||"").trim(); if(!tk){ instaErro="Cole o token antes de tocar em Conectar."; renderAjustes(); return; }
+    e.target.disabled=true; e.target.textContent="Conectando…";
+    instaConectar(tk).then(()=>{ instaErro=""; caption(`Instagram conectado como <b>@${esc(cfg.insta.conta)}</b>. Agora escreva os perfis que quer acompanhar.`); renderAjustes(); setTimeout(()=>$("#sInstaPerfis")?.focus(),60); })
+      .catch(err=>{ instaErro = instaMsgErro(err); renderAjustes(); }); }
+  if(act==="insta-sair"){ cfg.insta={perfis:cfg.insta?.perfis||[]}; store.set("cfg",cfg); instaErro=""; renderAjustes(); }
+  if(act==="insta-testar"){ fecharAjustes(); mostrarInstagram(null, 48).then(r=>{ if(r?.erro) caption(`<em>${esc(r.erro)}</em>`); else caption(esc(r.resumo||"")); }); }
+}
+$("#card").addEventListener("click", cliqueCartao);
+$("#ajCard").addEventListener("click", cliqueCartao);
 let toque=null;
 $("#card").addEventListener("touchstart", e=>{ toque=e.touches[0] ? {x:e.touches[0].clientX, y:e.touches[0].clientY} : null; }, {passive:true});
 $("#card").addEventListener("touchend", e=>{
@@ -1441,15 +1630,15 @@ $("#card").addEventListener("touchend", e=>{
   const t=e.changedTouches[0], dx=t.clientX-toque.x, dy=t.clientY-toque.y; toque=null;
   if(Math.abs(dx)>50 && Math.abs(dx)>Math.abs(dy)*1.5) storyManual((highlight.i||0)+(dx<0?1:-1));
 }, {passive:true});
-$("#card").addEventListener("change", e=>{
+function mudouAjuste(e){
   const id=e.target.id;
   if(id==="sName"){ cfg.name=(e.target.value.trim()||"ATLAS").toUpperCase(); applyName(); }
   if(id==="sUser") cfg.user=e.target.value.trim();
   if(id==="sVoice") cfg.voice=e.target.value;
-  if(id==="sMotor"){ cfg.vozMotor=e.target.value; vozGeminiPausaAte=0; store.set("cfg",cfg); renderCard(); }
+  if(id==="sMotor"){ cfg.vozMotor=e.target.value; vozGeminiPausaAte=0; store.set("cfg",cfg); renderAjustes(); }
   if(id==="sVozG"){ cfg.vozGemini=e.target.value; vozGeminiPausaAte=0; }
   if(id==="sVozN"){ cfg.vozNativa=e.target.value; }
-  if(id==="sVozP"){ cfg.vozPiper=e.target.value; piperPausaAte=0; store.set("cfg",cfg); renderCard(); const v=piperInfo?.vozes?.find(x=>x.id===cfg.vozPiper); if(v?.instalada) VOZ?.carregar({voz:cfg.vozPiper}).catch(()=>{}); }
+  if(id==="sVozP"){ cfg.vozPiper=e.target.value; piperPausaAte=0; store.set("cfg",cfg); renderAjustes(); const v=piperInfo?.vozes?.find(x=>x.id===cfg.vozPiper); if(v?.instalada) VOZ?.carregar({voz:cfg.vozPiper}).catch(()=>{}); }
   if(id==="sVel"){ cfg.vozVelocidade=parseFloat(e.target.value)||1; }
   if(id==="sSpeak") cfg.speak=e.target.checked;
   if(id==="sFx"){ cfg.fx=e.target.value; store.set("cfg",cfg); applyFx(); }
@@ -1458,13 +1647,16 @@ $("#card").addEventListener("change", e=>{
   if(id==="sNomeModo"){ cfg.escutaModo=e.target.value; store.set("cfg",cfg); pararEscuta().then(escutaNome); }
   if(id==="sNome"){ cfg.chamarNome=e.target.checked; store.set("cfg",cfg); escutaErro=""; escutaNome(); }
   if(id==="sMus"){ cfg.musicaApp=e.target.value; store.set("cfg",cfg); }
-  if(id==="sCot"){ const v=num(e.target.value); if(v>0){ const lim=num(cfg.limite?.usd)*cotacao(); cfg.cotacao=v; if(lim>0) cfg.limite.usd=lim/v; } store.set("cfg",cfg); renderCard(); }
-  if(id==="sLim"){ const v=num(e.target.value); cfg.limite=Object.assign({acao:"confirmar"}, cfg.limite, {usd: v>0 ? v/cotacao() : 0}); const g=gastoAtual(); g.aviso80=false; g.liberado=false; store.set("gasto",g); store.set("cfg",cfg); renderCard(); }
+  if(id==="sCot"){ const v=num(e.target.value); if(v>0){ const lim=num(cfg.limite?.usd)*cotacao(); cfg.cotacao=v; if(lim>0) cfg.limite.usd=lim/v; } store.set("cfg",cfg); renderAjustes(); }
+  if(id==="sLim"){ const v=num(e.target.value); cfg.limite=Object.assign({acao:"confirmar"}, cfg.limite, {usd: v>0 ? v/cotacao() : 0}); const g=gastoAtual(); g.aviso80=false; g.liberado=false; store.set("gasto",g); store.set("cfg",cfg); renderAjustes(); }
   if(id==="sLimAcao"){ cfg.limite=Object.assign({usd:0}, cfg.limite, {acao:e.target.value}); store.set("cfg",cfg); }
-  if(id==="sGemPlano"){ cfg.geminiPlano=e.target.value; store.set("cfg",cfg); connectAI(); renderCard(); }
+  if(id==="sGemPlano"){ cfg.geminiPlano=e.target.value; store.set("cfg",cfg); connectAI(); renderAjustes(); }
   if(id==="sTopics"){ setTimeout(agendarLembrete,0); const old=topics(); cfg.interesses=e.target.value.split("\n").map(x=>x.trim()).filter(Boolean).slice(0,8).map(n=>old.find(o=>o.nome===n)||{nome:n,q:n}); }
+  if(id==="sInstaPerfis"){ cfg.insta = Object.assign({}, cfg.insta, {perfis: e.target.value.split(/[\n,;]+/).map(nomePerfil).filter(u=>/^[a-z0-9._]{1,30}$/.test(u)).filter((u,k,a)=>a.indexOf(u)===k).slice(0,10)}); }
   store.set("cfg",cfg);
-});
+}
+$("#card").addEventListener("change", mudouAjuste);
+$("#ajCard").addEventListener("change", mudouAjuste);
 function renderTicker(){
   const pend=tarefasVisiveis().filter(t=>!t.feito).map(t=>`${rotuloData(t.data)} ${t.hora||""} ${t.titulo}`.trim());
   const items=[`${PROV[cfg?.provider]||""} conectado`, highlight?.titulo, ...pend.map(p=>"Agenda: "+p)].filter(Boolean);
@@ -1489,6 +1681,7 @@ O usuário pode te chamar pelo nome por voz ("${cfg.name}, ..."); a mensagem del
 Você controla um painel (HUD). Use as ferramentas quando fizer sentido:
 - adicionar_tarefa / concluir_tarefa / remover_tarefa para a agenda do dia.
 - mostrar_destaque para exibir um cartão com título, um valor grande (número, porcentagem, horário) e itens curtos. Use sempre que a resposta tiver um número ou dado-chave, um resumo, ou uma lista.
+INSTAGRAM: para saber se alguém postou algo, use ver_instagram (só lê perfis que o usuário escolheu ou o @ que ele disser).
 MÚSICA: para tocar algo use tocar_musica (responda curto, a música já vai começar); para pausar, pular ou mudar o volume use controlar_musica.
 O USUÁRIO É MUITO VISUAL, EM QUALQUER ASSUNTO (não só esporte): quase toda resposta deve aparecer no painel além de ser falada, da mais simples à mais complexa. Resposta com mais de uma parte (o dia de hoje, resumo, comparação, passo a passo, notícias, finanças, saúde, viagem) → apresentar, com 2 a 6 cartões variados (numeros, grafico, agenda, clima, noticias, placar, destaque). "O que temos para hoje?", "bom dia" ou "novidades" → briefing_noticias. Placar ou resultado de jogo → mostrar_placar (com cores dos uniformes, gols e estatísticas que encontrar). Três ou mais números comparáveis ou uma evolução no tempo → mostrar_grafico. Um único dado-chave → mostrar_destaque. Para fatos atuais (placares, tabela, cotações, clima, resultados) use a busca na web antes, quando disponível. Nunca invente placar, estatística ou número: se não encontrar, diga que não achou.
 SKILLS:
@@ -1612,7 +1805,7 @@ let briefingBusy=false, pendingBriefing=false;
 async function runBriefing({abertura=false}={}){
   if(briefingBusy) return; briefingBusy=true;
   const minhaVez = cancelGen;
-  let faltou = [];
+  let faltou = [], insta = null;
   const per=periodo();
   let helloP=Promise.resolve();
   // conta como "feito hoje" já na tentativa: se falhar, não fica repetindo a cada minuto
@@ -1664,7 +1857,9 @@ async function runBriefing({abertura=false}={}){
         if(tab==="destaque") renderCard(); } };
       const climaP = cidadeClima ? climaHoje(cidadeClima).then(x=>{ clima=x; }).catch(e=>diario(`clima: falhou (${e?.message||e})`)) : Promise.resolve();
       const cotP = ts.some(ehCot) ? cotacoes().then(x=>{ cot=x; }).catch(e=>diario(`cotação: falhou (${e?.message||e})`)) : Promise.resolve();
-      await Promise.all([trabalhador(), trabalhador(), trabalhador(), trabalhador(), climaP, cotP]);
+      const instaP = (instaPronto() && cfg.insta.perfis?.length) ? instaNovidades(null, 24).then(x=>{ insta=x; }).catch(e=>{ diario(`instagram: falhou (${e?.code||""} ${e?.message||e})`); if(e?.code==="token_expirado") faltou.push({assunto:"Instagram", motivo:"o acesso ao Instagram venceu; gere um token novo nos Ajustes"}); }) : Promise.resolve();
+      await Promise.all([trabalhador(), trabalhador(), trabalhador(), trabalhador(), climaP, cotP, instaP]);
+      if(insta){ insta.erros.forEach(x=>faltou.push({assunto:`@${x.usuario} no Instagram`, motivo:x.motivo})); if(insta.perfis.length && !insta.perfis.some(p=>p.posts.length)) faltou.push({assunto:"Instagram", motivo:"nenhum dos perfis que você acompanha postou nas últimas 24 horas"}); }
       ts.forEach((t,i)=>{ if(ehClima(t)){ highlight.topicos[i].status = clima ? "ok" : "sem dados"; if(!clima) faltou.push({assunto:t.nome, motivo: cidadeClima ? "o serviço de previsão do tempo não respondeu ou não achou a cidade" : "a cidade não foi informada"}); } });
       if(tab==="destaque") renderCard();
       const ok = resultados.filter(Boolean);
@@ -1741,6 +1936,7 @@ No máximo 3 manchetes por assunto. Use só informação presente nos resultados
       if(t.placar) slides.push(Object.assign({}, t.placar, {tipo:"placar", competicao:t.placar.competicao||t.assunto, fala:t.fala, legenda:t.resumo}));
       slides.push({tipo:"noticias", categoria:t.placar?"Mais notícias":"Notícias", titulo:t.assunto, resumo:t.resumo, manchetes:t.manchetes, numeros:t.placar?null:t.numeros, fala:t.placar?"":t.fala});
     });
+    (insta?.perfis||[]).filter(p=>p.posts.length).forEach(p=>slides.push(slideInsta(p)));
     if(r.faltou?.length){
       const nomes = r.faltou.map(f=>f.assunto);
       const lista = nomes.length>1 ? nomes.slice(0,-1).join(", ")+" e "+nomes.slice(-1) : nomes[0];
@@ -1907,6 +2103,15 @@ function renderNoticias(s){
     ${m0?`<div class="hero-news"${link(m0)}><div class="meta">${fonte(m0)}</div><p>${esc(m0.titulo)}</p>${m0.link?`<span class="ler">Ler matéria ›</span>`:""}</div>`:""}
     ${resto.length?`<ul class="news2">${resto.slice(0,3).map((m,i)=>`<li style="animation-delay:${.35+i*.12}s"${link(m)}><p>${esc(m.titulo)}</p><div class="meta">${fonte(m)}</div></li>`).join("")}</ul>`:""}`;
 }
+function renderInsta(s){
+  const ps = (s.posts||[]).filter(Boolean), [p0, ...resto] = ps;
+  const abre = m => m?.link ? ` data-act="abrir-noticia" data-url="${esc(m.link)}" role="link" tabindex="0"` : "";
+  const midia = (m, cls) => m.img ? `<img class="${cls}" src="${esc(m.img)}" alt="" loading="lazy" referrerpolicy="no-referrer" onerror="this.replaceWith(Object.assign(document.createElement('div'),{className:'${cls} ig-vid',textContent:'◎'}))">` : `<div class="${cls} ig-vid">${m.video?"▶":"◎"}</div>`;
+  return `<div class="eyebrow"><span class="live-dot"></span>Instagram${s.antigo?" · última postagem":` · ${ps.length} ${ps.length>1?"postagens novas":"postagem nova"}`}</div>
+    <div class="ig-head"><span class="ig-av">${s.foto?`<img src="${esc(s.foto)}" alt="" referrerpolicy="no-referrer">`:`<i>${esc((s.nome||"?").charAt(0).toUpperCase())}</i>`}</span><div><h3>${esc(s.nome||s.usuario)}</h3><span class="sub">@${esc(s.usuario||"")}</span></div></div>
+    ${p0?`<div class="ig-post"${abre(p0)}>${midia(p0,"ig-img")}<div><p>${esc(p0.legenda ? p0.legenda.slice(0,400) : (p0.video?"Vídeo sem legenda":"Foto sem legenda"))}</p><span class="qd">${esc(quandoFala(p0.t))} · Abrir no Instagram ›</span></div></div>`:""}
+    ${resto.length?`<div class="ig-mais">${resto.slice(0,3).map((m,k)=>`<span${abre(m)} style="animation-delay:${.35+k*.12}s;display:block">${midia(m,"")}</span>`).join("")}</div>`:""}`;
+}
 function slideHtml(c){
   switch(c.tipo){
     case "placar": return renderPlacar(c);
@@ -1915,6 +2120,7 @@ function slideHtml(c){
     case "numeros": return renderNumeros(c);
     case "clima": return renderClima(c);
     case "noticias": return renderNoticias(c);
+    case "instagram": return renderInsta(c);
     default: return renderHighlight(Object.assign({}, c, {tipo:"destaque"}));
   }
 }
@@ -2039,7 +2245,7 @@ function registrarUso({p, model, inTok=0, outTok=0, buscas=0}){
     g.aviso80 = true; store.set("gasto", g);
     setTimeout(()=>caption(`<em>Aviso: você já usou ${Math.round(g.usd/lim*100)}% do limite do mês com a IA (${esc(brl(g.usd))} de ${esc(brl(lim))}).</em>`), 1200);
   }
-  if (tab==="ajustes" && !$("#card").contains(document.activeElement)) renderCard();
+  if (ajOpen && !$("#ajCard").contains(document.activeElement)) renderAjustes();
 }
 function checarLimite(){
   const g = gastoAtual(), lim = num(cfg?.limite?.usd);
@@ -2166,6 +2372,9 @@ const tools = [
   {name:"controlar_musica", description:"Controla a música que está tocando em qualquer app: pausar, continuar, próxima, anterior, aumentar ou diminuir o volume.",
    inputSchema:{type:"object", properties:{acao:{type:"string", enum:["pausar","continuar","proxima","anterior","aumentar_volume","diminuir_volume"]}}, required:["acao"]},
    async execute(i){ const r=await controleMusica(i.acao); return {ok:true, volume:r?.volume, volumeMax:r?.volumeMax}; }},
+  {name:"ver_instagram", description:"Confere as postagens recentes no Instagram dos perfis que o usuário acompanha (ou de um perfil público de empresa ou criador que ele citar pelo @) e mostra no painel. Use quando perguntarem se alguém postou, o que fulano postou ou novidades no Instagram.",
+   inputSchema:{type:"object", properties:{perfil:{type:"string", description:"@ do perfil (opcional; vazio = todos os acompanhados)"}, horas:{type:"number", description:"janela em horas (padrão 48)"}}},
+   async execute(i){ const u=nomePerfil(i.perfil||""); return mostrarInstagram(u?[u]:null, Math.min(168, Math.max(1, num(i.horas)||48))); }},
   {name:"apresentar", description:"Mostra no painel uma apresentação animada: cartões que entram, passam sozinhos um depois do outro e saem, como num telejornal. Use para QUALQUER resposta com mais de uma parte, de qualquer assunto: o dia de hoje, resumo, comparação, explicação passo a passo, notícias, finanças, saúde, viagem, receita. Misture tipos de cartão (números, gráfico, agenda, clima, notícias, placar, destaque). Só use números que você tem certeza ou encontrou na busca.",
    inputSchema:{type:"object", properties:{titulo:{type:"string"}, cartoes:{type:"array", minItems:1, maxItems:8, items:CARTAO_SCHEMA}}, required:["cartoes"]},
    execute(i){ const slides=(Array.isArray(i.cartoes)?i.cartoes:[]).slice(0,8).map(limparCartao); if(!slides.length) throw new Error("Nenhum cartão.");
