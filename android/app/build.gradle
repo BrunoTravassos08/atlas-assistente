@@ -31,7 +31,8 @@ android {
         }
     }
     packagingOptions {
-        jniLibs { useLegacyPackaging = false }
+        // bibliotecas comprimidas dentro do APK: download bem menor (o Android extrai na instalação)
+        jniLibs { useLegacyPackaging = true }
     }
     buildTypes {
         debug {
