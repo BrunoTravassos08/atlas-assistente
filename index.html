@@ -709,7 +709,7 @@ async function climaHoje(cidade){
 async function cotacoes(){
   const j = JSON.parse(await httpTexto("https://economia.awesomeapi.com.br/json/last/USD-BRL,EUR-BRL,BTC-BRL"));
   const it = (k, rot, dec=2, mil=false) => { const x=j?.[k]; if(!x) return null; const v=parseFloat(x.bid); const p=parseFloat(x.pctChange);
-    return {rotulo:rot, valor: mil ? Math.round(v/1000) : +v.toFixed(dec), unidade: mil ? " mil" : "", pre:"R$ ", variacao: isFinite(p) ? `${p>=0?"+":""}${p.toFixed(2).replace(".",",")}%` : ""}; };
+    return {rotulo:`${rot} · R$`, valor: mil ? Math.round(v/1000) : +v.toFixed(dec), unidade: mil ? " mil" : "", variacao: isFinite(p) ? `${p>=0?"+":""}${p.toFixed(2).replace(".",",")}%` : ""}; };
   const lista = [it("USDBRL","Dólar"), it("EURBRL","Euro"), it("BTCBRL","Bitcoin",0,true)].filter(Boolean);
   if (!lista.length) return null;
   const d = lista[0];
