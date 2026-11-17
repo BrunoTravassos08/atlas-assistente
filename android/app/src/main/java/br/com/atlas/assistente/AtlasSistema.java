@@ -6,10 +6,6 @@ import android.app.SearchManager;
 import android.content.ActivityNotFoundException;
 import android.content.Context;
 import android.media.AudioManager;
-import android.media.session.MediaController;
-import android.media.session.MediaSessionManager;
-import android.os.Bundle;
-import android.provider.Settings;
 import android.os.Handler;
 import android.os.Looper;
 import android.os.SystemClock;
@@ -213,50 +209,6 @@ public class AtlasSistema extends Plugin {
         } catch (Exception ignored) { }
     }
 
-    /** Player do app de música (ex.: Spotify), se o acesso às notificações estiver liberado e o app tiver sessão ativa. */
-    private MediaController controlador(String pkg) {
-        if (!MidiaListener.liberado(getContext())) return null;
-        try {
-            MediaSessionManager msm = (MediaSessionManager) getContext().getSystemService(Context.MEDIA_SESSION_SERVICE);
-            for (MediaController mc : msm.getActiveSessions(MidiaListener.componente(getContext()))) {
-                if (pkg.equals(mc.getPackageName())) return mc;
-            }
-        } catch (Exception ignorado) { }
-        return null;
-    }
-
-    private void tocarPorSessao(MediaController mc, String busca, String foco) {
-        Bundle extras = new Bundle();
-        extras.putString(MediaStore.EXTRA_MEDIA_FOCUS, foco);
-        if ("vnd.android.cursor.item/artist".equals(foco)) extras.putString(MediaStore.EXTRA_MEDIA_ARTIST, busca);
-        if ("vnd.android.cursor.item/audio".equals(foco)) extras.putString(MediaStore.EXTRA_MEDIA_TITLE, busca);
-        mc.getTransportControls().playFromSearch(busca, extras);
-    }
-
-    @PluginMethod
-    public void acessoMidia(PluginCall call) {
-        JSObject r = new JSObject();
-        r.put("liberado", MidiaListener.liberado(getContext()));
-        call.resolve(r);
-    }
-
-    @PluginMethod
-    public void pedirAcessoMidia(PluginCall call) {
-        Intent i;
-        if (Build.VERSION.SDK_INT >= 30) {
-            i = new Intent(Settings.ACTION_NOTIFICATION_LISTENER_DETAIL_SETTINGS);
-            i.putExtra(Settings.EXTRA_NOTIFICATION_LISTENER_COMPONENT_NAME, MidiaListener.componente(getContext()).flattenToString());
-        } else {
-            i = new Intent(Settings.ACTION_NOTIFICATION_LISTENER_SETTINGS);
-        }
-        i.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK);
-        try { getContext().startActivity(i); }
-        catch (Exception e) {
-            try { getContext().startActivity(new Intent(Settings.ACTION_NOTIFICATION_LISTENER_SETTINGS).addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)); } catch (Exception ignorado) { }
-        }
-        call.resolve();
-    }
-
     @PluginMethod
     public void tocarMusica(PluginCall call) {
         String busca = call.getString("busca", "").trim();
@@ -273,28 +225,16 @@ public class AtlasSistema extends Plugin {
         java.util.ArrayList<String[]> ordem = new java.util.ArrayList<>();
         for (String[] a : APPS_MUSICA) if (a[0].equals(app)) ordem.add(a);
         for (String[] a : APPS_MUSICA) if (!a[0].equals(app)) ordem.add(a);
-        final boolean acesso = MidiaListener.liberado(getContext());
 
         Activity act = getActivity();
         for (String[] a : ordem) {
             if (!instalado(a[1])) continue;
             final String pkg = a[1];
             JSObject r = new JSObject();
-            r.put("app", a[0]); r.put("nome", a[2]); r.put("pacote", pkg); r.put("acessoMidia", acesso);
+            r.put("app", a[0]); r.put("nome", a[2]); r.put("pacote", pkg);
 
-            // 1) o player já está aberto: manda tocar direto, sem sair do Atlas
-            MediaController mc = controlador(pkg);
-            if (mc != null) {
-                try {
-                    tocarPorSessao(mc, busca, foco);
-                    r.put("metodo", "sessao");
-                    call.resolve(r);
-                    return;
-                } catch (Exception ignorado) { }
-            }
-
-            // 2) abre o app já pedindo a música
-            Intent i = intentTocar(busca, pkg, foco);
+            // abre o app já pedindo a música
+            final Intent i = intentTocar(busca, pkg, foco);
             boolean direto = !pm().queryIntentActivities(i, 0).isEmpty();
             try {
                 if (direto) {
@@ -309,21 +249,20 @@ public class AtlasSistema extends Plugin {
                 continue;
             }
 
-            // 3) o app abriu mas às vezes não começa a tocar: espera o player aparecer e dá o play
+            // o app abriu mas às vezes (Spotify fechado) só faz a busca e não toca:
+            // com ele já aberto, pede de novo (aí ele toca) e, em último caso, aperta o play
             if (direto) {
                 final Handler h = new Handler(Looper.getMainLooper());
                 final long inicio = SystemClock.uptimeMillis();
                 final boolean[] mandou = {false, false};
+                final android.content.Context ctx = getContext().getApplicationContext();
                 h.postDelayed(new Runnable() {
                     @Override public void run() {
                         long t = SystemClock.uptimeMillis() - inicio;
                         boolean tocando = audio().isMusicActive();
-                        if (!tocando && acesso && !mandou[0]) {
-                            MediaController c = controlador(pkg);
-                            if (c != null) { try { tocarPorSessao(c, busca, foco); mandou[0] = true; } catch (Exception ignorado) { } }
-                        }
-                        if (!tocando && !mandou[0] && !mandou[1] && t > 4500) { tecla(KeyEvent.KEYCODE_MEDIA_PLAY); mandou[1] = true; }
-                        if ((tocando && t > 1500) || t > 9000) {
+                        if (!tocando && !mandou[0] && t > 3500) { try { ctx.startActivity(i); } catch (Exception ignorado) { } mandou[0] = true; }
+                        if (!tocando && !mandou[1] && t > 6500) { tecla(KeyEvent.KEYCODE_MEDIA_PLAY); mandou[1] = true; }
+                        if ((tocando && t > 1500) || t > 10000) {
                             if (voltar) voltarParaAtlas();
                             return;
                         }

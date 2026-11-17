@@ -1387,8 +1387,6 @@ function renderCard(){
         ${cfg.provider==="gemini"||cfg.keys?.gemini?`<div class="row"><label class="lbl" for="sGemPlano" style="margin:0">Plano do Gemini</label><select class="inp" id="sGemPlano" style="width:auto"><option value="gratis" ${geminiGratis()?"selected":""}>Grátis</option><option value="pago" ${geminiGratis()?"":"selected"}>Pago (faturamento ativo)</option></select></div>`:""}
         <p class="note" style="margin:0">Aviso aos 80% do limite. O valor é uma estimativa pelos preços de tabela.</p></div>
       <div class="row"><span class="sub">Conversa salva: ${history.length} mensagens</span><button class="btn-line" data-act="limpar" type="button">Limpar conversa</button></div>
-      ${NATIVE&&acessoMidia===false?`<div class="row"><span class="sub">Tocar direto: deixa o Atlas dar o play na música pedida (libere "acesso às notificações")</span><button class="btn-line" data-act="midia-liberar" type="button">Liberar</button></div>`:""}
-      ${NATIVE&&acessoMidia?`<div class="sub">Tocar direto: <b style="color:var(--green)">liberado</b></div>`:""}
       ${NATIVE?`<div class="row"><label class="lbl" for="sMus" style="margin:0">App de música</label><select class="inp" id="sMus" style="width:auto"><option value="">Automático</option>${(appsMusica||[]).map(a=>`<option value="${esc(a.id)}" ${cfg.musicaApp===a.id?"selected":""}>${esc(a.nome)}</option>`).join("")}</select></div>`:""}
       <div class="row"><label class="lbl" for="sBrAbrir" style="margin:0">Briefing ao abrir</label><select class="inp" id="sBrAbrir" style="width:auto"><option value="sempre" ${briefingSempre()?"selected":""}>Toda vez que abrir</option><option value="dia" ${briefingSempre()?"":"selected"}>Só 1 vez por dia</option></select></div>
       ${ESCUTA?`<div class="row"><label class="lbl" for="sNome" style="margin:0">Chamar pelo nome: diga "Atlas" com o app aberto</label><input type="checkbox" id="sNome" ${cfg.chamarNome!==false?"checked":""}></div>${cfg.chamarNome!==false?`<div class="row"><label class="lbl" for="sNomeModo" style="margin:0">Como ouvir o nome</label><select class="inp" id="sNomeModo" style="width:auto"><option value="google" ${(cfg.escutaModo||"google")==="google"?"selected":""}>Google (mais preciso)</option><option value="offline" ${cfg.escutaModo==="offline"?"selected":""}>Sem internet (menos preciso)</option></select></div>`:""}${escutaErro?`<p class="note bad" style="margin:0">${esc(escutaErro)}</p>`:""}`:""}
@@ -1418,7 +1416,6 @@ $("#card").addEventListener("click", e=>{
   if(act==="voz-testar"){ store.set("cfg",cfg); vozGeminiPausaAte=0; const t=`Olá, ${cfg.user||"senhor"}. Eu sou o ${cfg.name.charAt(0)+cfg.name.slice(1).toLowerCase()}. É assim que eu vou falar com você.`; caption(esc(t)); if(tts){ tts.stop(); setMode("speaking"); tts.speak(t,{language:"pt-BR"}).catch(()=>{}).finally(()=>setMode("idle")); } }
   if(act==="diag-copiar"){ const txt=`Atlas ${VERSAO_APP} · ${new Date().toLocaleString("pt-BR")} · ${cfg.provider} ${cfg.model?.[cfg.provider]||""}\n`+DIAG.join("\n"); (navigator.clipboard?.writeText(txt)||Promise.reject()).then(()=>caption("Diagnóstico copiado. Cole no WhatsApp e mande para quem está te ajudando.")).catch(()=>caption("<em>Não consegui copiar. Abra 'Ver as últimas linhas' e tire um print.</em>")); }
   if(act==="gasto-ver"){ highlight={tipo:"gasto", titulo:"Gasto com a IA", deAjustes:true}; tab="destaque"; renderCard(); }
-  if(act==="midia-liberar"){ caption("Na tela que abrir, ative o <b>Atlas</b> e confirme. Depois volte para cá."); SIS?.pedirAcessoMidia?.().catch(()=>{}); }
   if(act==="voltar-ajustes"){ tab="ajustes"; renderCard(); $("#card").scrollTop=0; }
   if(act==="gasto-ajustes"){ tab="ajustes"; renderCard(); setTimeout(()=>$("#sLim")?.focus(),50); }
   if(act==="gasto-liberar"){ const g=gastoAtual(); g.liberado=true; store.set("gasto",g); renderCard(); caption("Uso liberado até o fim do mês."); }
@@ -2139,9 +2136,7 @@ const CARTAO_SCHEMA = {type:"object", properties:{
   resumo:{type:"string"}, manchetes:{type:"array", items:{type:"object", properties:{titulo:{type:"string"}, fonte:{type:"string"}, quando:{type:"string"}}}},
   competicao:{type:"string"}, status:{type:"string"}, mandante:TIME_SCHEMA, visitante:TIME_SCHEMA, gols:{type:"array", items:{type:"object", properties:{time:{type:"string"}, jogador:{type:"string"}, minuto:{type:"string"}}}}, estatisticas:{type:"array", items:{type:"object", properties:{nome:{type:"string"}, mandante:{type:"number"}, visitante:{type:"number"}, unidade:{type:"string"}}}}
 }, required:["tipo"]};
-let acessoMidia = null;
-const verAcessoMidia = () => SIS?.acessoMidia?.().then(r=>{ acessoMidia=!!r?.liberado; }).catch(()=>{});
-if (NATIVE){ setTimeout(()=>SIS?.appsMusica().then(r=>{ appsMusica=r.apps||[]; }).catch(()=>{}), 1500); setTimeout(verAcessoMidia, 1500); document.addEventListener("visibilitychange", ()=>{ if(!document.hidden) verAcessoMidia()?.then(()=>{ if(tab==="ajustes") renderCard(); }); }); }
+if (NATIVE) setTimeout(()=>SIS?.appsMusica().then(r=>{ appsMusica=r.apps||[]; }).catch(()=>{}), 1500);
 const tools = [
   {name:"mostrar_gasto", description:"Mostra no painel quanto já foi gasto com a IA neste mês (estimativa em reais e dólar), o limite mensal e, no Gemini grátis, o uso da cota do dia.",
    inputSchema:{type:"object", properties:{}},
@@ -2156,7 +2151,7 @@ const tools = [
      catch{ throw new Error("Não encontrei um app de música instalado. Instale o Spotify ou o YouTube Music."); }
      musicaPausada=false;
      highlight={tipo:"musica", titulo:`Tocando: ${busca}`, busca, app:r.app, nome:r.nome, metodo:r.metodo}; store.set("hl",highlight); tab="destaque"; renderCard(); renderTicker();
-     return {ok:true, app:r.nome, metodo:r.metodo, nota: r.metodo==="sessao" ? "a música já está tocando; responda em uma frase curta" : r.metodo==="tocar" ? (r.acessoMidia ? "a música foi pedida ao app; responda em uma frase curta, sem repetir detalhes" : "o app abriu e o Atlas tentou dar o play; se não tocar a música certa, diga em uma frase que dá para liberar 'Tocar direto' em Ajustes") : "o app só abriu a busca; diga para tocar na música"}; }},
+     return {ok:true, app:r.nome, metodo:r.metodo, nota: r.metodo==="tocar" ? "a música foi pedida ao app; responda em uma frase curta, sem repetir detalhes" : "o app só abriu a busca; diga para tocar na música"}; }},
   {name:"controlar_musica", description:"Controla a música que está tocando em qualquer app: pausar, continuar, próxima, anterior, aumentar ou diminuir o volume.",
    inputSchema:{type:"object", properties:{acao:{type:"string", enum:["pausar","continuar","proxima","anterior","aumentar_volume","diminuir_volume"]}}, required:["acao"]},
    async execute(i){ const r=await controleMusica(i.acao); return {ok:true, volume:r?.volume, volumeMax:r?.volumeMax}; }},
