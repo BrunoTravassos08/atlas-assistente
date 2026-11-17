@@ -24,17 +24,6 @@
 
         </activity>
 
-        <!-- só para poder dar play no app de música (o Android exige um "ouvinte de notificações") -->
-        <service
-            android:name=".MidiaListener"
-            android:exported="true"
-            android:label="Atlas: controlar música"
-            android:permission="android.permission.BIND_NOTIFICATION_LISTENER_SERVICE">
-            <intent-filter>
-                <action android:name="android.service.notification.NotificationListenerService" />
-            </intent-filter>
-        </service>
-
         <!-- botão flutuante por cima dos outros apps -->
         <service
             android:name=".BolhaService"
