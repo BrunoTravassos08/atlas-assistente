@@ -1682,7 +1682,7 @@ ${ok.map(t=>`### ${t.assunto}\n${t.manchetes.map(m=>`- ${m.titulo} (${m.fonte}${
 
 Não cumprimente (a saudação já foi feita). As falas viram cartões animados num painel. Responda SOMENTE com JSON:
 {"abertura": "1 frase, sem bom dia/boa noite, com o panorama das notícias",
- "topicos": [{"assunto": "igual ao título acima", "fala": "1 a 2 frases com o mais importante, para ler em voz alta", "resumo": "1 frase curta",
+ "topicos": [{"assunto": "igual ao título acima", "fala": "1 a 2 frases com o mais importante, para ler em voz alta, sem repetir o nome do assunto no começo (o app já anuncia o assunto antes)", "resumo": "1 frase curta",
    "numeros": "OPCIONAL, só com números escritos nas manchetes (percentual, valor, votos, gols, pesquisa): [{\"rotulo\": \"curto\", \"valor\": \"32\", \"unidade\": \"%\", \"variacao\": \"+2%\"}], até 3; senão omita",
    "placar": "OPCIONAL, só se uma manchete trouxer o placar de um jogo: {\"competicao\": \"...\", \"status\": \"encerrado\", \"mandante\": {\"nome\": \"...\", \"sigla\": \"3 letras\", \"gols\": 2, \"cor_primaria\": \"#hex do uniforme\", \"cor_secundaria\": \"#hex\"}, \"visitante\": {...}}; senão omita"}]}`, {modelTier:"quick", web:false});
       } catch(e){ diario(`briefing: resumo da IA falhou (${e?.code||"?"} ${e?.detalhe||e?.message||""}); usando as manchetes`); }
@@ -1690,7 +1690,7 @@ Não cumprimente (a saudação já foi feita). As falas viram cartões animados 
       const prox = next[0];
       r = {clima,
         topicos: ok.map(t=>{ const f = porNome.get(t.assunto.toLowerCase()) || {}; const m0 = t.manchetes[0];
-          return {assunto:t.assunto, manchetes:t.manchetes.slice(0,4), fala: f.fala || `${t.assunto}: ${m0.titulo}.`, resumo: f.resumo || m0.titulo, numeros: f.numeros, placar: f.placar}; }),
+          return {assunto:t.assunto, manchetes:t.manchetes.slice(0,4), fala: f.fala || `${m0.titulo}.`, resumo: f.resumo || m0.titulo, numeros: f.numeros, placar: f.placar}; }),
         cot, ehCot,
         abertura: falas?.abertura || `Separei as notícias de ${ok.length} ${ok.length>1?"assuntos":"assunto"}${next.length?` e você tem ${next.length} ${next.length>1?"compromissos":"compromisso"} hoje`:""}.`,
         agenda_fala: next.length ? `Seu próximo compromisso é ${prox.titulo}${prox.hora?` às ${prox.hora}`:""}.` : "Sua agenda de hoje está livre.",
@@ -1709,7 +1709,7 @@ Monte o briefing de abertura. Ele vira uma apresentação animada, cartão por c
 {"abertura": "1 frase sem saudação (ela já foi dita) dando o panorama do dia, ex.: Hoje você tem 3 compromissos e boas notícias do Sport.",
  "clima": "SOMENTE se encontrou a previsão de hoje: {\"cidade\": \"...\", \"temperatura\": 29, \"minima\": 24, \"maxima\": 31, \"condicao\": \"ensolarado\", \"chuva\": 20, \"fala\": \"1 frase\"}; senão omita",
  "agenda_fala": "1 frase sobre a agenda: quantos compromissos e o próximo (ou que a agenda está livre)",
- "topicos": [{"assunto": "...", "fala": "1 a 2 frases curtas com a manchete mais importante", "resumo": "1 frase", "manchetes": [{"titulo": "...", "fonte": "...", "quando": "ex.: há 8 h"}],
+ "topicos": [{"assunto": "...", "fala": "1 a 2 frases curtas com a manchete mais importante, sem repetir o nome do assunto no começo (o app já anuncia o assunto antes)", "resumo": "1 frase", "manchetes": [{"titulo": "...", "fonte": "...", "quando": "ex.: há 8 h"}],
    "numeros": "opcional, SOMENTE com números presentes nos resultados (cotação, pesquisa, tabela, preço): [{\"rotulo\": \"...\", \"valor\": \"...\", \"unidade\": \"...\", \"variacao\": \"+1,2%\"}], até 4",
    "placar": "SOMENTE se o assunto for um time e houver jogo recente nos resultados: {\"competicao\": \"...\", \"status\": \"encerrado\", \"mandante\": {\"nome\": \"...\", \"sigla\": \"3 letras\", \"gols\": 0, \"cor_primaria\": \"#hex\", \"cor_secundaria\": \"#hex\"}, \"visitante\": {...}, \"estatisticas\": [{\"nome\": \"Posse de bola\", \"mandante\": 55, \"visitante\": 45, \"unidade\": \"%\"}]}; senão omita"}],
  "encerramento": "1 frase perguntando de forma natural se pode ajudar com mais alguma coisa"}
@@ -1717,6 +1717,17 @@ No máximo 3 manchetes por assunto. Use só informação presente nos resultados
     r = await sample.json(prompt,{modelTier:"quick", web:false});
     }
     const tops=(r.topicos||[]).slice(0,8).map(t=>({assunto:String(t.assunto||""), fala:String(t.fala||""), resumo:String(t.resumo||""), manchetes:(Array.isArray(t.manchetes)?t.manchetes:[]).slice(0,4).map(m=>({titulo:String(m.titulo||""), fonte:String(m.fonte||""), quando:String(m.quando||""), link:String(m.link||"")})), numeros:Array.isArray(t.numeros)?t.numeros.filter(n=>n&&n.valor!=null&&String(n.valor).trim()).slice(0,4):null, placar:(t.placar&&typeof t.placar==="object"&&t.placar.mandante&&t.placar.visitante)?t.placar:null}));
+    // Anuncia o assunto antes da notícia: "Hoje, sobre Jarbas Filho: ... Notícias sobre Raquel Lyra: ..."
+    const ABERTURAS = [a=>`Hoje, sobre ${a}:`, a=>`Notícias sobre ${a}:`, a=>`Agora, ${a}:`, a=>`Sobre ${a}:`];
+    tops.forEach((t,i)=>{
+      const a = t.assunto.trim(); if(!a) return;
+      t.abre = (i===0?ABERTURAS[0]:ABERTURAS[1+((i-1)%3)])(a);
+      if(!t.fala.trim()) return;
+      const escA = a.replace(/[.*+?^${}()|[\]\\]/g,"\\$&");
+      let f = t.fala.trim().replace(new RegExp(`^(hoje,?\\s*)?((notícias|novidades)\\s+(de|sobre)\\s+|sobre\\s+)?${escA}\\s*[:,.\\-–—]\\s*`,"i"),"");
+      if(f) f = f[0].toUpperCase()+f.slice(1);
+      t.falaPura = f; t.fala = `${t.abre} ${f}`;
+    });
     const cotT = r.cot ? tops.find(t=>r.ehCot({nome:t.assunto})) : null;
     const next2=tasks.filter(t=>!t.feito && (!t.data||t.data===hojeData()));
     const slides=[];
@@ -1726,7 +1737,7 @@ No máximo 3 manchetes por assunto. Use só informação presente nos resultados
     slides.push({tipo:"agenda", fala:String(r.agenda_fala||"")});
     if(r.cot && !cotT) slides.push({tipo:"numeros", categoria:"Mercado", titulo:"Cotações agora", numeros:r.cot.numeros, fonte:"AwesomeAPI", fala:r.cot.fala});
     tops.forEach(t=>{
-      if(t===cotT){ slides.push({tipo:"numeros", categoria:"Mercado", titulo:t.assunto, numeros:r.cot.numeros, legenda:t.resumo, fonte:"AwesomeAPI", fala:r.cot.fala}); slides.push({tipo:"noticias", categoria:"Mercado · manchetes", titulo:t.assunto, resumo:"", manchetes:t.manchetes, fala:t.fala}); return; }
+      if(t===cotT){ slides.push({tipo:"numeros", categoria:"Mercado", titulo:t.assunto, numeros:r.cot.numeros, legenda:t.resumo, fonte:"AwesomeAPI", fala:[t.abre, r.cot.fala].filter(Boolean).join(" ")}); slides.push({tipo:"noticias", categoria:"Mercado · manchetes", titulo:t.assunto, resumo:"", manchetes:t.manchetes, fala:t.falaPura??t.fala}); return; }
       if(t.placar) slides.push(Object.assign({}, t.placar, {tipo:"placar", competicao:t.placar.competicao||t.assunto, fala:t.fala, legenda:t.resumo}));
       slides.push({tipo:"noticias", categoria:t.placar?"Mais notícias":"Notícias", titulo:t.assunto, resumo:t.resumo, manchetes:t.manchetes, numeros:t.placar?null:t.numeros, fala:t.placar?"":t.fala});
     });
