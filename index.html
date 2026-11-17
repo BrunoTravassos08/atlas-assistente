@@ -634,6 +634,7 @@ const plugin = name => {
   }});
 };
 /* ---------- diário de diagnóstico (Ajustes › Copiar diagnóstico) ---------- */
+const VERSAO_APP = "__VERSAO_APP__".startsWith("__") ? "teste" : "__VERSAO_APP__";
 const DIAG = (()=>{ try{ return JSON.parse(localStorage.getItem("atlas.diag")||"[]"); }catch{ return []; } })();
 let diagSalvar = null;
 function diario(linha){
@@ -1303,6 +1304,7 @@ function renderCard(){
       <div class="row"><span class="sub">Conectado: <b style="color:var(--cyan)">${sample?PROV[cfg.provider]:"nenhuma IA"}</b></span><button class="btn-line warn" id="logout" type="button">Trocar IA</button></div>
       <div class="gbox"><div class="row"><span class="sub">Diagnóstico: o que o app fez por último (${DIAG.length} linhas)</span><button class="btn-line" data-act="diag-copiar" type="button">Copiar diagnóstico</button></div>
         <details class="diag"><summary>Ver as últimas linhas</summary><pre>${esc(DIAG.slice(-40).join("\n"))}</pre></details></div>
+      <p class="note" style="margin:0;text-align:center">Atlas versão ${VERSAO_APP}</p>
     </div>`;
   }
 }
@@ -1320,7 +1322,7 @@ $("#card").addEventListener("click", e=>{
   if(act==="piper-remover" && VOZ){ const id=cfg.vozPiper; if(id && id!=="faber"){ VOZ.remover({id}).catch(()=>{}).finally(()=>{ cfg.vozPiper="faber"; store.set("cfg",cfg); atualizarPiper(); }); } }
   if(act==="abrir-noticia"){ const u=e.target.closest("[data-url]")?.dataset.url; if(u && /^https:\/\//.test(u)){ if(story){ storyStop(); try{ tts?.stop(); }catch{} } openExternal(u); } }
   if(act==="voz-testar"){ store.set("cfg",cfg); vozGeminiPausaAte=0; const t=`Olá, ${cfg.user||"senhor"}. Eu sou o ${cfg.name.charAt(0)+cfg.name.slice(1).toLowerCase()}. É assim que eu vou falar com você.`; caption(esc(t)); if(tts){ tts.stop(); setMode("speaking"); tts.speak(t,{language:"pt-BR"}).catch(()=>{}).finally(()=>setMode("idle")); } }
-  if(act==="diag-copiar"){ const txt=`Atlas · ${new Date().toLocaleString("pt-BR")} · ${cfg.provider} ${cfg.model?.[cfg.provider]||""}\n`+DIAG.join("\n"); (navigator.clipboard?.writeText(txt)||Promise.reject()).then(()=>caption("Diagnóstico copiado. Cole no WhatsApp e mande para quem está te ajudando.")).catch(()=>caption("<em>Não consegui copiar. Abra 'Ver as últimas linhas' e tire um print.</em>")); }
+  if(act==="diag-copiar"){ const txt=`Atlas ${VERSAO_APP} · ${new Date().toLocaleString("pt-BR")} · ${cfg.provider} ${cfg.model?.[cfg.provider]||""}\n`+DIAG.join("\n"); (navigator.clipboard?.writeText(txt)||Promise.reject()).then(()=>caption("Diagnóstico copiado. Cole no WhatsApp e mande para quem está te ajudando.")).catch(()=>caption("<em>Não consegui copiar. Abra 'Ver as últimas linhas' e tire um print.</em>")); }
   if(act==="gasto-ver"){ highlight={tipo:"gasto", titulo:"Gasto com a IA", deAjustes:true}; tab="destaque"; renderCard(); }
   if(act==="voltar-ajustes"){ tab="ajustes"; renderCard(); $("#card").scrollTop=0; }
   if(act==="gasto-ajustes"){ tab="ajustes"; renderCard(); setTimeout(()=>$("#sLim")?.focus(),50); }
