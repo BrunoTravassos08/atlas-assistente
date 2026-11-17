@@ -24,6 +24,8 @@ public class MainActivity extends BridgeActivity {
         super.onCreate(savedInstanceState);
         Window window = getWindow();
         window.getDecorView().setBackgroundColor(Color.parseColor("#040914"));
+        // a tela não apaga nem bloqueia enquanto o Atlas está aberto na frente
+        window.addFlags(WindowManager.LayoutParams.FLAG_KEEP_SCREEN_ON);
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.P) {
             WindowManager.LayoutParams lp = window.getAttributes();
             lp.layoutInDisplayCutoutMode = Build.VERSION.SDK_INT >= Build.VERSION_CODES.R
