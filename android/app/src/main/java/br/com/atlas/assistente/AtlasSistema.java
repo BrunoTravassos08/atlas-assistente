@@ -6,6 +6,10 @@ import android.app.SearchManager;
 import android.content.ActivityNotFoundException;
 import android.content.Context;
 import android.media.AudioManager;
+import android.media.session.MediaController;
+import android.media.session.MediaSessionManager;
+import android.os.Bundle;
+import android.provider.Settings;
 import android.os.Handler;
 import android.os.Looper;
 import android.os.SystemClock;
@@ -209,6 +213,50 @@ public class AtlasSistema extends Plugin {
         } catch (Exception ignored) { }
     }
 
+    /** Player do app de música (ex.: Spotify), se o acesso às notificações estiver liberado e o app tiver sessão ativa. */
+    private MediaController controlador(String pkg) {
+        if (!MidiaListener.liberado(getContext())) return null;
+        try {
+            MediaSessionManager msm = (MediaSessionManager) getContext().getSystemService(Context.MEDIA_SESSION_SERVICE);
+            for (MediaController mc : msm.getActiveSessions(MidiaListener.componente(getContext()))) {
+                if (pkg.equals(mc.getPackageName())) return mc;
+            }
+        } catch (Exception ignorado) { }
+        return null;
+    }
+
+    private void tocarPorSessao(MediaController mc, String busca, String foco) {
+        Bundle extras = new Bundle();
+        extras.putString(MediaStore.EXTRA_MEDIA_FOCUS, foco);
+        if ("vnd.android.cursor.item/artist".equals(foco)) extras.putString(MediaStore.EXTRA_MEDIA_ARTIST, busca);
+        if ("vnd.android.cursor.item/audio".equals(foco)) extras.putString(MediaStore.EXTRA_MEDIA_TITLE, busca);
+        mc.getTransportControls().playFromSearch(busca, extras);
+    }
+
+    @PluginMethod
+    public void acessoMidia(PluginCall call) {
+        JSObject r = new JSObject();
+        r.put("liberado", MidiaListener.liberado(getContext()));
+        call.resolve(r);
+    }
+
+    @PluginMethod
+    public void pedirAcessoMidia(PluginCall call) {
+        Intent i;
+        if (Build.VERSION.SDK_INT >= 30) {
+            i = new Intent(Settings.ACTION_NOTIFICATION_LISTENER_DETAIL_SETTINGS);
+            i.putExtra(Settings.EXTRA_NOTIFICATION_LISTENER_COMPONENT_NAME, MidiaListener.componente(getContext()).flattenToString());
+        } else {
+            i = new Intent(Settings.ACTION_NOTIFICATION_LISTENER_SETTINGS);
+        }
+        i.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK);
+        try { getContext().startActivity(i); }
+        catch (Exception e) {
+            try { getContext().startActivity(new Intent(Settings.ACTION_NOTIFICATION_LISTENER_SETTINGS).addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)); } catch (Exception ignorado) { }
+        }
+        call.resolve();
+    }
+
     @PluginMethod
     public void tocarMusica(PluginCall call) {
         String busca = call.getString("busca", "").trim();
@@ -216,7 +264,7 @@ public class AtlasSistema extends Plugin {
         String tipo = call.getString("tipo", "");
         boolean voltar = Boolean.TRUE.equals(call.getBoolean("voltar", true));
         if (busca.isEmpty()) { call.reject("sem busca"); return; }
-        String foco = "artista".equals(tipo) ? "vnd.android.cursor.item/artist"
+        final String foco = "artista".equals(tipo) ? "vnd.android.cursor.item/artist"
             : "musica".equals(tipo) ? "vnd.android.cursor.item/audio"
             : "playlist".equals(tipo) ? "vnd.android.cursor.item/playlist"
             : "album".equals(tipo) ? "vnd.android.cursor.item/album" : "vnd.android.cursor.item/*";
@@ -225,31 +273,64 @@ public class AtlasSistema extends Plugin {
         java.util.ArrayList<String[]> ordem = new java.util.ArrayList<>();
         for (String[] a : APPS_MUSICA) if (a[0].equals(app)) ordem.add(a);
         for (String[] a : APPS_MUSICA) if (!a[0].equals(app)) ordem.add(a);
+        final boolean acesso = MidiaListener.liberado(getContext());
 
         Activity act = getActivity();
         for (String[] a : ordem) {
             if (!instalado(a[1])) continue;
-            Intent i = intentTocar(busca, a[1], foco);
+            final String pkg = a[1];
+            JSObject r = new JSObject();
+            r.put("app", a[0]); r.put("nome", a[2]); r.put("pacote", pkg); r.put("acessoMidia", acesso);
+
+            // 1) o player já está aberto: manda tocar direto, sem sair do Atlas
+            MediaController mc = controlador(pkg);
+            if (mc != null) {
+                try {
+                    tocarPorSessao(mc, busca, foco);
+                    r.put("metodo", "sessao");
+                    call.resolve(r);
+                    return;
+                } catch (Exception ignorado) { }
+            }
+
+            // 2) abre o app já pedindo a música
+            Intent i = intentTocar(busca, pkg, foco);
             boolean direto = !pm().queryIntentActivities(i, 0).isEmpty();
             try {
                 if (direto) {
                     act.startActivity(i);
                 } else {
                     Intent v = new Intent(Intent.ACTION_VIEW, Uri.parse(a[3] + Uri.encode(busca)));
-                    v.setPackage(a[1]);
+                    v.setPackage(pkg);
                     v.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK);
                     act.startActivity(v);
                 }
             } catch (Exception e) {
                 continue;
             }
-            if (voltar && direto) {
-                Handler h = new Handler(Looper.getMainLooper());
-                h.postDelayed(this::voltarParaAtlas, 1800);
-                h.postDelayed(this::voltarParaAtlas, 3200);
+
+            // 3) o app abriu mas às vezes não começa a tocar: espera o player aparecer e dá o play
+            if (direto) {
+                final Handler h = new Handler(Looper.getMainLooper());
+                final long inicio = SystemClock.uptimeMillis();
+                final boolean[] mandou = {false, false};
+                h.postDelayed(new Runnable() {
+                    @Override public void run() {
+                        long t = SystemClock.uptimeMillis() - inicio;
+                        boolean tocando = audio().isMusicActive();
+                        if (!tocando && acesso && !mandou[0]) {
+                            MediaController c = controlador(pkg);
+                            if (c != null) { try { tocarPorSessao(c, busca, foco); mandou[0] = true; } catch (Exception ignorado) { } }
+                        }
+                        if (!tocando && !mandou[0] && !mandou[1] && t > 4500) { tecla(KeyEvent.KEYCODE_MEDIA_PLAY); mandou[1] = true; }
+                        if ((tocando && t > 1500) || t > 9000) {
+                            if (voltar) voltarParaAtlas();
+                            return;
+                        }
+                        h.postDelayed(this, 500);
+                    }
+                }, 1200);
             }
-            JSObject r = new JSObject();
-            r.put("app", a[0]); r.put("nome", a[2]); r.put("pacote", a[1]);
             r.put("metodo", direto ? "tocar" : "busca");
             call.resolve(r);
             return;
