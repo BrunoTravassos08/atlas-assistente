@@ -757,6 +757,35 @@ function escutaNome(){
     }
   }, 500);
 }
+/* botão flutuante (por cima dos outros apps): tocar abre o Atlas já ouvindo */
+const BOLHA = plugin("AtlasBolha");
+let bolhaInfo = null, bolhaPendente = false, abrirOuvindo = false;
+async function bolhaAtualizar(){ if (!BOLHA) return; bolhaInfo = await BOLHA.info().catch(()=>null); }
+async function bolhaLigar(){
+  await bolhaAtualizar();
+  if (!bolhaInfo?.permissao){ bolhaPendente = true; caption("Para a bolinha aparecer por cima dos apps, ative <b>Permitir sobrepor a outros apps</b> para o Atlas e volte aqui."); await BOLHA.pedirPermissao().catch(()=>{}); return; }
+  bolhaPendente = false;
+  bolhaInfo = await BOLHA.ligar().catch(e=>{ diario(`botão flutuante falhou (${e?.code||""} ${e?.message||e})`); return null; });
+  if (bolhaInfo?.ligada) caption("Pronto. Quando você sair do Atlas, a bolinha aparece por cima dos apps. Toque nela para falar comigo.");
+  if (tab==="ajustes") renderCard();
+}
+function ouvirPelaBolha(tentativa=0){
+  if (!abrirOuvindo) return;
+  if (!bootFeito || !dict){ if (tentativa<40) setTimeout(()=>ouvirPelaBolha(tentativa+1), 250); return; }
+  abrirOuvindo = false;
+  if (ocupado()) cancelarTudo("");
+  setTimeout(()=>{ if (!ocupado()) toggleMic(); }, 150);
+}
+if (BOLHA){
+  bolhaAtualizar();
+  BOLHA.addListener("ouvir", ()=>{ abrirOuvindo = true; diario("aberto pelo botão flutuante"); setTimeout(ouvirPelaBolha, 0); });
+  document.addEventListener("visibilitychange", async ()=>{
+    if (document.hidden) return;
+    await bolhaAtualizar();
+    if (bolhaPendente && bolhaInfo?.permissao) bolhaLigar();
+    else if (tab==="ajustes") renderCard();
+  });
+}
 if (ESCUTA){
   ESCUTA.addListener("palavra", ()=>{
     escutaLigada = false;
@@ -1336,6 +1365,7 @@ function renderCard(){
       ${NATIVE?`<div class="row"><label class="lbl" for="sMus" style="margin:0">App de música</label><select class="inp" id="sMus" style="width:auto"><option value="">Automático</option>${(appsMusica||[]).map(a=>`<option value="${esc(a.id)}" ${cfg.musicaApp===a.id?"selected":""}>${esc(a.nome)}</option>`).join("")}</select></div>`:""}
       <div class="row"><label class="lbl" for="sBrAbrir" style="margin:0">Briefing ao abrir</label><select class="inp" id="sBrAbrir" style="width:auto"><option value="sempre" ${briefingSempre()?"selected":""}>Toda vez que abrir</option><option value="dia" ${briefingSempre()?"":"selected"}>Só 1 vez por dia</option></select></div>
       ${ESCUTA?`<div class="row"><label class="lbl" for="sNome" style="margin:0">Chamar pelo nome: diga "Atlas" com o app aberto</label><input type="checkbox" id="sNome" ${cfg.chamarNome!==false?"checked":""}></div>${escutaErro?`<p class="note bad" style="margin:0">${esc(escutaErro)}</p>`:""}`:""}
+      ${BOLHA?`<div class="row"><label class="lbl" for="sBolha" style="margin:0">Botão flutuante: bolinha do Atlas por cima dos outros apps</label><input type="checkbox" id="sBolha" ${bolhaInfo?.ligada?"checked":""}></div>${bolhaInfo?.ligada&&!bolhaInfo?.permissao?`<p class="note bad" style="margin:0">A permissão "Sobrepor a outros apps" foi tirada. Desmarque e marque de novo para liberar.</p>`:""}`:""}
       <div class="row"><label class="lbl" for="sFx" style="margin:0">Efeitos visuais</label><select class="inp" id="sFx" style="width:auto"><option value="leve" ${FX.lite?"selected":""}>Leve (recomendado)</option><option value="completo" ${FX.lite?"":"selected"}>Completo</option></select></div>
       ${cfg.agent?`<div class="sub">Modelo: <b style="color:var(--fg)">${esc(cfg.model?.[cfg.provider]||cfg.agent.id)}</b><br>Conectado em ${new Date(cfg.agent.criadoEm).toLocaleString("pt-BR")}</div>`:""}
       <div class="row"><span class="sub">Conectado: <b style="color:var(--cyan)">${sample?PROV[cfg.provider]:"nenhuma IA"}</b></span><button class="btn-line warn" id="logout" type="button">Trocar IA</button></div>
@@ -1398,6 +1428,7 @@ $("#card").addEventListener("change", e=>{
   if(id==="sVel"){ cfg.vozVelocidade=parseFloat(e.target.value)||1; }
   if(id==="sSpeak") cfg.speak=e.target.checked;
   if(id==="sFx"){ cfg.fx=e.target.value; store.set("cfg",cfg); applyFx(); }
+  if(id==="sBolha"){ if(e.target.checked) bolhaLigar(); else BOLHA?.desligar().then(r=>{ bolhaInfo=r; caption("Botão flutuante desligado."); }).catch(()=>{}); }
   if(id==="sBrAbrir"){ cfg.briefingAbrir=e.target.value; store.set("cfg",cfg); }
   if(id==="sNome"){ cfg.chamarNome=e.target.checked; store.set("cfg",cfg); escutaErro=""; escutaNome(); }
   if(id==="sMus"){ cfg.musicaApp=e.target.value; store.set("cfg",cfg); }
@@ -2505,7 +2536,7 @@ let escondidoEm = 0;
 document.addEventListener("visibilitychange", ()=>{
   if (document.hidden){ escondidoEm = Date.now(); return; }
   const longe = escondidoEm && Date.now()-escondidoEm > 2*3600e3; escondidoEm = 0;
-  if (longe && briefingSempre() && bootFeito && cfg?.onboarded && sample && !ocupado() && $("#loginView").hidden && $("#onbView").hidden && topics().length) runBriefing({abertura:true});
+  if (longe) setTimeout(()=>{ if (!abrirOuvindo && briefingSempre() && bootFeito && cfg?.onboarded && sample && !ocupado() && $("#loginView").hidden && $("#onbView").hidden && topics().length) runBriefing({abertura:true}); }, 900);
 });
 setInterval(()=>{ if (!document.hidden && cfg?.onboarded && sample && !busy && !briefingBusy && mode==="idle" && $("#loginView").hidden && $("#onbView").hidden && briefingDevido()) runBriefing({abertura:true}); }, 60000);
 async function agendarLembrete(){
@@ -2587,6 +2618,7 @@ $("#bootBtn").addEventListener("click", ()=>{ if(bootFeito) return; bootFeito=tr
 function activate({primeira=false}={}){
   renderCard();
   escutaNome();
+  if (abrirOuvindo) return ouvirPelaBolha();
   if (primeira || briefingAoAbrir()) return runBriefing({abertura:true});
   // nas outras aberturas do dia: só cumprimenta e aguarda (sem gastar a cota da IA)
   const per=periodo();
