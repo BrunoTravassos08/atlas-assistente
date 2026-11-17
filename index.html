@@ -734,6 +734,41 @@ async function cotacoes(){
 const SIS = plugin("AtlasSistema");
 // voz neural offline (Piper) embutida no APK
 const VOZ = plugin("AtlasVoz");
+/* palavra de ativação: o Android escuta "Atlas" sem internet (só com o app na tela) e abre o microfone */
+const ESCUTA = plugin("AtlasEscuta");
+let escutaErro = "", escutaLigada = false, escutaTimer = null, escutaPediuPerm = false;
+function podeEscutar(){ return !!(ESCUTA && cfg?.chamarNome!==false && bootFeito && dict && !document.hidden && mode==="idle" && !ocupado() && !wakeOn && $("#loginView").hidden && $("#onbView").hidden && $("#setupView").hidden); }
+async function pararEscuta(){ if(!ESCUTA) return; escutaLigada=false; clearTimeout(escutaTimer); await ESCUTA.parar().catch(()=>{}); }
+function escutaNome(){
+  if (!ESCUTA) return;
+  clearTimeout(escutaTimer);
+  escutaTimer = setTimeout(async ()=>{
+    if (!podeEscutar()){ if (escutaLigada) pararEscuta(); return; }
+    if (escutaLigada) return;
+    escutaLigada = true;
+    try { await ESCUTA.iniciar(); }
+    catch(e){
+      escutaLigada = false;
+      if (e?.code==="sem_permissao"){
+        escutaErro = "Para chamar pelo nome, libere o microfone: toque no microfone uma vez e permita.";
+        if (!escutaPediuPerm){ escutaPediuPerm=true; const SR=plugin("SpeechRecognition"); const r=await SR?.requestPermissions().catch(()=>null); if (r?.speechRecognition==="granted"){ escutaErro=""; escutaNome(); } }
+      } else { escutaErro = "Não consegui ligar a escuta do nome neste aparelho."; cfg.chamarNome=false; diario(`escuta do nome falhou (${e?.code||""} ${e?.message||e})`); }
+      if (tab==="ajustes") renderCard();
+    }
+  }, 500);
+}
+if (ESCUTA){
+  ESCUTA.addListener("palavra", ()=>{
+    escutaLigada = false;
+    if (document.hidden || mode!=="idle" || ocupado() || !dict) return;
+    diario("ouvi \"Atlas\": abrindo o microfone");
+    toggleMic();
+    waves.push({r:W*.24,a:1}); setTimeout(()=>waves.push({r:W*.24,a:.8}),140); voiceKick=1; addRipple(innerWidth/2, innerHeight*.35, true);
+  });
+  ESCUTA.addListener("parou", d=>{ escutaLigada = false; diario(`escuta do nome parou (${d?.erro||""})`); });
+  document.addEventListener("visibilitychange", ()=>{ if (document.hidden) escutaLigada = false; else escutaNome(); });
+  setInterval(()=>{ if (!escutaLigada && podeEscutar()) escutaNome(); }, 4000);
+}
 let piperInfo = null, piperBaixa = null;
 const motorVoz = () => cfg?.vozMotor || (VOZ ? "piper" : "aparelho");
 async function atualizarPiper(){ if(!VOZ) return null; try{ piperInfo = await VOZ.info(); }catch(e){ piperInfo = null; } if(tab==="ajustes" && !$("#card").contains(document.activeElement)) renderCard(); return piperInfo; }
@@ -1238,7 +1273,7 @@ function frame(now){
 applyFx(); fxReady=true; applyFx();
 requestAnimationFrame(frame);
 
-function setMode(m){ if(m!==mode) bgDirty=performance.now()+1500; mode=m; $("#state").textContent=PAL[m].label; $("#state").style.color = m==="listening"?"var(--green)": m==="thinking"?"var(--violet)":"var(--cyan)"; $("#mic").classList.toggle("on", m==="listening"); const ativo = m==="listening"||m==="thinking"||m==="speaking"; $("#mic").classList.toggle("stop", ativo); $("#mic").setAttribute("aria-label", ativo ? "Cancelar" : "Falar com o assistente"); }
+function setMode(m){ if(m!==mode) bgDirty=performance.now()+1500; mode=m; $("#state").textContent=PAL[m].label; $("#state").style.color = m==="listening"?"var(--green)": m==="thinking"?"var(--violet)":"var(--cyan)"; $("#mic").classList.toggle("on", m==="listening"); const ativo = m==="listening"||m==="thinking"||m==="speaking"; $("#mic").classList.toggle("stop", ativo); $("#mic").setAttribute("aria-label", ativo ? "Cancelar" : "Falar com o assistente"); if (typeof escutaNome==="function") escutaNome(); }
 
 /* ---------- panel ---------- */
 const esc = s => String(s??"").replace(/[&<>"]/g, c=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;"}[c]));
@@ -1299,6 +1334,8 @@ function renderCard(){
         <p class="note" style="margin:0">Aviso aos 80% do limite. O valor é uma estimativa pelos preços de tabela.</p></div>
       <div class="row"><span class="sub">Conversa salva: ${history.length} mensagens</span><button class="btn-line" data-act="limpar" type="button">Limpar conversa</button></div>
       ${NATIVE?`<div class="row"><label class="lbl" for="sMus" style="margin:0">App de música</label><select class="inp" id="sMus" style="width:auto"><option value="">Automático</option>${(appsMusica||[]).map(a=>`<option value="${esc(a.id)}" ${cfg.musicaApp===a.id?"selected":""}>${esc(a.nome)}</option>`).join("")}</select></div>`:""}
+      <div class="row"><label class="lbl" for="sBrAbrir" style="margin:0">Briefing ao abrir</label><select class="inp" id="sBrAbrir" style="width:auto"><option value="sempre" ${briefingSempre()?"selected":""}>Toda vez que abrir</option><option value="dia" ${briefingSempre()?"":"selected"}>Só 1 vez por dia</option></select></div>
+      ${ESCUTA?`<div class="row"><label class="lbl" for="sNome" style="margin:0">Chamar pelo nome: diga "Atlas" com o app aberto</label><input type="checkbox" id="sNome" ${cfg.chamarNome!==false?"checked":""}></div>${escutaErro?`<p class="note bad" style="margin:0">${esc(escutaErro)}</p>`:""}`:""}
       <div class="row"><label class="lbl" for="sFx" style="margin:0">Efeitos visuais</label><select class="inp" id="sFx" style="width:auto"><option value="leve" ${FX.lite?"selected":""}>Leve (recomendado)</option><option value="completo" ${FX.lite?"":"selected"}>Completo</option></select></div>
       ${cfg.agent?`<div class="sub">Modelo: <b style="color:var(--fg)">${esc(cfg.model?.[cfg.provider]||cfg.agent.id)}</b><br>Conectado em ${new Date(cfg.agent.criadoEm).toLocaleString("pt-BR")}</div>`:""}
       <div class="row"><span class="sub">Conectado: <b style="color:var(--cyan)">${sample?PROV[cfg.provider]:"nenhuma IA"}</b></span><button class="btn-line warn" id="logout" type="button">Trocar IA</button></div>
@@ -1361,6 +1398,8 @@ $("#card").addEventListener("change", e=>{
   if(id==="sVel"){ cfg.vozVelocidade=parseFloat(e.target.value)||1; }
   if(id==="sSpeak") cfg.speak=e.target.checked;
   if(id==="sFx"){ cfg.fx=e.target.value; store.set("cfg",cfg); applyFx(); }
+  if(id==="sBrAbrir"){ cfg.briefingAbrir=e.target.value; store.set("cfg",cfg); }
+  if(id==="sNome"){ cfg.chamarNome=e.target.checked; store.set("cfg",cfg); escutaErro=""; escutaNome(); }
   if(id==="sMus"){ cfg.musicaApp=e.target.value; store.set("cfg",cfg); }
   if(id==="sCot"){ const v=num(e.target.value); if(v>0){ const lim=num(cfg.limite?.usd)*cotacao(); cfg.cotacao=v; if(lim>0) cfg.limite.usd=lim/v; } store.set("cfg",cfg); renderCard(); }
   if(id==="sLim"){ const v=num(e.target.value); cfg.limite=Object.assign({acao:"confirmar"}, cfg.limite, {usd: v>0 ? v/cotacao() : 0}); const g=gastoAtual(); g.aviso80=false; g.liberado=false; store.set("gasto",g); store.set("cfg",cfg); renderCard(); }
@@ -2161,10 +2200,12 @@ Se ele pediu para anotar/agendar/lembrar algo, responda SOMENTE com JSON {"anota
 }
 async function speak(text){
   if (cfg.speak && wakeOn) { pendingSpeak=null; return speakWake(text, "pt-BR"); }
-  if (!(cfg.speak && tts) || (dict && dict.active())) { pendingSpeak=null; setMode("speaking"); await new Promise(r=>setTimeout(r, Math.min(6000, 600+text.length*45))); return; }
+  if (!(cfg.speak && tts) || (dict && dict.active())) { pendingSpeak=null; setMode("speaking"); await new Promise(r=>setTimeout(r, Math.min(6000, 600+text.length*45))); if(mode==="speaking") setMode("idle"); return; }
   setMode("speaking");
   try{ await tts.speak(text.slice(0,2000), {voice:cfg.voice||"buttery", language:"pt-BR"}); }catch{}
   if(pendingSpeak){ const p=pendingSpeak; pendingSpeak=null; await speakIn(p.text, p.lang); }
+  // terminou de falar: volta a "pronto" (antes ficava "Falando…" e o próximo toque no microfone era lido como "cancelar")
+  if(mode==="speaking") setMode("idle");
 }
 async function offline(userText, greeting){
   const per=periodo();
@@ -2455,7 +2496,17 @@ function briefingDevido(){
   if (cfg.rotina?.dias==="uteis" && (dia===0 || dia===6)) return false;
   return true;
 }
-function marcarBriefing(){ cfg.ultimoBriefing = hojeISO(); store.set("cfg", cfg); }
+function marcarBriefing(){ cfg.ultimoBriefing = hojeISO(); cfg.ultimoBriefingEm = Date.now(); store.set("cfg", cfg); }
+// padrão: briefing toda vez que o app abre (dá para voltar a "1 vez por dia" nos Ajustes)
+const briefingSempre = () => cfg?.briefingAbrir !== "dia";
+function briefingAoAbrir(){ return briefingSempre() ? !!(cfg && topics().length) : briefingDevido(); }
+// voltou depois de muito tempo em segundo plano: conta como abrir de novo
+let escondidoEm = 0;
+document.addEventListener("visibilitychange", ()=>{
+  if (document.hidden){ escondidoEm = Date.now(); return; }
+  const longe = escondidoEm && Date.now()-escondidoEm > 2*3600e3; escondidoEm = 0;
+  if (longe && briefingSempre() && bootFeito && cfg?.onboarded && sample && !ocupado() && $("#loginView").hidden && $("#onbView").hidden && topics().length) runBriefing({abertura:true});
+});
 setInterval(()=>{ if (!document.hidden && cfg?.onboarded && sample && !busy && !briefingBusy && mode==="idle" && $("#loginView").hidden && $("#onbView").hidden && briefingDevido()) runBriefing({abertura:true}); }, 60000);
 async function agendarLembrete(){
   const LN = plugin("LocalNotifications"); if (!LN) return;
@@ -2530,12 +2581,13 @@ async function createAgent(check={}){
   await sleep(1100);
   $("#setupView").hidden = true; setMode("idle");
 }
-function showBoot(){ $("#bootView").hidden=false; if (NATIVE) setTimeout(()=>$("#bootBtn").click(), 1200); $("#bootHint").textContent = `Conectado a ${PROV[cfg.provider]}. ${briefingDevido()?"Toque para ouvir o briefing de hoje":"Toque para começar"}`; }
+function showBoot(){ $("#bootView").hidden=false; if (NATIVE) setTimeout(()=>$("#bootBtn").click(), 1200); $("#bootHint").textContent = `Conectado a ${PROV[cfg.provider]}. ${briefingAoAbrir()?"Toque para ouvir o briefing de hoje":"Toque para começar"}`; }
 let bootFeito=false;
 $("#bootBtn").addEventListener("click", ()=>{ if(bootFeito) return; bootFeito=true; $("#bootView").hidden=true; activate(); });
 function activate({primeira=false}={}){
   renderCard();
-  if (primeira || briefingDevido()) return runBriefing({abertura:true});
+  escutaNome();
+  if (primeira || briefingAoAbrir()) return runBriefing({abertura:true});
   // nas outras aberturas do dia: só cumprimenta e aguarda (sem gastar a cota da IA)
   const per=periodo();
   const prox=tasks.filter(t=>!t.feito).sort((a,b)=>(a.hora||"").localeCompare(b.hora||""))[0];
@@ -3045,6 +3097,7 @@ async function setupNativeVoice(){
         let perm = await SR.checkPermissions().catch(()=>({}));
         if (perm.speechRecognition!=="granted") perm = await SR.requestPermissions().catch(()=>({}));
         if (perm.speechRecognition!=="granted") throw {code:"not_granted"};
+        await pararEscuta();
         last=""; cancelado=false; listening=true; cbs.s?.({state:"listening"});
         try { await SR.start({language, maxResults:1, partialResults:true, popup:false}); }
         catch(e){ listening=false; cbs.s?.({state:"idle", reason:"erro"}); throw e; }

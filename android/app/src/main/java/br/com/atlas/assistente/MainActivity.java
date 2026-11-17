@@ -21,6 +21,7 @@ public class MainActivity extends BridgeActivity {
     public void onCreate(Bundle savedInstanceState) {
         registerPlugin(AtlasSistema.class);
         registerPlugin(AtlasVoz.class);
+        registerPlugin(AtlasEscuta.class);
         super.onCreate(savedInstanceState);
         Window window = getWindow();
         window.getDecorView().setBackgroundColor(Color.parseColor("#040914"));
