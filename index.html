@@ -1165,7 +1165,16 @@ function renderCard(){
     el.innerHTML = `<div class="eyebrow">Ajustes</div><div class="set">
       <div><label class="lbl" for="sName">Nome do assistente</label><input class="inp" id="sName" value="${esc(cfg.name)}"></div>
       <div><label class="lbl" for="sUser">Seu nome</label><input class="inp" id="sUser" value="${esc(cfg.user)}"></div>
-      <div class="row"><label class="lbl" for="sVoice" style="margin:0">Voz</label><select class="inp" id="sVoice" style="width:auto">${["buttery","airy","glassy","rounded"].map(v=>`<option ${cfg.voice===v?"selected":""}>${v}</option>`).join("")}</select></div>
+      ${NATIVE ? `<div class="gbox">
+        <div class="row"><label class="lbl" for="sMotor" style="margin:0">Voz do ${esc(cfg.name)}</label><select class="inp" id="sMotor" style="width:auto"><option value="aparelho" ${cfg.vozMotor!=="gemini"?"selected":""}>Do aparelho</option>${cfg.keys?.gemini?`<option value="gemini" ${cfg.vozMotor==="gemini"?"selected":""}>Gemini (mais natural)</option>`:""}</select></div>
+        ${cfg.vozMotor==="gemini"
+          ? `<div class="row"><label class="lbl" for="sVozG" style="margin:0">Voz</label><select class="inp" id="sVozG" style="width:auto">${VOZES_GEMINI.map(([id,n])=>`<option value="${id}" ${(cfg.vozGemini||"Charon")===id?"selected":""}>${esc(n)}</option>`).join("")}</select></div>
+             <p class="note" style="margin:0">A voz do Gemini usa a cota grátis do Google (1 pedido por fala). Quando a cota acabar, o ${esc(cfg.name)} volta sozinho para a voz do aparelho.</p>`
+          : `<div class="row"><label class="lbl" for="sVozN" style="margin:0">Voz</label><select class="inp" id="sVozN" style="width:auto"><option value="">Automática (a mais natural)</option>${vozesPT.map((v,k)=>`<option value="${esc(v.voiceURI)}" ${cfg.vozNativa===v.voiceURI?"selected":""}>${esc(nomeVoz(v,k))}</option>`).join("")}</select></div>
+             ${vozesPT.length<3?`<p class="note" style="margin:0">Poucas vozes em português neste aparelho. Para vozes mais naturais: Configurações do Android › Gerenciamento geral (ou Sistema) › Idioma › Saída de texto para fala › Mecanismo preferido: <b>Serviços de fala do Google</b> › engrenagem › Instalar dados de voz › Português (Brasil). Depois volte aqui.</p>`:""}`}
+        <div class="row"><label class="lbl" for="sVel" style="margin:0">Velocidade</label><select class="inp" id="sVel" style="width:auto">${[[0.85,"Mais devagar"],[1,"Normal"],[1.15,"Mais rápida"]].map(([v,n])=>`<option value="${v}" ${(cfg.vozVelocidade||1)==v?"selected":""}>${n}</option>`).join("")}</select></div>
+        <div class="row"><span class="sub">Ouça como fica</span><button class="btn-line" data-act="voz-testar" type="button">Testar voz</button></div>
+      </div>` : `<div class="row"><label class="lbl" for="sVoice" style="margin:0">Voz</label><select class="inp" id="sVoice" style="width:auto">${["buttery","airy","glassy","rounded"].map(v=>`<option ${cfg.voice===v?"selected":""}>${v}</option>`).join("")}</select></div>`}
       <div class="row"><label class="lbl" for="sSpeak" style="margin:0">Responder em voz alta</label><input type="checkbox" id="sSpeak" ${cfg.speak?"checked":""}></div>
       <div><label class="lbl" for="sTopics">Assuntos do briefing (um por linha)</label><textarea class="inp" id="sTopics" rows="4" style="height:auto;padding:8px 12px;resize:vertical">${esc(topics().map(t=>t.nome).join("\n"))}</textarea></div>
       <div class="row"><span class="sub">Rotina: ${cfg.rotina?`briefing às <b style="color:var(--fg)">${esc(cfg.rotina.hora)}</b>${cfg.rotina.dias==="uteis"?", seg a sex":", todos os dias"}${cfg.rotina.lembrete?" · com aviso":""}`:"não configurada"}</span><button class="btn-line" data-act="onboarding" type="button">Refazer configuração</button></div>
@@ -1195,6 +1204,7 @@ $("#card").addEventListener("click", e=>{
   if(act==="desfazer" && pdfUndo.length){ const u=pdfUndo.pop(); Object.assign(pdf,{bytes:u.bytes,pages:u.pages,ops:u.ops}); renderCard(); renderThumbs(); }
   if(act==="baixar") pdfDownload();
   if(act==="briefing") runBriefing();
+  if(act==="voz-testar"){ store.set("cfg",cfg); vozGeminiPausaAte=0; const t=`Olá, ${cfg.user||"senhor"}. Eu sou o ${cfg.name.charAt(0)+cfg.name.slice(1).toLowerCase()}. É assim que eu vou falar com você.`; caption(esc(t)); if(tts){ tts.stop(); setMode("speaking"); tts.speak(t,{language:"pt-BR"}).catch(()=>{}).finally(()=>setMode("idle")); } }
   if(act==="diag-copiar"){ const txt=`Atlas · ${new Date().toLocaleString("pt-BR")} · ${cfg.provider} ${cfg.model?.[cfg.provider]||""}\n`+DIAG.join("\n"); (navigator.clipboard?.writeText(txt)||Promise.reject()).then(()=>caption("Diagnóstico copiado. Cole no WhatsApp e mande para quem está te ajudando.")).catch(()=>caption("<em>Não consegui copiar. Abra 'Ver as últimas linhas' e tire um print.</em>")); }
   if(act==="gasto-ver"){ highlight={tipo:"gasto", titulo:"Gasto com a IA"}; tab="destaque"; renderCard(); }
   if(act==="gasto-ajustes"){ tab="ajustes"; renderCard(); setTimeout(()=>$("#sLim")?.focus(),50); }
@@ -1226,6 +1236,10 @@ $("#card").addEventListener("change", e=>{
   if(id==="sName"){ cfg.name=(e.target.value.trim()||"ATLAS").toUpperCase(); applyName(); }
   if(id==="sUser") cfg.user=e.target.value.trim();
   if(id==="sVoice") cfg.voice=e.target.value;
+  if(id==="sMotor"){ cfg.vozMotor=e.target.value; vozGeminiPausaAte=0; store.set("cfg",cfg); renderCard(); }
+  if(id==="sVozG"){ cfg.vozGemini=e.target.value; vozGeminiPausaAte=0; }
+  if(id==="sVozN"){ cfg.vozNativa=e.target.value; }
+  if(id==="sVel"){ cfg.vozVelocidade=parseFloat(e.target.value)||1; }
   if(id==="sSpeak") cfg.speak=e.target.checked;
   if(id==="sFx"){ cfg.fx=e.target.value; store.set("cfg",cfg); applyFx(); }
   if(id==="sMus"){ cfg.musicaApp=e.target.value; store.set("cfg",cfg); }
@@ -2703,7 +2717,25 @@ const AI = (() => {
     const ids = (j.models||[]).filter(m=>(m.supportedGenerationMethods||[]).includes("generateContent")).map(m=>String(m.name).replace(/^models\//,""));
     return pickGemini(ids).find(x=>/lite/.test(x)) || null;
   }
-  return {INFO, validate, client, hooks, modeloLeve};
+  // voz do Gemini: devolve áudio PCM (base64). Tenta os modelos de voz em ordem e guarda o que funcionou.
+  const TTS_MODELOS = ["gemini-3.8-flash-tts","gemini-3.1-flash-tts-preview","gemini-2.5-flash-preview-tts"];
+  let ttsOk = null;
+  async function falar(key, auth, texto, voz="Charon"){
+    const H = auth==="query" ? {"content-type":"application/json"} : {"content-type":"application/json","x-goog-api-key":key};
+    const Q = auth==="query" ? `?key=${encodeURIComponent(key)}` : "";
+    const body = JSON.stringify({contents:[{parts:[{text:String(texto).slice(0,1500)}]}], generationConfig:{responseModalities:["AUDIO"], speechConfig:{voiceConfig:{prebuiltVoiceConfig:{voiceName:voz}}}}});
+    let ultimo;
+    for (const m of (ttsOk ? [ttsOk] : TTS_MODELOS)){
+      try {
+        const r = await http(`${GBASE}/models/${m}:generateContent${Q}`, {method:"POST", headers:H, body}, "o Google");
+        const part = (r.candidates?.[0]?.content?.parts||[]).find(p=>p.inlineData?.data);
+        if (!part) throw Object.assign(new Error("sem áudio"),{code:"api"});
+        ttsOk = m; return {b64: part.inlineData.data, mime: part.inlineData.mimeType||"audio/L16;rate=24000", modelo:m};
+      } catch(e){ ultimo = e; if (e.status===404 || (e.status===400 && !/text/i.test(e.message))) continue; throw e; }
+    }
+    throw ultimo || new Error("sem modelo de voz");
+  }
+  return {INFO, validate, client, hooks, modeloLeve, falar};
 })();
 AI.hooks.usage = registrarUso;
 AI.hooks.trace = diario;
@@ -2724,6 +2756,22 @@ function connectAI(){
   applyName();
 }
 
+/* ---------- voz do Gemini: toca o áudio PCM com Web Audio ---------- */
+let audioCtx = null, fonteVoz = null, vozGeminiPausaAte = 0;
+async function tocarPCM(b64, mime){
+  audioCtx = audioCtx || new (window.AudioContext||window.webkitAudioContext)();
+  if (audioCtx.state==="suspended") await audioCtx.resume().catch(()=>{});
+  const rate = +((mime.match(/rate=(\d+)/)||[])[1]||24000), bin = atob(b64), n = bin.length>>1;
+  const buf = audioCtx.createBuffer(1, n, rate), ch = buf.getChannelData(0);
+  for (let i=0;i<n;i++){ let v = bin.charCodeAt(2*i) | (bin.charCodeAt(2*i+1)<<8); if (v>=32768) v-=65536; ch[i] = v/32768; }
+  const src = audioCtx.createBufferSource(); src.buffer = buf; src.connect(audioCtx.destination); fonteVoz = src;
+  await new Promise(r=>{ src.onended = r; src.start(); });
+  if (fonteVoz===src) fonteVoz = null;
+}
+const VOZES_GEMINI = [["Charon","Charon · masculina, calma (estilo Jarvis)"],["Orus","Orus · masculina, firme"],["Fenrir","Fenrir · masculina, animada"],["Kore","Kore · feminina, firme"],["Aoede","Aoede · feminina, leve"],["Puck","Puck · animada"]];
+let vozesPT = [];   // vozes pt-BR do Android (do motor de voz padrão do aparelho)
+const nomeVoz = (v, k) => `Voz ${k+1}${/network/i.test(v.voiceURI)||v.localService===false ? " · online, mais natural" : " · offline"}`;
+
 /* ---------- voz nativa no Android (plugins Capacitor) ---------- */
 let vozMotivo = "";
 async function setupNativeVoice(){
@@ -2731,11 +2779,46 @@ async function setupNativeVoice(){
   const TTS = plugin("TextToSpeech"), SR = plugin("SpeechRecognition");
   const LANGS = {"pt-BR":"pt-BR", en:"en-US", es:"es-ES"};
   if (TTS){
-    let stateCb = null;
+    let stateCb = null, todas = [];
+    // lista as vozes do aparelho; o índice usado no speak é a posição nessa lista completa
+    const carregarVozes = async () => {
+      const r = await TTS.getSupportedVoices().catch(()=>({voices:[]}));
+      todas = (r?.voices||[]).map((v,i)=>Object.assign({}, v, {i}));
+      vozesPT = todas.filter(v=>/^pt[-_]BR/i.test(v.lang||"") || /pt-br/i.test(v.voiceURI||""));
+      diario(`voz: ${todas.length} vozes no aparelho, ${vozesPT.length} em português do Brasil${vozesPT.length?" ("+vozesPT.map(v=>v.voiceURI).slice(0,6).join(", ")+")":""}`);
+    };
+    carregarVozes(); setTimeout(carregarVozes, 4000);
+    const indiceVoz = language => {
+      if (language!=="pt-BR" || !vozesPT.length) return -1;
+      const escolhida = cfg?.vozNativa && vozesPT.find(v=>v.voiceURI===cfg.vozNativa);
+      if (escolhida) return escolhida.i;
+      // sem escolha: prefere a voz online (neural) do Google, que soa bem menos robótica
+      const auto = vozesPT.find(v=>/network/i.test(v.voiceURI)) || vozesPT.find(v=>v.localService===false) || vozesPT.find(v=>/-x-/.test(v.voiceURI));
+      return auto ? auto.i : -1;
+    };
+    const falarNativo = (text, language) => TTS.speak({text:String(text), lang:LANGS[language]||language, rate:cfg?.vozVelocidade||1.0, pitch:1.0, volume:1.0, voice:indiceVoz(language), category:"playback"});
+    const falarGemini = async (text) => {
+      const a = await AI.falar(cfg.keys.gemini, cfg.gemAuth||"header", text, cfg.vozGemini||"Charon");
+      await tocarPCM(a.b64, a.mime);
+    };
     tts = {
-      async speak(text, {language="pt-BR"}={}){ stateCb?.({state:"speaking"}); try { await TTS.speak({text:String(text), lang:LANGS[language]||language, rate:1.0, pitch:1.0, volume:1.0, category:"playback"}); } finally { stateCb?.({state:"idle"}); } },
-      stop(){ return TTS.stop().catch(()=>{}); },
-      onState(cb){ stateCb = cb; }
+      async speak(text, {language="pt-BR"}={}){
+        stateCb?.({state:"speaking"});
+        try {
+          if (cfg?.vozMotor==="gemini" && cfg.keys?.gemini && Date.now()>vozGeminiPausaAte){
+            try { return await falarGemini(text); }
+            catch(e){
+              if (e?.code==="cancelled") return;
+              vozGeminiPausaAte = Date.now() + (e?.porDia ? 6*3600e3 : e?.code==="rate_limited" ? 60e3 : 10*60e3);
+              diario(`voz do Gemini falhou (${e?.code||""} ${e?.detalhe||e?.message||""}); usando a voz do aparelho`);
+            }
+          }
+          await falarNativo(text, language);
+        } finally { stateCb?.({state:"idle"}); }
+      },
+      stop(){ try{ fonteVoz?.stop(); }catch{} fonteVoz=null; return TTS.stop().catch(()=>{}); },
+      onState(cb){ stateCb = cb; },
+      recarregar: carregarVozes
     };
   }
   if (SR){
