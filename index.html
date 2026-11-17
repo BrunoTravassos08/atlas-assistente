@@ -717,6 +717,15 @@ async function cotacoes(){
 }
 /* links: abre no navegador de verdade do aparelho (não numa aba interna) */
 const SIS = plugin("AtlasSistema");
+// voz neural offline (Piper) embutida no APK
+const VOZ = plugin("AtlasVoz");
+let piperInfo = null, piperBaixa = null;
+const motorVoz = () => cfg?.vozMotor || (VOZ ? "piper" : "aparelho");
+async function atualizarPiper(){ if(!VOZ) return null; try{ piperInfo = await VOZ.info(); }catch(e){ piperInfo = null; } if(tab==="ajustes" && !$("#card").contains(document.activeElement)) renderCard(); return piperInfo; }
+if (VOZ){
+  VOZ.addListener("progresso", d=>{ piperBaixa = d; const el=$("#piperPct"); if(el) el.textContent = d.pct>=0 ? `Baixando… ${d.pct}%` : `Baixando… ${d.mb} MB`; });
+  setTimeout(atualizarPiper, 1500); setTimeout(atualizarPiper, 8000);
+}
 let appsMusica = null;
 let sisInfo = null;
 async function infoSistema(){ if(!SIS) return null; try{ sisInfo = await SIS.info(); }catch{ sisInfo = null; } return sisInfo; }
@@ -1200,6 +1209,16 @@ function setMode(m){ if(m!==mode) bgDirty=performance.now()+1500; mode=m; $("#st
 
 /* ---------- panel ---------- */
 const esc = s => String(s??"").replace(/[&<>"]/g, c=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;"}[c]));
+const VOZES_PIPER_DESC = {faber:"tom médio, já instalada", cadu:"grave", jeff:"tom médio", dii:"aguda, alta qualidade", miro:"bem grave, alta qualidade"};
+function ajustesPiper(){
+  const vs = piperInfo?.vozes || [{id:"faber", nome:"Faber", instalada:true, embutida:true, licenca:"CC0"}];
+  const atual = cfg.vozPiper || "faber", sel = vs.find(v=>v.id===atual) || vs[0];
+  const baixando = piperInfo?.baixando || piperBaixa?.ativo;
+  return `<div class="row"><label class="lbl" for="sVozP" style="margin:0">Voz</label><select class="inp" id="sVozP" style="width:auto">${vs.map(v=>`<option value="${esc(v.id)}" ${v.id===atual?"selected":""}>${esc(v.nome)} · ${esc(VOZES_PIPER_DESC[v.id]||"")}${v.instalada?"":" (baixar)"}</option>`).join("")}</select></div>
+    ${sel && !sel.instalada ? `<div class="row"><span class="sub" id="piperPct">${baixando?"Baixando…":`A voz ${esc(sel.nome)} ainda não está no aparelho (cerca de 65 MB).`}</span><button class="btn-line" data-act="piper-baixar" type="button" ${baixando?"disabled":""}>Baixar voz</button></div>`
+      : (sel && !sel.embutida ? `<div class="row"><span class="sub">Voz baixada no aparelho</span><button class="btn-line" data-act="piper-remover" type="button">Apagar</button></div>` : "")}
+    <p class="note" style="margin:0">Voz neural que roda no próprio celular, sem internet e sem gastar cota.${sel?.licenca && !/CC0/.test(sel.licenca)?` Licença da voz ${esc(sel.nome)}: ${esc(sel.licenca)}.`:""}${piperInfo?.erro?` <span style="color:var(--amber)">Não consegui iniciar a voz neural (${esc(String(piperInfo.erro).slice(0,90))}); usando a do aparelho.</span>`:""}</p>`;
+}
 let shown={h:null,i:null}, swapT=null;
 function renderCard(){
   const el=$("#card");
@@ -1225,8 +1244,9 @@ function renderCard(){
       <div><label class="lbl" for="sName">Nome do assistente</label><input class="inp" id="sName" value="${esc(cfg.name)}"></div>
       <div><label class="lbl" for="sUser">Seu nome</label><input class="inp" id="sUser" value="${esc(cfg.user)}"></div>
       ${NATIVE ? `<div class="gbox">
-        <div class="row"><label class="lbl" for="sMotor" style="margin:0">Voz do ${esc(cfg.name)}</label><select class="inp" id="sMotor" style="width:auto"><option value="aparelho" ${cfg.vozMotor!=="gemini"?"selected":""}>Do aparelho</option>${cfg.keys?.gemini?`<option value="gemini" ${cfg.vozMotor==="gemini"?"selected":""}>Gemini (mais natural)</option>`:""}</select></div>
-        ${cfg.vozMotor==="gemini"
+        <div class="row"><label class="lbl" for="sMotor" style="margin:0">Voz do ${esc(cfg.name)}</label><select class="inp" id="sMotor" style="width:auto">${VOZ?`<option value="piper" ${motorVoz()==="piper"?"selected":""}>Neural offline (recomendada)</option>`:""}${cfg.keys?.gemini?`<option value="gemini" ${motorVoz()==="gemini"?"selected":""}>Gemini (online)</option>`:""}<option value="aparelho" ${motorVoz()==="aparelho"?"selected":""}>Do aparelho</option></select></div>
+        ${motorVoz()==="piper" ? ajustesPiper()
+          : motorVoz()==="gemini"
           ? `<div class="row"><label class="lbl" for="sVozG" style="margin:0">Voz</label><select class="inp" id="sVozG" style="width:auto">${VOZES_GEMINI.map(([id,n])=>`<option value="${id}" ${(cfg.vozGemini||"Charon")===id?"selected":""}>${esc(n)}</option>`).join("")}</select></div>
              <p class="note" style="margin:0">A voz do Gemini usa a cota grátis do Google (1 pedido por fala). Quando a cota acabar, o ${esc(cfg.name)} volta sozinho para a voz do aparelho.</p>`
           : `<div class="row"><label class="lbl" for="sVozN" style="margin:0">Voz</label><select class="inp" id="sVozN" style="width:auto"><option value="">Automática (a mais natural)</option>${vozesPT.map((v,k)=>`<option value="${esc(v.voiceURI)}" ${cfg.vozNativa===v.voiceURI?"selected":""}>${esc(nomeVoz(v,k))}</option>`).join("")}</select></div>
@@ -1263,6 +1283,9 @@ $("#card").addEventListener("click", e=>{
   if(act==="desfazer" && pdfUndo.length){ const u=pdfUndo.pop(); Object.assign(pdf,{bytes:u.bytes,pages:u.pages,ops:u.ops}); renderCard(); renderThumbs(); }
   if(act==="baixar") pdfDownload();
   if(act==="briefing") runBriefing();
+  if(act==="piper-baixar" && VOZ){ const id=cfg.vozPiper||"faber"; piperBaixa={id, pct:0, ativo:true}; e.target.disabled=true; const el=$("#piperPct"); if(el) el.textContent="Baixando… 0%";
+    VOZ.baixar({id}).then(()=>{ piperBaixa=null; caption(`Voz baixada. Toque em Testar voz para ouvir.`); diario(`voz neural: ${id} baixada`); return VOZ.carregar({voz:id}); }).catch(err=>{ piperBaixa=null; caption(`<em>${esc(err?.message||"Não consegui baixar a voz. Confira a internet.")}</em>`); }).finally(atualizarPiper); }
+  if(act==="piper-remover" && VOZ){ const id=cfg.vozPiper; if(id && id!=="faber"){ VOZ.remover({id}).catch(()=>{}).finally(()=>{ cfg.vozPiper="faber"; store.set("cfg",cfg); atualizarPiper(); }); } }
   if(act==="abrir-noticia"){ const u=e.target.closest("[data-url]")?.dataset.url; if(u && /^https:\/\//.test(u)){ if(story){ storyStop(); try{ tts?.stop(); }catch{} } openExternal(u); } }
   if(act==="voz-testar"){ store.set("cfg",cfg); vozGeminiPausaAte=0; const t=`Olá, ${cfg.user||"senhor"}. Eu sou o ${cfg.name.charAt(0)+cfg.name.slice(1).toLowerCase()}. É assim que eu vou falar com você.`; caption(esc(t)); if(tts){ tts.stop(); setMode("speaking"); tts.speak(t,{language:"pt-BR"}).catch(()=>{}).finally(()=>setMode("idle")); } }
   if(act==="diag-copiar"){ const txt=`Atlas · ${new Date().toLocaleString("pt-BR")} · ${cfg.provider} ${cfg.model?.[cfg.provider]||""}\n`+DIAG.join("\n"); (navigator.clipboard?.writeText(txt)||Promise.reject()).then(()=>caption("Diagnóstico copiado. Cole no WhatsApp e mande para quem está te ajudando.")).catch(()=>caption("<em>Não consegui copiar. Abra 'Ver as últimas linhas' e tire um print.</em>")); }
@@ -1299,6 +1322,7 @@ $("#card").addEventListener("change", e=>{
   if(id==="sMotor"){ cfg.vozMotor=e.target.value; vozGeminiPausaAte=0; store.set("cfg",cfg); renderCard(); }
   if(id==="sVozG"){ cfg.vozGemini=e.target.value; vozGeminiPausaAte=0; }
   if(id==="sVozN"){ cfg.vozNativa=e.target.value; }
+  if(id==="sVozP"){ cfg.vozPiper=e.target.value; piperPausaAte=0; store.set("cfg",cfg); renderCard(); const v=piperInfo?.vozes?.find(x=>x.id===cfg.vozPiper); if(v?.instalada) VOZ?.carregar({voz:cfg.vozPiper}).catch(()=>{}); }
   if(id==="sVel"){ cfg.vozVelocidade=parseFloat(e.target.value)||1; }
   if(id==="sSpeak") cfg.speak=e.target.checked;
   if(id==="sFx"){ cfg.fx=e.target.value; store.set("cfg",cfg); applyFx(); }
@@ -2847,7 +2871,7 @@ function connectAI(){
 }
 
 /* ---------- voz do Gemini: toca o áudio PCM com Web Audio ---------- */
-let audioCtx = null, fonteVoz = null, vozGeminiPausaAte = 0;
+let audioCtx = null, fonteVoz = null, vozGeminiPausaAte = 0, piperPausaAte = 0;
 async function tocarPCM(b64, mime){
   audioCtx = audioCtx || new (window.AudioContext||window.webkitAudioContext)();
   if (audioCtx.state==="suspended") await audioCtx.resume().catch(()=>{});
@@ -2895,7 +2919,11 @@ async function setupNativeVoice(){
       async speak(text, {language="pt-BR"}={}){
         stateCb?.({state:"speaking"});
         try {
-          if (cfg?.vozMotor==="gemini" && cfg.keys?.gemini && Date.now()>vozGeminiPausaAte){
+          if (VOZ && motorVoz()==="piper" && language==="pt-BR" && Date.now()>piperPausaAte){
+            try { await VOZ.falar({texto:String(text), voz:cfg.vozPiper||"faber", velocidade:cfg?.vozVelocidade||1}); return; }
+            catch(e){ piperPausaAte = Date.now()+5*60e3; diario(`voz neural falhou (${e?.message||e}); usando a voz do aparelho`); }
+          }
+          if (motorVoz()==="gemini" && cfg.keys?.gemini && Date.now()>vozGeminiPausaAte){
             try { return await falarGemini(text); }
             catch(e){
               if (e?.code==="cancelled") return;
@@ -2906,7 +2934,7 @@ async function setupNativeVoice(){
           await falarNativo(text, language);
         } finally { stateCb?.({state:"idle"}); }
       },
-      stop(){ try{ fonteVoz?.stop(); }catch{} fonteVoz=null; return TTS.stop().catch(()=>{}); },
+      stop(){ try{ fonteVoz?.stop(); }catch{} fonteVoz=null; VOZ?.parar().catch(()=>{}); return TTS.stop().catch(()=>{}); },
       onState(cb){ stateCb = cb; },
       recarregar: carregarVozes
     };
