@@ -269,6 +269,7 @@ textarea.inp{height:auto;padding:8px 12px;resize:vertical;font:inherit}
 /* ---------- respostas visuais: placar e gráficos ---------- */
 .card.rich{max-height:48vh}
 @media (min-width:860px){.card.rich{max-height:none}}
+@media (max-width:859px){.app:has(.qchips:not([hidden])) .card.rich{max-height:40vh}.app:has(.card.rich) .orb-wrap{width:min(62vw,27vh,420px)}}
 .score{display:grid;grid-template-columns:1fr auto 1fr;align-items:center;gap:8px;margin:6px 0 4px}
 .team{display:flex;flex-direction:column;align-items:center;gap:6px;text-align:center;min-width:0}
 .team b{font-family:var(--f-hud);font-size:14px;line-height:1.15;overflow-wrap:anywhere}
@@ -396,6 +397,35 @@ textarea.inp{height:auto;padding:8px 12px;resize:vertical;font:inherit}
 @keyframes drop{from{transform:translateY(-4px);opacity:0}30%{opacity:1}to{transform:translateY(14px);opacity:0}}
 .lite .clima .sol,.lite .clima .nuvem{animation:none}
 .news li{animation:rise .5s both}
+.live-dot{display:inline-block;width:7px;height:7px;border-radius:50%;background:var(--red);box-shadow:0 0 8px var(--red);margin-right:7px;vertical-align:1px;animation:pulse 1.4s infinite}
+.hero-news{position:relative;margin-top:10px;padding:12px 14px 12px 16px;border:1px solid rgba(67,217,255,.35);background:linear-gradient(120deg,rgba(67,217,255,.14),rgba(154,107,255,.08) 60%,rgba(67,217,255,.02));animation:pop .6s cubic-bezier(.2,1.3,.4,1) .15s both;overflow:hidden;cursor:pointer}
+.hero-news::before{content:"";position:absolute;left:0;top:0;bottom:0;width:3px;background:linear-gradient(var(--cyan),var(--violet));box-shadow:0 0 10px var(--cyan)}
+.hero-news::after{content:"";position:absolute;inset:0;background:linear-gradient(100deg,transparent 30%,rgba(255,255,255,.10) 50%,transparent 70%);transform:translateX(-100%);animation:sheen 2.8s ease-in-out 1s infinite}
+.hero-news p{margin:6px 0 0;font-size:17px;line-height:1.3;font-weight:600;color:var(--fg)}
+.hero-news .ler{display:inline-block;margin-top:8px;font-family:var(--f-hud);font-size:11px;letter-spacing:.12em;text-transform:uppercase;color:var(--cyan)}
+.meta{display:flex;align-items:center;gap:8px;font-size:12px;color:var(--fg-dim)}
+.fonte{display:inline-flex;align-items:center;gap:6px;color:var(--cyan);font-weight:600}
+.fonte i{display:inline-grid;place-items:center;width:18px;height:18px;border-radius:4px;background:rgba(67,217,255,.18);border:1px solid rgba(67,217,255,.45);font-style:normal;font-size:11px;color:#fff}
+.qd::before{content:"·";margin-right:8px}
+.news2{list-style:none;margin:8px 0 0;padding:0;display:grid;gap:6px}
+.news2 li{padding:8px 10px;border:1px solid var(--line);background:rgba(67,217,255,.03);animation:slidein .5s both;cursor:pointer}
+.news2 li p{margin:0 0 4px;font-size:14px;line-height:1.3;color:var(--fg)}
+.news2 li:active,.hero-news:active{background:rgba(67,217,255,.18)}
+.horas{display:flex;justify-content:space-between;gap:4px;margin-top:12px;height:96px;align-items:flex-end;border-bottom:1px solid var(--line);padding-bottom:4px}
+.horas>div{flex:1;display:flex;flex-direction:column;align-items:center;justify-content:flex-end;height:100%;animation:rise .5s both}
+.horas b{font-family:var(--f-hud);font-size:12px;color:var(--fg)}
+.horas i{display:block;width:60%;max-width:16px;height:var(--h);margin:3px 0;border-radius:3px 3px 0 0;background:linear-gradient(var(--amber),rgba(67,217,255,.35));transform-origin:bottom;animation:grow .8s cubic-bezier(.2,1,.3,1) both;animation-delay:inherit}
+.horas em{font-style:normal;font-size:10px;color:var(--cyan);min-height:12px}
+.horas small{font-size:10px;color:var(--fg-dim)}
+.dias{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:6px;margin-top:10px}
+.dias>div{min-width:0;display:flex;align-items:center;justify-content:space-between;gap:3px;padding:6px 6px;white-space:nowrap;border:1px solid var(--line);font-size:12px;color:var(--fg-dim);animation:pop .5s both}
+.dias small{text-transform:capitalize}
+.dias .ic svg{width:22px;height:22px;display:block}
+.dias b{color:var(--fg);font-family:var(--f-hud)}
+@keyframes sheen{to{transform:translateX(100%)}}
+@keyframes slidein{from{opacity:0;transform:translateX(18px)}to{opacity:1;transform:none}}
+@keyframes grow{from{transform:scaleY(0)}to{transform:scaleY(1)}}
+.lite .hero-news::after{animation:none;display:none}
 .news li:nth-child(2){animation-delay:.12s}.news li:nth-child(3){animation-delay:.24s}
 @media (prefers-reduced-motion:reduce){.crest,.goals li,.stat,.hb,.donut li,.stat .bar2 i,.hb .tr2 i{animation:none}.chart .ln{animation:none;stroke-dashoffset:0}.chart .ar,.chart .pt{animation:none;opacity:1}}
 /* abas sempre inteiras na tela, sem rolar de lado */
@@ -636,7 +666,8 @@ async function noticiasGoogle(consulta, n=6){
     let titulo = (it.querySelector("title")?.textContent||"").trim();
     if (fonte && titulo.endsWith(" - "+fonte)) titulo = titulo.slice(0, -(fonte.length+3));
     const d = new Date(it.querySelector("pubDate")?.textContent||"");
-    return {titulo, fonte, quando: isNaN(d) ? "" : quandoFoi(d)};
+    const link = (it.querySelector("link")?.textContent||"").trim();
+    return {titulo, fonte, quando: isNaN(d) ? "" : quandoFoi(d), link: /^https:\/\//.test(link) ? link : ""};
   }).filter(x=>x.titulo);
   return itens;
 }
@@ -647,14 +678,42 @@ async function buscaLocal(consulta){
   return {resultado: itens.map(i=>`- ${i.titulo} (${i.fonte}${i.quando?", "+i.quando:""})`).join("\n"), fontes:[...new Set(itens.map(i=>i.fonte))].slice(0,6), aviso:"Manchetes do Google Notícias das últimas 48 horas."};
 }
 const TEMPO_COD = c => c===0?"céu limpo":c<=2?"poucas nuvens":c===3?"nublado":c<=48?"neblina":c<=57?"garoa":c<=67?"chuva":c<=77?"neve":c<=82?"pancadas de chuva":"tempestade";
+const UFS = "acre|alagoas|amapá|amazonas|bahia|ceará|distrito federal|espírito santo|goiás|maranhão|mato grosso do sul|mato grosso|minas gerais|pará|paraíba|paraná|pernambuco|piauí|rio de janeiro|rio grande do norte|rio grande do sul|rondônia|roraima|santa catarina|são paulo|sergipe|tocantins";
+async function geoCidade(cidade){
+  // a busca do Open-Meteo só entende o nome da cidade: "Recife Pernambuco" ou "Recife - PE" não acham nada
+  const limpo = String(cidade).replace(/^(tempo|clima|previsão( do tempo)?)\s+(em|de|no|na)\s+/i,"").trim();
+  const semUF = limpo.replace(new RegExp(`[\\s,\\-/]+(${UFS}|[A-Z]{2})$`,"i"),"").trim();
+  for (const nome of [...new Set([limpo, semUF, limpo.split(/[,\-/]/)[0].trim()])].filter(Boolean)){
+    const g = JSON.parse(await httpTexto(`https://geocoding-api.open-meteo.com/v1/search?name=${encodeURIComponent(nome)}&count=5&language=pt&format=json`));
+    const rs = g?.results||[]; if (!rs.length) continue;
+    const uf = (limpo.match(new RegExp(`(${UFS})$`,"i"))||[])[1];
+    return rs.find(r=>uf && String(r.admin1||"").toLowerCase()===uf.toLowerCase()) || rs.find(r=>r.country_code==="BR") || rs[0];
+  }
+  return null;
+}
 async function climaHoje(cidade){
-  const g = JSON.parse(await httpTexto(`https://geocoding-api.open-meteo.com/v1/search?name=${encodeURIComponent(cidade)}&count=1&language=pt&format=json`));
-  const l = g?.results?.[0]; if (!l) return null;
-  const w = JSON.parse(await httpTexto(`https://api.open-meteo.com/v1/forecast?latitude=${l.latitude}&longitude=${l.longitude}&current=temperature_2m,weather_code&daily=temperature_2m_max,temperature_2m_min,precipitation_probability_max&timezone=auto&forecast_days=1`));
+  const l = await geoCidade(cidade); if (!l) return null;
+  const w = JSON.parse(await httpTexto(`https://api.open-meteo.com/v1/forecast?latitude=${l.latitude}&longitude=${l.longitude}&current=temperature_2m,weather_code,relative_humidity_2m,apparent_temperature,wind_speed_10m&hourly=temperature_2m,precipitation_probability&daily=weather_code,temperature_2m_max,temperature_2m_min,precipitation_probability_max&timezone=auto&forecast_days=4`));
   const temp = Math.round(w?.current?.temperature_2m), cond = TEMPO_COD(w?.current?.weather_code??0);
   const max = Math.round(w?.daily?.temperature_2m_max?.[0]), min = Math.round(w?.daily?.temperature_2m_min?.[0]), chuva = w?.daily?.precipitation_probability_max?.[0] ?? null;
   if (!isFinite(temp)) return null;
-  return {cidade:l.name, temperatura:temp, minima:min, maxima:max, condicao:cond, chuva, fala:`Em ${l.name}, agora faz ${temp} graus, ${cond}. Máxima de ${max}${chuva!=null?`, com ${chuva}% de chance de chuva`:""}.`};
+  // próximas 12 horas, de 2 em 2
+  const agora = String(w?.current?.time||"").slice(0,13), hs = w?.hourly?.time||[];
+  let k = Math.max(0, hs.findIndex(t=>t.slice(0,13)>=agora));
+  const horas = []; for (let j=k; j<hs.length && horas.length<7; j+=2) horas.push({h:hs[j].slice(11,13)+"h", t:Math.round(w.hourly.temperature_2m[j]), c:w.hourly.precipitation_probability?.[j]??null});
+  const dias = (w?.daily?.time||[]).slice(1,4).map((d,i)=>({d:new Date(d+"T12:00").toLocaleDateString("pt-BR",{weekday:"short"}).replace(".",""), max:Math.round(w.daily.temperature_2m_max[i+1]), min:Math.round(w.daily.temperature_2m_min[i+1]), c:w.daily.precipitation_probability_max?.[i+1]??null, cond:TEMPO_COD(w.daily.weather_code?.[i+1]??0)}));
+  return {cidade:l.name, temperatura:temp, minima:min, maxima:max, condicao:cond, chuva, sensacao:Math.round(w.current.apparent_temperature), umidade:w.current.relative_humidity_2m, vento:Math.round(w.current.wind_speed_10m), horas, dias,
+    fala:`Em ${l.name}, agora faz ${temp} graus, ${cond}. Máxima de ${max}${chuva!=null?`, com ${chuva}% de chance de chuva`:""}.`};
+}
+// cotações (AwesomeAPI, grátis e sem chave)
+async function cotacoes(){
+  const j = JSON.parse(await httpTexto("https://economia.awesomeapi.com.br/json/last/USD-BRL,EUR-BRL,BTC-BRL"));
+  const it = (k, rot, dec=2, mil=false) => { const x=j?.[k]; if(!x) return null; const v=parseFloat(x.bid); const p=parseFloat(x.pctChange);
+    return {rotulo:rot, valor: mil ? Math.round(v/1000) : +v.toFixed(dec), unidade: mil ? " mil" : "", pre:"R$ ", variacao: isFinite(p) ? `${p>=0?"+":""}${p.toFixed(2).replace(".",",")}%` : ""}; };
+  const lista = [it("USDBRL","Dólar"), it("EURBRL","Euro"), it("BTCBRL","Bitcoin",0,true)].filter(Boolean);
+  if (!lista.length) return null;
+  const d = lista[0];
+  return {numeros:lista, fala:`O dólar está em ${d.valor.toLocaleString("pt-BR",{minimumFractionDigits:2})} reais${d.variacao?`, ${d.variacao.startsWith("-")?"queda":"alta"} de ${d.variacao.replace(/^[+-]/,"").replace("%"," por cento")} no dia`:""}.`};
 }
 /* links: abre no navegador de verdade do aparelho (não numa aba interna) */
 const SIS = plugin("AtlasSistema");
@@ -1204,6 +1263,7 @@ $("#card").addEventListener("click", e=>{
   if(act==="desfazer" && pdfUndo.length){ const u=pdfUndo.pop(); Object.assign(pdf,{bytes:u.bytes,pages:u.pages,ops:u.ops}); renderCard(); renderThumbs(); }
   if(act==="baixar") pdfDownload();
   if(act==="briefing") runBriefing();
+  if(act==="abrir-noticia"){ const u=e.target.closest("[data-url]")?.dataset.url; if(u && /^https:\/\//.test(u)){ if(story){ storyStop(); try{ tts?.stop(); }catch{} } openExternal(u); } }
   if(act==="voz-testar"){ store.set("cfg",cfg); vozGeminiPausaAte=0; const t=`Olá, ${cfg.user||"senhor"}. Eu sou o ${cfg.name.charAt(0)+cfg.name.slice(1).toLowerCase()}. É assim que eu vou falar com você.`; caption(esc(t)); if(tts){ tts.stop(); setMode("speaking"); tts.speak(t,{language:"pt-BR"}).catch(()=>{}).finally(()=>setMode("idle")); } }
   if(act==="diag-copiar"){ const txt=`Atlas · ${new Date().toLocaleString("pt-BR")} · ${cfg.provider} ${cfg.model?.[cfg.provider]||""}\n`+DIAG.join("\n"); (navigator.clipboard?.writeText(txt)||Promise.reject()).then(()=>caption("Diagnóstico copiado. Cole no WhatsApp e mande para quem está te ajudando.")).catch(()=>caption("<em>Não consegui copiar. Abra 'Ver as últimas linhas' e tire um print.</em>")); }
   if(act==="gasto-ver"){ highlight={tipo:"gasto", titulo:"Gasto com a IA"}; tab="destaque"; renderCard(); }
@@ -1431,18 +1491,26 @@ async function runBriefing({abertura=false}={}){
     let r;
     if (!textos.length){
       // 1) manchetes do Google Notícias e clima, direto, sem gastar a IA
-      const resultados = new Array(ts.length).fill(null); let clima = null; const fila = ts.map((t,i)=>i);
+      const resultados = new Array(ts.length).fill(null); let clima = null, cot = null;
+      const ehClima = t => /\b(tempo|clima|previs[ãa]o)\b/i.test(t.nome), ehCot = t => /d[óo]lar|c[âa]mbio|cota[çc][ãa]o|\beuro\b|bitcoin/i.test(t.nome);
+      const tClima = ts.find(ehClima);
+      const cidadeClima = cidade || (tClima ? tClima.nome : "");
+      ts.forEach((t,i)=>{ if(ehClima(t)) highlight.topicos[i].status = "buscando"; });
+      const fila = ts.map((t,i)=>i).filter(i=>!ehClima(ts[i]));
       const trabalhador = async () => { while(fila.length){ const i=fila.shift();
         highlight.topicos[i].status="buscando"; if(tab==="destaque") renderCard();
         try{ const it = await noticiasGoogle(ts[i].q || ts[i].nome, 5); if(it.length){ resultados[i]={assunto:ts[i].nome, manchetes:it}; highlight.topicos[i].status="ok"; } else highlight.topicos[i].status="sem notícias"; }
         catch(e){ highlight.topicos[i].status="falhou"; }
         $("#state").textContent=`Notícias: ${highlight.topicos.filter(x=>x.status!=="na fila"&&x.status!=="buscando").length} de ${ts.length}`;
         if(tab==="destaque") renderCard(); } };
-      const climaP = cidade ? climaHoje(cidade).then(x=>{ clima=x; }).catch(()=>{}) : Promise.resolve();
-      await Promise.all([trabalhador(), trabalhador(), trabalhador(), trabalhador(), climaP]);
+      const climaP = cidadeClima ? climaHoje(cidadeClima).then(x=>{ clima=x; }).catch(e=>diario(`clima: falhou (${e?.message||e})`)) : Promise.resolve();
+      const cotP = ts.some(ehCot) ? cotacoes().then(x=>{ cot=x; }).catch(e=>diario(`cotação: falhou (${e?.message||e})`)) : Promise.resolve();
+      await Promise.all([trabalhador(), trabalhador(), trabalhador(), trabalhador(), climaP, cotP]);
+      ts.forEach((t,i)=>{ if(ehClima(t)) highlight.topicos[i].status = clima ? "ok" : "sem dados"; });
+      if(tab==="destaque") renderCard();
       const ok = resultados.filter(Boolean);
-      diario(`briefing: ${ok.length} de ${ts.length} assuntos com manchetes${clima?", clima ok":""}`);
-      if(!ok.length) throw {code:"sem_noticias"};
+      diario(`briefing: ${ok.length} de ${ts.length} assuntos com manchetes${clima?", clima ok":""}${cot?", cotação ok":""}`);
+      if(!ok.length && !clima) throw {code:"sem_noticias"};
       aoVivo = true;
       // 2) um único pedido curto à IA para escrever as falas (se falhar, o app escreve sozinho)
       let falas = null;
@@ -1452,13 +1520,18 @@ async function runBriefing({abertura=false}={}){
 Manchetes reais de hoje por assunto (não invente nada além delas):
 ${ok.map(t=>`### ${t.assunto}\n${t.manchetes.map(m=>`- ${m.titulo} (${m.fonte}${m.quando?", "+m.quando:""})`).join("\n")}`).join("\n\n")}
 
-Não cumprimente (a saudação já foi feita). Responda SOMENTE com JSON: {"abertura": "1 frase, sem bom dia/boa noite, com o panorama das notícias", "topicos": [{"assunto": "igual ao título acima", "fala": "1 a 2 frases com o mais importante, para ler em voz alta", "resumo": "1 frase curta"}]}`, {modelTier:"quick", web:false});
+Não cumprimente (a saudação já foi feita). As falas viram cartões animados num painel. Responda SOMENTE com JSON:
+{"abertura": "1 frase, sem bom dia/boa noite, com o panorama das notícias",
+ "topicos": [{"assunto": "igual ao título acima", "fala": "1 a 2 frases com o mais importante, para ler em voz alta", "resumo": "1 frase curta",
+   "numeros": "OPCIONAL, só com números escritos nas manchetes (percentual, valor, votos, gols, pesquisa): [{\"rotulo\": \"curto\", \"valor\": \"32\", \"unidade\": \"%\", \"variacao\": \"+2%\"}], até 3; senão omita",
+   "placar": "OPCIONAL, só se uma manchete trouxer o placar de um jogo: {\"competicao\": \"...\", \"status\": \"encerrado\", \"mandante\": {\"nome\": \"...\", \"sigla\": \"3 letras\", \"gols\": 2, \"cor_primaria\": \"#hex do uniforme\", \"cor_secundaria\": \"#hex\"}, \"visitante\": {...}}; senão omita"}]}`, {modelTier:"quick", web:false});
       } catch(e){ diario(`briefing: resumo da IA falhou (${e?.code||"?"} ${e?.detalhe||e?.message||""}); usando as manchetes`); }
       const porNome = new Map((falas?.topicos||[]).map(t=>[String(t.assunto||"").toLowerCase(), t]));
       const prox = next[0];
       r = {clima,
         topicos: ok.map(t=>{ const f = porNome.get(t.assunto.toLowerCase()) || {}; const m0 = t.manchetes[0];
-          return {assunto:t.assunto, manchetes:t.manchetes.slice(0,3), fala: f.fala || `${t.assunto}: ${m0.titulo}.`, resumo: f.resumo || m0.titulo}; }),
+          return {assunto:t.assunto, manchetes:t.manchetes.slice(0,4), fala: f.fala || `${t.assunto}: ${m0.titulo}.`, resumo: f.resumo || m0.titulo, numeros: f.numeros, placar: f.placar}; }),
+        cot, ehCot,
         abertura: falas?.abertura || `Separei as notícias de ${ok.length} ${ok.length>1?"assuntos":"assunto"}${next.length?` e você tem ${next.length} ${next.length>1?"compromissos":"compromisso"} hoje`:""}.`,
         agenda_fala: next.length ? `Seu próximo compromisso é ${prox.titulo}${prox.hora?` às ${prox.hora}`:""}.` : "Sua agenda de hoje está livre.",
         encerramento: (ok.length<ts.length ? `Não achei notícias recentes de ${ts.length-ok.length} ${ts.length-ok.length>1?"assuntos":"assunto"}. ` : "") + "Posso ajudar com mais alguma coisa?"};
@@ -1482,16 +1555,19 @@ Monte o briefing de abertura. Ele vira uma apresentação animada, cartão por c
 No máximo 3 manchetes por assunto. Use só informação presente nos resultados.`;
     r = await sample.json(prompt,{modelTier:"quick", web:false});
     }
-    const tops=(r.topicos||[]).slice(0,8).map(t=>({assunto:String(t.assunto||""), fala:String(t.fala||""), resumo:String(t.resumo||""), manchetes:(Array.isArray(t.manchetes)?t.manchetes:[]).slice(0,3).map(m=>({titulo:String(m.titulo||""), fonte:String(m.fonte||""), quando:String(m.quando||"")})), numeros:Array.isArray(t.numeros)?t.numeros.slice(0,4):null, placar:(t.placar&&typeof t.placar==="object"&&t.placar.mandante&&t.placar.visitante)?t.placar:null}));
+    const tops=(r.topicos||[]).slice(0,8).map(t=>({assunto:String(t.assunto||""), fala:String(t.fala||""), resumo:String(t.resumo||""), manchetes:(Array.isArray(t.manchetes)?t.manchetes:[]).slice(0,4).map(m=>({titulo:String(m.titulo||""), fonte:String(m.fonte||""), quando:String(m.quando||""), link:String(m.link||"")})), numeros:Array.isArray(t.numeros)?t.numeros.filter(n=>n&&n.valor!=null&&String(n.valor).trim()).slice(0,4):null, placar:(t.placar&&typeof t.placar==="object"&&t.placar.mandante&&t.placar.visitante)?t.placar:null}));
+    const cotT = r.cot ? tops.find(t=>r.ehCot({nome:t.assunto})) : null;
     const next2=tasks.filter(t=>!t.feito);
     const slides=[];
     slides.push({tipo:"numeros", categoria:new Date().toLocaleDateString("pt-BR",{weekday:"long", day:"2-digit", month:"long"}), titulo:`${per}, ${cfg.user||""}`.trim(), legenda:String(r.abertura||""), fala:String(r.abertura||""),
-      numeros:[{rotulo:"Compromissos", valor:next2.length}, ...(r.clima?.temperatura!=null?[{rotulo:r.clima.cidade||"Agora", valor:Math.round(num(r.clima.temperatura)), unidade:"°"}]:[]), {rotulo:"Assuntos", valor:tops.length}]});
+      numeros:[{rotulo:"Compromissos", valor:next2.length}, ...(r.clima?.temperatura!=null?[{rotulo:r.clima.cidade||"Agora", valor:Math.round(num(r.clima.temperatura)), unidade:"°"}]:[]), ...(r.cot?[r.cot.numeros[0]]:[]), {rotulo:"Assuntos", valor:tops.length}]});
     if(r.clima && typeof r.clima==="object" && r.clima.temperatura!=null) slides.push(Object.assign({}, r.clima, {tipo:"clima", fala:String(r.clima.fala||"")}));
     slides.push({tipo:"agenda", fala:String(r.agenda_fala||"")});
+    if(r.cot && !cotT) slides.push({tipo:"numeros", categoria:"Mercado", titulo:"Cotações agora", numeros:r.cot.numeros, fonte:"AwesomeAPI", fala:r.cot.fala});
     tops.forEach(t=>{
+      if(t===cotT){ slides.push({tipo:"numeros", categoria:"Mercado", titulo:t.assunto, numeros:r.cot.numeros, legenda:t.resumo, fonte:"AwesomeAPI", fala:r.cot.fala}); slides.push({tipo:"noticias", categoria:"Mercado · manchetes", titulo:t.assunto, resumo:"", manchetes:t.manchetes, fala:t.fala}); return; }
       if(t.placar) slides.push(Object.assign({}, t.placar, {tipo:"placar", competicao:t.placar.competicao||t.assunto, fala:t.fala, legenda:t.resumo}));
-      slides.push({tipo:"noticias", categoria:t.placar?"Mais notícias":"Notícias", titulo:t.assunto, resumo:t.resumo, manchetes:t.manchetes, numeros:t.numeros, fala:t.placar?"":t.fala});
+      slides.push({tipo:"noticias", categoria:t.placar?"Mais notícias":"Notícias", titulo:t.assunto, resumo:t.resumo, manchetes:t.manchetes, numeros:t.placar?null:t.numeros, fala:t.placar?"":t.fala});
     });
     slides.push({tipo:"destaque", categoria:"Resumo do briefing", titulo:"Seus assuntos de hoje", itens:tops.map(t=>`${t.assunto}: ${t.resumo}`), legenda:aoVivo?"":"Sem notícias ao vivo agora. Confira a conexão e a chave em Ajustes.", fala:String(r.encerramento||"Posso ajudar com mais alguma coisa?")});
     highlight={tipo:"apresentacao", briefing:true, titulo:"Briefing do dia", aoVivo, em:new Date().toISOString(), slides, i:0};
@@ -1583,7 +1659,7 @@ function miniPlacar(p){
 }
 function animateCounts(root){
   root.querySelectorAll("[data-count]").forEach(el=>{
-    const target=num(el.dataset.count), unit=el.dataset.unit||"", pre=el.dataset.pre||"", t0=performance.now(), dur=900, fixo=el.dataset.dec!=null, dec=fixo?+el.dataset.dec:(Math.abs(target%1)>0?1:0);
+    const raw=String(el.dataset.count||""), target=/^-?\d+(\.\d+)?$/.test(raw)?parseFloat(raw):num(raw), unit=el.dataset.unit||"", pre=el.dataset.pre||"", t0=performance.now(), dur=900, fixo=el.dataset.dec!=null, dec=fixo?+el.dataset.dec:(Math.abs(target%1)>0?1:0);
     const fmt=(v,fim)=>pre+v.toLocaleString("pt-BR",fixo?{minimumFractionDigits:dec,maximumFractionDigits:dec}:{minimumFractionDigits:fim?0:dec,maximumFractionDigits:fim?2:dec})+unit;
     if (reduce){ el.textContent=fmt(target,true); return; }
     const step=now=>{ const k=Math.min(1,(now-t0)/dur), e=1-Math.pow(1-k,3); el.textContent=fmt(target*e,k>=1); if(k<1) requestAnimationFrame(step); };
@@ -1596,7 +1672,8 @@ const sinal = v => { const t=String(v??"").trim(); return /^\+/.test(t)?"up":/^[
 function kpiTiles(lista){
   return `<div class="kpis">${(lista||[]).slice(0,6).map((k,i)=>{ const v=k.valor, isNum=typeof v==="number" || /^[-+]?\d[\d.,]*$/.test(String(v??"").trim());
     const txt=String(v??"")+(isNum?(k.unidade||""):""), cls=txt.length>10?"xl":txt.length>5?"long":"";
-    return `<div class="kpi" style="animation-delay:${.1+i*.09}s"><small>${esc(k.rotulo||"")}</small><b class="${cls}" ${isNum?`data-count="${num(v)}" data-unit="${esc(k.unidade||"")}"`:""}>${esc(String(v??"")+(isNum?(k.unidade||""):""))}</b>${k.variacao?`<em class="${sinal(k.variacao)}">${sinal(k.variacao)==="down"?"▼":sinal(k.variacao)==="up"?"▲":""} ${esc(k.variacao)}</em>`:""}</div>`; }).join("")}</div>`;
+    const pre=k.pre||"", dec=typeof v==="number"&&v%1?` data-dec="2"`:"";
+    return `<div class="kpi" style="animation-delay:${.1+i*.09}s"><small>${esc(k.rotulo||"")}</small><b class="${cls}" ${isNum?`data-count="${num(v)}" data-unit="${esc(k.unidade||"")}" data-pre="${esc(pre)}"${dec}`:""}>${esc(pre+(typeof v==="number"?v.toLocaleString("pt-BR"):String(v??""))+(isNum?(k.unidade||""):""))}</b>${k.variacao?`<em class="${sinal(k.variacao)}">${sinal(k.variacao)==="down"?"▼":sinal(k.variacao)==="up"?"▲":""} ${esc(k.variacao)}</em>`:""}</div>`; }).join("")}</div>`;
 }
 function renderNumeros(s){
   return `<div class="eyebrow">${esc(s.categoria||"Em números")}</div>${s.titulo?`<h3>${esc(s.titulo)}</h3>`:""}${kpiTiles(s.numeros)}${s.legenda?`<p class="sub" style="margin-top:10px">${esc(s.legenda)}</p>`:""}${s.fonte?`<p class="src">Fonte: ${esc(s.fonte)}</p>`:""}`;
@@ -1625,12 +1702,25 @@ function renderClima(s){
   return `<div class="eyebrow">${esc(s.categoria||"Clima")}${s.cidade?` · ${esc(s.cidade)}`:""}</div>${s.titulo?`<h3>${esc(s.titulo)}</h3>`:""}
     <div class="clima">${iconeClima(s.condicao)}<div><div class="temp"><span data-count="${num(s.temperatura)}">${esc(String(s.temperatura??"--"))}</span>°</div>
     <div class="mm">${s.minima!=null?`mín <b>${esc(String(s.minima))}°</b>`:""}${s.maxima!=null?` · máx <b>${esc(String(s.maxima))}°</b>`:""}${s.chuva!=null?` · chuva <b>${esc(String(s.chuva))}%</b>`:""}</div>
-    ${s.condicao?`<p class="sub" style="margin:6px 0 0">${esc(s.condicao)}</p>`:""}</div></div>${s.legenda?`<p class="sub" style="margin-top:8px">${esc(s.legenda)}</p>`:""}`;
+    ${s.condicao?`<p class="sub" style="margin:6px 0 0">${esc(s.condicao)}${s.sensacao!=null&&isFinite(s.sensacao)?` · sensação ${esc(String(s.sensacao))}°`:""}</p>`:""}</div></div>${horasClima(s.horas)}${diasClima(s.dias)}${s.legenda?`<p class="sub" style="margin-top:8px">${esc(s.legenda)}</p>`:""}`;
+}
+function horasClima(hs){
+  if(!Array.isArray(hs) || hs.length<3) return "";
+  const ts=hs.map(x=>num(x.t)), mx=Math.max(...ts), mn=Math.min(...ts), sp=(mx-mn)||1;
+  return `<div class="horas">${hs.map((x,i)=>`<div style="animation-delay:${.25+i*.07}s"><b>${esc(String(x.t))}°</b><i style="--h:${(30+(num(x.t)-mn)/sp*70).toFixed(0)}%"></i>${x.c!=null&&x.c>=30?`<em>${esc(String(x.c))}%</em>`:`<em></em>`}<small>${esc(x.h)}</small></div>`).join("")}</div>`;
+}
+function diasClima(ds){
+  if(!Array.isArray(ds) || !ds.length) return "";
+  return `<div class="dias">${ds.map((d,i)=>`<div style="animation-delay:${.6+i*.1}s"><small>${esc(d.d)}</small><span class="ic">${iconeClima(d.cond)}</span><b>${esc(String(d.max))}°</b><span>${esc(String(d.min))}°</span></div>`).join("")}</div>`;
 }
 function renderNoticias(s){
-  return `<div class="eyebrow">${esc(s.categoria||"Notícias")}</div><h3>${esc(s.titulo||s.assunto||"")}</h3>${miniPlacar(s.placar)}
+  const ms=(s.manchetes||[]).filter(m=>m?.titulo), [m0,...resto]=ms;
+  const link = m => m.link ? ` data-act="abrir-noticia" data-url="${esc(m.link)}" role="link" tabindex="0"` : "";
+  const fonte = m => `<span class="fonte"><i>${esc((m.fonte||"?").trim().charAt(0).toUpperCase())}</i>${esc(m.fonte||"")}</span>${m.quando?`<span class="qd">${esc(m.quando)}</span>`:""}`;
+  return `<div class="eyebrow"><span class="live-dot"></span>${esc(s.categoria||"Notícias")}${ms.length?` · ${ms.length} ${ms.length>1?"manchetes":"manchete"}`:""}</div><h3>${esc(s.titulo||s.assunto||"")}</h3>${miniPlacar(s.placar)}
     ${s.resumo?`<p class="sub" style="color:var(--fg)">${esc(s.resumo)}</p>`:""}${s.numeros?.length?kpiTiles(s.numeros):""}
-    ${s.manchetes?.length?`<ul class="rows news">${s.manchetes.slice(0,3).map(m=>`<li><span class="time">›</span><span class="t">${esc(m.titulo||"")}<small>${esc([m.fonte,m.quando].filter(Boolean).join(" · "))}</small></span><span></span></li>`).join("")}</ul>`:""}`;
+    ${m0?`<div class="hero-news"${link(m0)}><div class="meta">${fonte(m0)}</div><p>${esc(m0.titulo)}</p>${m0.link?`<span class="ler">Ler matéria ›</span>`:""}</div>`:""}
+    ${resto.length?`<ul class="news2">${resto.slice(0,3).map((m,i)=>`<li style="animation-delay:${.35+i*.12}s"${link(m)}><p>${esc(m.titulo)}</p><div class="meta">${fonte(m)}</div></li>`).join("")}</ul>`:""}`;
 }
 function slideHtml(c){
   switch(c.tipo){
