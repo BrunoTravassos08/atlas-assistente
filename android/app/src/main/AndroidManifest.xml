@@ -24,14 +24,25 @@
 
         </activity>
 
+        <!-- só para poder dar play no app de música (o Android exige um "ouvinte de notificações") -->
+        <service
+            android:name=".MidiaListener"
+            android:exported="true"
+            android:label="Atlas: controlar música"
+            android:permission="android.permission.BIND_NOTIFICATION_LISTENER_SERVICE">
+            <intent-filter>
+                <action android:name="android.service.notification.NotificationListenerService" />
+            </intent-filter>
+        </service>
+
         <!-- botão flutuante por cima dos outros apps -->
         <service
             android:name=".BolhaService"
             android:exported="false"
-            android:foregroundServiceType="specialUse">
+            android:foregroundServiceType="specialUse|microphone">
             <property
                 android:name="android.app.PROPERTY_SPECIAL_USE_FGS_SUBTYPE"
-                android:value="Botão flutuante do assistente por cima dos outros apps; tocar abre o assistente ouvindo um comando de voz." />
+                android:value="Botão flutuante do assistente por cima dos outros apps; tocar abre um painel que ouve um comando de voz e mostra a resposta." />
         </service>
 
         <provider
@@ -55,6 +66,7 @@
     <uses-permission android:name="android.permission.SYSTEM_ALERT_WINDOW" />
     <uses-permission android:name="android.permission.FOREGROUND_SERVICE" />
     <uses-permission android:name="android.permission.FOREGROUND_SERVICE_SPECIAL_USE" />
+    <uses-permission android:name="android.permission.FOREGROUND_SERVICE_MICROPHONE" />
 
     <!-- Android 11+: permite achar o motor de voz (TTS) e o reconhecimento de fala do aparelho -->
     <queries>

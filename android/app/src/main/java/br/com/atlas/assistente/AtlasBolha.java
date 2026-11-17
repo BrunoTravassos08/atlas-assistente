@@ -12,6 +12,29 @@ import com.getcapacitor.annotation.CapacitorPlugin;
 /** Liga/desliga o botão flutuante (BolhaService) e avisa o JS quando o Atlas foi aberto por ele. */
 @CapacitorPlugin(name = "AtlasBolha")
 public class AtlasBolha extends Plugin {
+    static volatile AtlasBolha ativo;
+
+    /** Repassa um pedido do painel rápido para o Atlas (JS). Falso se o app não está rodando. */
+    static boolean avisar(String evento, String texto) {
+        AtlasBolha p = ativo;
+        if (p == null || p.getBridge() == null) return false;
+        JSObject d = new JSObject();
+        if (texto != null) d.put("texto", texto);
+        p.notifyListeners("pedido".equals(evento) ? "pedido" : "parar", d);
+        return true;
+    }
+
+    @PluginMethod
+    public void responder(PluginCall call) {
+        BolhaService.resposta(call.getString("texto", ""), Boolean.TRUE.equals(call.getBoolean("fim", false)));
+        call.resolve();
+    }
+
+    @Override
+    protected void handleOnDestroy() {
+        if (ativo == this) ativo = null;
+        super.handleOnDestroy();
+    }
 
     private JSObject estado() {
         JSObject r = new JSObject();
@@ -23,6 +46,7 @@ public class AtlasBolha extends Plugin {
 
     @Override
     public void load() {
+        ativo = this;
         // aberto pela bolinha com o app fechado
         if (getActivity() != null) avisarSeOuvir(getActivity().getIntent());
     }
@@ -34,9 +58,19 @@ public class AtlasBolha extends Plugin {
     }
 
     private void avisarSeOuvir(Intent i) {
-        if (i == null || !BolhaService.ACAO_OUVIR.equals(i.getAction())) return;
-        i.setAction(Intent.ACTION_MAIN); // não repetir ao girar a tela
-        notifyListeners("ouvir", new JSObject(), true);
+        if (i == null) return;
+        String a = i.getAction();
+        if (BolhaService.ACAO_OUVIR.equals(a)) {
+            JSObject d = new JSObject();
+            String pedido = i.getStringExtra(BolhaService.EXTRA_PEDIDO);
+            if (pedido != null) d.put("pedido", pedido);
+            i.setAction(Intent.ACTION_MAIN); // não repetir ao girar a tela
+            i.removeExtra(BolhaService.EXTRA_PEDIDO);
+            notifyListeners("ouvir", d, true);
+        } else if (BolhaService.ACAO_BRIEFING.equals(a)) {
+            i.setAction(Intent.ACTION_MAIN);
+            notifyListeners("briefing", new JSObject(), true);
+        }
     }
 
     @Override
