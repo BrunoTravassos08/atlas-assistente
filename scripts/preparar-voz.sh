@@ -30,4 +30,45 @@ if [ ! -s "$ASSETS/faber/model.onnx" ] || [ ! -s "$ASSETS/espeak-ng-data.zip" ];
   E="$D/espeak-ng-data"
   (cd "$D" && rm -f "$ASSETS/espeak-ng-data.zip" && zip -q -r "$ASSETS/espeak-ng-data.zip" espeak-ng-data/phondata espeak-ng-data/phondata-manifest espeak-ng-data/phonindex espeak-ng-data/phontab espeak-ng-data/intonations espeak-ng-data/pt_dict espeak-ng-data/lang espeak-ng-data/voices)
 fi
-ls -la "$LIBS" "$ASSETS" "$ASSETS/faber"
+# palavra de ativação "Atlas" (offline): modelo de palavra-chave do sherpa-onnx, versão int8 (~5 MB)
+KWS="$RAIZ/android/app/src/main/assets/kws"
+KWS_MODELO="sherpa-onnx-kws-zipformer-gigaspeech-3.3M-2024-01-01"
+if [ ! -s "$KWS/encoder.onnx" ]; then
+  echo "Baixando o modelo da palavra Atlas…"
+  mkdir -p "$KWS"
+  curl -fsSL --retry 4 -o "$TMP/kws.tar.bz2" "https://github.com/k2-fsa/sherpa-onnx/releases/download/kws-models/$KWS_MODELO.tar.bz2"
+  tar xjf "$TMP/kws.tar.bz2" -C "$TMP"
+  K="$TMP/$KWS_MODELO"
+  cp "$K/encoder-epoch-12-avg-2-chunk-16-left-64.int8.onnx" "$KWS/encoder.onnx"
+  cp "$K/decoder-epoch-12-avg-2-chunk-16-left-64.int8.onnx" "$KWS/decoder.onnx"
+  cp "$K/joiner-epoch-12-avg-2-chunk-16-left-64.int8.onnx" "$KWS/joiner.onnx"
+  cp "$K/tokens.txt" "$KWS/tokens.txt"
+fi
+# jeitos de pronunciar "Atlas" (em tokens do modelo, gerados com sherpa-onnx-cli text2token)
+cat > "$KWS/keywords.txt" <<'PALAVRAS'
+▁AT LA S @ATLAS
+▁AT ▁LA S @ATLAS
+▁AT ▁LE S S @ATLAS
+▁AT ▁ LU S @ATLAS
+▁A D ▁LA S @ATLAS
+▁A H ▁T LA S @ATLAS
+▁AT ▁LO S @ATLAS
+▁OUT ▁LA S @ATLAS
+▁AT ▁LAST @ATLAS
+▁AT ▁LE AS T @ATLAS
+▁AT LA @ATLAS
+▁AT LA S ▁E @ATLAS
+▁AT ▁LA @ATLAS
+▁AT TI LA ▁S @ATLAS
+▁AT ▁T I LL ▁US @ATLAS
+▁AT ▁A ▁LA S @ATLAS
+▁AT ▁CHI ▁LA S @ATLAS
+▁AT ▁I ▁LE S S @ATLAS
+▁AT T IL AS @ATLAS
+▁AT ▁LI S @ATLAS
+▁AT ▁LA S ▁S @ATLAS
+▁UP ▁LA S @ATLAS
+▁AT ▁RU S @ATLAS
+▁ ACT ▁LE S S @ATLAS
+PALAVRAS
+ls -la "$LIBS" "$ASSETS" "$ASSETS/faber" "$KWS"
