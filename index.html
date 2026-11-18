@@ -738,6 +738,7 @@ async function buscaLocal(consulta){
 const IG_API = "https://graph.facebook.com/v25.0/";
 let instaErro = "";
 const nomePerfil = u => String(u||"").trim().replace(/^https?:\/\/(www\.)?instagram\.com\//i,"").replace(/[/?#].*$/,"").replace(/^@/,"").toLowerCase();
+const IG_PERMS = ["instagram_basic","instagram_manage_insights","pages_show_list","pages_read_engagement","business_management","ads_read"];
 const instaPronto = () => !!(cfg?.insta?.token && cfg.insta.igId && !cfg.insta.vencido);
 const instaDias = () => cfg?.insta?.tokenEm ? Math.floor((Date.now()-cfg.insta.tokenEm)/864e5) : 0;
 async function graphGet(caminho, params={}, token=cfg?.insta?.token){
@@ -756,7 +757,7 @@ async function graphGet(caminho, params={}, token=cfg?.insta?.token){
   diario(`Instagram ${caminho.slice(0,24)} → ${status}`);
   if (data?.error){
     const er = data.error;
-    const code = er.code===190 ? "token_expirado" : (er.code===110 || er.error_subcode===2207013 || /cannot find user|invalid user/i.test(er.message||"")) ? "perfil" : er.code===4 || er.code===17 || er.code===32 ? "limite" : "meta";
+    const code = er.code===190 ? "token_expirado" : (er.code===110 || er.error_subcode===2207013 || /cannot find user|invalid user/i.test(er.message||"")) ? "perfil" : er.code===4 || er.code===17 || er.code===32 ? "limite" : (er.code===10 || er.code===200 || (er.code>=200 && er.code<300)) ? "permissao" : "meta";
     throw Object.assign(new Error(er.message||"erro da Meta"), {code, meta:er.code});
   }
   if (!(status>=200 && status<300)) throw Object.assign(new Error("HTTP "+status), {code:"meta"});
@@ -765,6 +766,7 @@ async function graphGet(caminho, params={}, token=cfg?.insta?.token){
 function instaMsgErro(e){
   if (e?.code==="token_expirado") return "Esse token não vale mais (venceu ou foi gerado errado). Gere um novo pelos passos 4 e 5 e cole aqui.";
   if (e?.code==="sem_conta") return e.message;
+  if (e?.code==="permissao") return `O token está sem uma permissão que a Meta exige para ver outros perfis${e.faltam?.length?` (falta: ${e.faltam.join(", ")})`:" (instagram_manage_insights)"}. Gere um token novo no passo 4 marcando todas as permissões da lista, estenda no passo 5 e cole aqui.`;
   if (e?.code==="rede") return "Não consegui falar com a Meta. Confira a internet e tente de novo.";
   if (e?.code==="limite") return "A Meta pediu uma pausa (muitos pedidos). Tente de novo daqui a alguns minutos.";
   return `A Meta recusou: ${String(e?.message||e).slice(0,160)}`;
@@ -773,6 +775,12 @@ async function instaConectar(token){
   const r = await graphGet("me/accounts", {fields:"name,instagram_business_account{id,username}", limit:"50"}, token);
   const pg = (r?.data||[]).find(x=>x.instagram_business_account?.id);
   if (!pg) throw Object.assign(new Error("O token funcionou, mas não achei uma conta profissional do Instagram ligada às suas páginas do Facebook. Confira os passos 1 e 2 e, no passo 4, marque a página certa."), {code:"sem_conta"});
+  const pr = await graphGet("me/permissions", {}, token).catch(()=>null);
+  if (pr?.data){
+    const ok = new Set(pr.data.filter(x=>x.status==="granted").map(x=>x.permission));
+    const faltam = ["instagram_basic","instagram_manage_insights","pages_read_engagement"].filter(x=>!ok.has(x));
+    if (faltam.length) throw Object.assign(new Error("faltam permissões"), {code:"permissao", faltam});
+  }
   cfg.insta = Object.assign({perfis:[]}, cfg.insta, {token, igId:pg.instagram_business_account.id, conta:pg.instagram_business_account.username||pg.name||"", tokenEm:Date.now(), vencido:false});
   store.set("cfg",cfg); diario(`Instagram conectado (@${cfg.insta.conta})`);
 }
@@ -791,7 +799,7 @@ async function instaNovidades(perfis, horas=24){
   await Promise.all(lista.map(async u=>{
     try{ const p = await instaPosts(u); p.ultimo = p.posts[0] || null; p.posts = p.posts.filter(x=>x.t>=limite); perfisOk.push(p); }
     catch(e){
-      if (e?.code==="token_expirado"){ cfg.insta.vencido = true; store.set("cfg",cfg); instaErro = instaMsgErro(e); throw e; }
+      if (e?.code==="token_expirado" || e?.code==="permissao"){ cfg.insta.vencido = true; store.set("cfg",cfg); instaErro = instaMsgErro(e); throw e; }
       erros.push({usuario:u, motivo: e?.code==="perfil" ? "esse perfil não existe ou não é uma conta pública de empresa ou criador" : e?.code==="rede" ? "não consegui falar com a Meta" : String(e?.message||e).slice(0,80)});
     }
   }));
@@ -833,7 +841,7 @@ function ajustesInsta(){
     <li>No app do Instagram que vai fazer a consulta: <b>Configurações › Tipo de conta e ferramentas › Mudar para conta profissional</b> (Criador de conteúdo ou Empresa). É grátis.</li>
     <li>Ligue essa conta a uma <b>Página do Facebook</b>: Instagram › Editar perfil › Página › Conectar. Se não tiver página, crie uma simples na hora.</li>
     <li>Entre em ${link("https://developers.facebook.com/apps","developers.facebook.com/apps")} com o seu Facebook e toque em <b>Criar app</b>. Escolha o caso de uso de <b>Instagram</b> (ou "Outro" › tipo "Empresa") e conclua.</li>
-    <li>Abra o ${link("https://developers.facebook.com/tools/explorer","Explorador da Graph API")}, escolha o app que você criou e, em Permissões, adicione <b>instagram_basic</b>, <b>pages_show_list</b>, <b>pages_read_engagement</b> e <b>business_management</b>. Toque em <b>Gerar token de acesso</b>, entre com o Facebook e marque a sua página.</li>
+    <li>Abra o ${link("https://developers.facebook.com/tools/explorer","Explorador da Graph API")}, escolha o app que você criou e, em Permissões, adicione as 6: ${IG_PERMS.map(x=>`<b>${x}</b>`).join(", ")}. Toque em <b>Gerar token de acesso</b>, entre com o Facebook e marque a sua página e a conta do Instagram.</li>
     <li>Copie o token, abra o ${link("https://developers.facebook.com/tools/debug/accesstoken","Depurador de token")}, cole, toque em <b>Depurar</b> e depois em <b>Estender token de acesso</b>. Copie o token novo: ele vale 60 dias.</li>
     <li>Cole o token aqui embaixo e toque em <b>Conectar</b>. Depois escreva os perfis que quer acompanhar.</li></ol></details>`;
   return `<div class="aj-sec">Instagram</div>
@@ -841,7 +849,7 @@ function ajustesInsta(){
       <div><label class="lbl" for="sInstaPerfis">Perfis para acompanhar (um por linha)</label><textarea class="inp" id="sInstaPerfis" rows="3" placeholder="@raquellyra" style="height:auto;padding:8px 12px;resize:vertical">${esc((ig.perfis||[]).map(u=>"@"+u).join("\n"))}</textarea></div>
       <div class="row"><span class="sub">Postagens das últimas 24 horas entram no briefing. Só funciona com perfis públicos de empresa ou criador.</span><button class="btn-line" data-act="insta-testar" type="button">Ver agora</button></div>
       ${dias>=50?passos:""}`
-    : `<p class="note" style="margin:0">O ${esc(cfg.name)} pode avisar no briefing quando um perfil postar. Ele usa o caminho oficial da Meta, com um token seu${ig.vencido?". <b>O token anterior venceu</b>: gere outro e cole aqui":""}.</p>
+    : `<p class="note" style="margin:0">O ${esc(cfg.name)} pode avisar no briefing quando um perfil postar. Ele usa o caminho oficial da Meta, com um token seu${ig.vencido?". <b>O token anterior parou de funcionar</b>: gere outro e cole aqui":""}.</p>
       ${passos}
       <div><label class="lbl" for="sInstaTok">Token de acesso da Meta</label><input class="inp" id="sInstaTok" placeholder="cole o token aqui" autocomplete="off" autocapitalize="off" spellcheck="false"></div>
       <div class="row"><span class="sub">O token fica só neste celular.</span><button class="btn-line" data-act="insta-conectar" type="button">Conectar</button></div>`}
@@ -1857,9 +1865,8 @@ async function runBriefing({abertura=false}={}){
         if(tab==="destaque") renderCard(); } };
       const climaP = cidadeClima ? climaHoje(cidadeClima).then(x=>{ clima=x; }).catch(e=>diario(`clima: falhou (${e?.message||e})`)) : Promise.resolve();
       const cotP = ts.some(ehCot) ? cotacoes().then(x=>{ cot=x; }).catch(e=>diario(`cotação: falhou (${e?.message||e})`)) : Promise.resolve();
-      const instaP = (instaPronto() && cfg.insta.perfis?.length) ? instaNovidades(null, 24).then(x=>{ insta=x; }).catch(e=>{ diario(`instagram: falhou (${e?.code||""} ${e?.message||e})`); if(e?.code==="token_expirado") faltou.push({assunto:"Instagram", motivo:"o acesso ao Instagram venceu; gere um token novo nos Ajustes"}); }) : Promise.resolve();
+      const instaP = (instaPronto() && cfg.insta.perfis?.length) ? instaNovidades(null, 24).then(x=>{ insta=x; }).catch(e=>{ diario(`instagram: falhou (${e?.code||""} ${e?.message||e})`); insta={perfis:[], erros:[], falha: e?.code==="token_expirado" ? "o acesso ao Instagram venceu. Gere um token novo nos Ajustes." : e?.code==="permissao" ? "o token do Instagram está sem uma permissão que a Meta exige. Gere um token novo nos Ajustes, marcando todas as permissões do passo a passo." : "não consegui falar com o Instagram agora."}; }) : Promise.resolve();
       await Promise.all([trabalhador(), trabalhador(), trabalhador(), trabalhador(), climaP, cotP, instaP]);
-      if(insta){ insta.erros.forEach(x=>faltou.push({assunto:`@${x.usuario} no Instagram`, motivo:x.motivo})); if(insta.perfis.length && !insta.perfis.some(p=>p.posts.length)) faltou.push({assunto:"Instagram", motivo:"nenhum dos perfis que você acompanha postou nas últimas 24 horas"}); }
       ts.forEach((t,i)=>{ if(ehClima(t)){ highlight.topicos[i].status = clima ? "ok" : "sem dados"; if(!clima) faltou.push({assunto:t.nome, motivo: cidadeClima ? "o serviço de previsão do tempo não respondeu ou não achou a cidade" : "a cidade não foi informada"}); } });
       if(tab==="destaque") renderCard();
       const ok = resultados.filter(Boolean);
@@ -1937,6 +1944,14 @@ No máximo 3 manchetes por assunto. Use só informação presente nos resultados
       slides.push({tipo:"noticias", categoria:t.placar?"Mais notícias":"Notícias", titulo:t.assunto, resumo:t.resumo, manchetes:t.manchetes, numeros:t.placar?null:t.numeros, fala:t.placar?"":t.fala});
     });
     (insta?.perfis||[]).filter(p=>p.posts.length).forEach(p=>slides.push(slideInsta(p)));
+    if(insta){ // avisos do Instagram num cartão próprio, separado das notícias
+      const semPost = insta.perfis.filter(p=>!p.posts.length).map(p=>"@"+p.usuario);
+      if(insta.falha) slides.push({tipo:"destaque", categoria:"Instagram", titulo:"Não consegui ver o Instagram", legenda:insta.falha.charAt(0).toUpperCase()+insta.falha.slice(1), itens:[], fala:`Sobre o Instagram: ${insta.falha}`});
+      else if(insta.erros.length || (semPost.length && !insta.perfis.some(p=>p.posts.length))){
+        const itens = [...(insta.perfis.some(p=>p.posts.length) ? [] : semPost.map(u=>`${u}: nada novo nas últimas 24 horas`)), ...insta.erros.map(x=>`@${x.usuario}: ${x.motivo}`)];
+        slides.push({tipo:"destaque", categoria:"Instagram", titulo: insta.perfis.some(p=>p.posts.length) ? "Perfis que não consegui ver" : "Nenhuma postagem nova", itens:itens.slice(0,6), legenda:"", fala: insta.perfis.some(p=>p.posts.length) ? `Não consegui ver ${insta.erros.length>1?"alguns perfis":"um perfil"} do Instagram.` : (insta.erros.length && !insta.perfis.length ? "Não consegui ver os perfis do Instagram. Confira os nomes nos Ajustes." : "No Instagram, nenhum dos perfis que você acompanha postou nas últimas 24 horas.")});
+      }
+    }
     if(r.faltou?.length){
       const nomes = r.faltou.map(f=>f.assunto);
       const lista = nomes.length>1 ? nomes.slice(0,-1).join(", ")+" e "+nomes.slice(-1) : nomes[0];
