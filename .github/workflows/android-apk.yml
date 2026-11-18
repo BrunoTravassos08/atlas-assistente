@@ -1,4 +1,4 @@
-name: APK Android
+name: Atlas (Android e Windows)
 
 on:
   push:
@@ -14,7 +14,7 @@ concurrency:
   cancel-in-progress: true
 
 jobs:
-  build:
+  android:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v5
@@ -62,18 +62,71 @@ jobs:
           name: Atlas-apk
           path: Atlas.apk
 
+  windows:
+    runs-on: windows-latest
+    defaults:
+      run:
+        working-directory: desktop
+    steps:
+      - uses: actions/checkout@v5
+
+      - uses: actions/setup-node@v5
+        with:
+          node-version: 22
+          cache: npm
+          cache-dependency-path: desktop/package-lock.json
+
+      - name: Instalar dependências
+        run: npm ci
+
+      - name: Guardar a voz neural entre builds
+        uses: actions/cache@v4
+        with:
+          path: desktop/recursos
+          key: voz-desktop-${{ hashFiles('desktop/scripts/preparar.mjs', 'scripts/preparar-voz.sh') }}
+
+      # copia o index.html (a mesma interface do APK) e baixa a voz Faber e o modelo da palavra "Atlas"
+      - name: Preparar a interface e a voz
+        run: node scripts/preparar.mjs
+
+      - name: Gerar o instalador (Atlas-Setup.exe)
+        run: npx electron-builder --win nsis --x64 --publish never "-c.extraMetadata.version=0.1.${{ github.run_number }}"
+
+      - name: Guardar o instalador no build
+        uses: actions/upload-artifact@v5
+        with:
+          name: Atlas-windows
+          path: |
+            desktop/dist/Atlas-Setup.exe
+            desktop/dist/Atlas-Setup.exe.blockmap
+            desktop/dist/latest.yml
+
+  publicar:
+    needs: [android, windows]
+    if: github.event_name != 'pull_request' && github.ref == 'refs/heads/main'
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/download-artifact@v5
+        with:
+          path: saida
+          merge-multiple: true
+
       - name: Publicar no GitHub Releases
-        if: github.event_name != 'pull_request' && github.ref == 'refs/heads/main'
         uses: softprops/action-gh-release@v2
         with:
           tag_name: v0.1.${{ github.run_number }}
           name: Atlas 0.1.${{ github.run_number }} (teste)
           make_latest: true
-          files: Atlas.apk
+          files: |
+            saida/Atlas.apk
+            saida/Atlas-Setup.exe
+            saida/Atlas-Setup.exe.blockmap
+            saida/latest.yml
           body: |
-            APK de teste do Atlas, gerado automaticamente a partir do commit ${{ github.sha }}.
+            Versão de teste do Atlas, gerada automaticamente a partir do commit ${{ github.sha }}.
 
-            **Como instalar:** baixe o `Atlas.apk` abaixo no celular, abra o arquivo e permita "instalar apps desconhecidos" quando o Android pedir.
-            As próximas versões instalam por cima, sem precisar desinstalar.
+            **Celular (Android):** baixe o `Atlas.apk` abaixo no celular, abra o arquivo e permita "instalar apps desconhecidos" quando o Android pedir. As próximas versões instalam por cima, sem precisar desinstalar.
+            Link fixo: https://github.com/${{ github.repository }}/releases/latest/download/Atlas.apk
 
-            Link fixo para a versão mais recente: https://github.com/${{ github.repository }}/releases/latest/download/Atlas.apk
+            **Computador (Windows 10 ou 11):** baixe o `Atlas-Setup.exe` e abra. Se aparecer "O Windows protegeu o computador", clique em **Mais informações › Executar assim mesmo** (o instalador ainda não tem assinatura digital paga). Depois de instalado, o Atlas se atualiza sozinho.
+            Link fixo: https://github.com/${{ github.repository }}/releases/latest/download/Atlas-Setup.exe

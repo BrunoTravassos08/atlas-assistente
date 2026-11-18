@@ -1,0 +1,86 @@
+{
+  "name": "atlas-desktop",
+  "productName": "Atlas",
+  "version": "0.1.0",
+  "private": true,
+  "description": "Atlas, assistente de IA estilo Jarvis (versão para Windows)",
+  "author": "Atlas",
+  "main": "main.js",
+  "scripts": {
+    "preparar": "node scripts/preparar.mjs",
+    "start": "npm run preparar && electron .",
+    "dist": "npm run preparar && electron-builder --win nsis --publish never"
+  },
+  "dependencies": {
+    "electron-updater": "6.8.11",
+    "sherpa-onnx-node": "1.13.8"
+  },
+  "overrides": {
+    "sherpa-onnx-win-x64": "1.13.8",
+    "sherpa-onnx-win-ia32": "1.13.8",
+    "sherpa-onnx-linux-x64": "1.13.8",
+    "sherpa-onnx-linux-arm64": "1.13.8",
+    "sherpa-onnx-darwin-x64": "1.13.8",
+    "sherpa-onnx-darwin-arm64": "1.13.8"
+  },
+  "devDependencies": {
+    "electron": "45.2.3",
+    "electron-builder": "26.18.0"
+  },
+  "build": {
+    "appId": "br.com.atlas.assistente",
+    "productName": "Atlas",
+    "copyright": "Atlas",
+    "directories": {
+      "output": "dist",
+      "buildResources": "build"
+    },
+    "files": [
+      "main.js",
+      "motor.js",
+      "preload.js",
+      "icone.png",
+      "app/**/*",
+      "package.json"
+    ],
+    "asarUnpack": [
+      "node_modules/sherpa-onnx-*/**"
+    ],
+    "extraResources": [
+      {
+        "from": "recursos",
+        "to": "recursos"
+      }
+    ],
+    "win": {
+      "target": [
+        {
+          "target": "nsis",
+          "arch": [
+            "x64"
+          ]
+        }
+      ],
+      "icon": "build/icon.png"
+    },
+    "nsis": {
+      "artifactName": "Atlas-Setup.${ext}",
+      "oneClick": true,
+      "perMachine": false,
+      "runAfterFinish": true,
+      "createDesktopShortcut": "always",
+      "createStartMenuShortcut": true,
+      "shortcutName": "Atlas",
+      "deleteAppDataOnUninstall": false
+    },
+    "publish": [
+      {
+        "provider": "github",
+        "owner": "BrunoTravassos08",
+        "repo": "atlas-assistente",
+        "releaseType": "release"
+      }
+    ],
+    "npmRebuild": false
+  }
+}
