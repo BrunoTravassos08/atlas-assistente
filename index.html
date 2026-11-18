@@ -961,7 +961,7 @@ function escutaNome(){
     if (!podeEscutar()){ if (escutaLigada) pararEscuta(); return; }
     if (escutaLigada || Date.now()<escutaPausaAte) return;
     escutaLigada = true;
-    try { await ESCUTA.iniciar({modo: cfg.escutaModo || "google"}); escutaErro=""; if (escutaLigada && podeEscutar()) escutaUI(true); }
+    try { await ESCUTA.iniciar({modo: cfg.escutaModo || "google", micId: cfg.micId || ""}); escutaErro=""; if (escutaLigada && podeEscutar()) escutaUI(true); }
     catch(e){
       escutaLigada = false;
       if (e?.code==="sem_permissao"){
@@ -1024,9 +1024,46 @@ if (BOLHA){
 let deskCfg = null;
 async function deskCfgLer(){ if (!DESKTOP) return null; deskCfg = await DESKTOP.config.ler().catch(()=>null); if (ajOpen && !$("#ajCard").contains(document.activeElement)) renderAjustes(); return deskCfg; }
 const ATALHOS = [["Control+Alt+Space","Ctrl + Alt + Espaço"],["Control+Shift+Space","Ctrl + Shift + Espaço"],["Alt+Shift+A","Alt + Shift + A"],["Control+Alt+J","Ctrl + Alt + J"],["","Desligado"]];
+/* microfone no computador: escolha do aparelho e mensagens claras quando o Windows bloqueia */
+let micsLista = null;
+async function listarMics(){
+  try {
+    const l = (await navigator.mediaDevices.enumerateDevices()).filter(d=>d.kind==="audioinput" && d.deviceId!=="default" && d.deviceId!=="communications");
+    const novo = l.map((d,i)=>({id:d.deviceId, nome:d.label || `Microfone ${i+1}`}));
+    const mudou = JSON.stringify(novo)!==JSON.stringify(micsLista); micsLista = novo;
+    if (mudou && ajOpen && !$("#ajCard").contains(document.activeElement)) renderAjustes();
+  } catch { micsLista = []; }
+  return micsLista;
+}
+// tenta o microfone escolhido, depois o padrão do Windows, depois sem filtros de som
+async function abrirMic(){
+  const base = {echoCancellation:true, noiseSuppression:true, autoGainControl:true, channelCount:1}, tent = [];
+  if (cfg?.micId) tent.push({audio:{...base, deviceId:{exact:cfg.micId}}});
+  tent.push({audio:base}, {audio:true});
+  let ultimo;
+  for (const c of tent){ try { return await navigator.mediaDevices.getUserMedia(c); } catch(e){ ultimo = e; diario(`microfone: ${e?.name||""} ${e?.message||""}`); if (e?.name==="NotAllowedError" || e?.name==="SecurityError") break; } }
+  throw ultimo;
+}
+async function explicarErroMic(e){
+  const acesso = await DESKTOP?.config?.microfone?.().then(r=>r?.acesso).catch(()=>null);
+  const mics = await listarMics();
+  const abrir = () => DESKTOP?.config?.ajustesMicrofone?.().catch(()=>{});
+  if (acesso==="denied" || acesso==="restricted" || e?.name==="NotAllowedError" || e?.name==="SecurityError"){
+    abrir();
+    return "O Windows está bloqueando o microfone para o Atlas. Abri as Configurações do Windows: ligue \"Acesso ao microfone\" e \"Permitir que aplicativos da área de trabalho acessem o microfone\". Depois toque no núcleo de novo.";
+  }
+  if (!mics.length) return "Não achei nenhum microfone ligado neste computador. Conecte um (ou o fone com microfone) e toque no núcleo de novo.";
+  if (e?.name==="NotReadableError" || e?.name==="AbortError"){
+    abrir();
+    return "O Windows não deixou o Atlas usar o microfone: ou outro programa está com ele (Zoom, Teams, WhatsApp), ou ele está bloqueado nas Configurações do Windows, que eu abri. Feche o outro programa ou libere o acesso e toque no núcleo de novo.";
+  }
+  return `Não consegui ligar o microfone (${e?.name||e?.message||"erro"}). Em Ajustes › Atalhos e música, escolha qual microfone usar e tente de novo.`;
+}
 function ajustesDesktop(){
   const d = deskCfg || {}, at = d.atalho ?? "Control+Alt+Space";
-  return `<div class="row"><label class="lbl" for="sAtalho" style="margin:0">Atalho para chamar o ${esc(cfg.name)} de qualquer programa</label><select class="inp" id="sAtalho" style="width:auto">${ATALHOS.map(([v,n])=>`<option value="${v}" ${at===v?"selected":""}>${n}</option>`).join("")}</select></div>
+  if (micsLista===null) listarMics();
+  const micSel = `<div class="row"><label class="lbl" for="sMic" style="margin:0">Microfone</label><select class="inp" id="sMic" style="width:auto;max-width:60%"><option value="">Padrão do Windows</option>${(micsLista||[]).map(m=>`<option value="${esc(m.id)}" ${cfg.micId===m.id?"selected":""}>${esc(m.nome)}</option>`).join("")}</select></div>`;
+  return micSel + `<div class="row"><label class="lbl" for="sAtalho" style="margin:0">Atalho para chamar o ${esc(cfg.name)} de qualquer programa</label><select class="inp" id="sAtalho" style="width:auto">${ATALHOS.map(([v,n])=>`<option value="${v}" ${at===v?"selected":""}>${n}</option>`).join("")}</select></div>
     ${d.atalhoOk===false?`<p class="note bad" style="margin:0">Outro programa já usa esse atalho. Escolha outro.</p>`:""}
     <div class="row"><label class="lbl" for="sAutoIni" style="margin:0">Abrir junto com o Windows (fica na bandeja, perto do relógio)</label><input type="checkbox" id="sAutoIni" ${d.abrirComWindows?"checked":""}></div>
     <div class="row"><label class="lbl" for="sBandeja" style="margin:0">Ao fechar a janela, continuar na bandeja</label><input type="checkbox" id="sBandeja" ${d.fecharParaBandeja!==false?"checked":""}></div>
@@ -1765,6 +1802,7 @@ function mudouAjuste(e){
   if(id==="sBolha"){ if(e.target.checked) bolhaLigar(); else BOLHA?.desligar().then(r=>{ bolhaInfo=r; caption("Botão flutuante desligado."); }).catch(()=>{}); }
   if(id==="sBrAbrir"){ cfg.briefingAbrir=e.target.value; cfg.briefingAbrirV=2; store.set("cfg",cfg); }
   if(id==="sNomeModo"){ cfg.escutaModo=e.target.value; store.set("cfg",cfg); pararEscuta().then(escutaNome); }
+  if(id==="sMic"){ cfg.micId=e.target.value||""; store.set("cfg",cfg); diario(`microfone escolhido: ${e.target.selectedOptions[0]?.textContent||"padrão"}`); pararEscuta().then(()=>escutaNome()); }
   if(id==="sNome"){ cfg.chamarNome=e.target.checked; cfg.chamarNomeEscolhido=true; store.set("cfg",cfg); escutaErro=""; escutaNome(); }
   if(id==="sMus"){ cfg.musicaApp=e.target.value; store.set("cfg",cfg); }
   if(id==="sAtalho") DESKTOP?.config.gravar({atalho:e.target.value}).then(r=>{ if(!r?.atalhoOk) caption("<em>Outro programa já usa esse atalho. Escolha outro.</em>"); deskCfgLer(); });
@@ -3513,8 +3551,10 @@ function srWindows(){
   let rec = null, geracao = 0;
   async function gravar(){
     let stream;
-    try { stream = await navigator.mediaDevices.getUserMedia({audio:{echoCancellation:true, noiseSuppression:true, autoGainControl:true, channelCount:1}}); }
-    catch(e){ throw e?.name==="NotAllowedError" ? {code:"not_granted"} : {userMsg:"Não achei um microfone neste computador. Confira se ele está ligado e escolhido no Windows."}; }
+    await pararEscuta();   // solta o microfone da escuta do nome antes de gravar
+    try { stream = await abrirMic(); }
+    catch(e){ throw {userMsg: await explicarErroMic(e)}; }
+    listarMics();
     const ctx = new AudioContext(), src = ctx.createMediaStreamSource(stream), proc = ctx.createScriptProcessor(4096, 1, 1);
     const passo = ctx.sampleRate/16000, partes = [], t0 = performance.now();
     let pos = 0, total = 0, falou = false, calado = 0, ruido = 0, nRuido = 0, fechado = false, terminar;
@@ -3562,7 +3602,7 @@ function srWindows(){
           try { const t = await transcreverFala(wavBase64(partes), language); if (minha===geracao && t) emit("partialResults", {matches:[t]}); }
           catch(e){ if (minha===geracao){ diario(`microfone: transcrição falhou (${e?.code||""} ${e?.detalhe||e?.message||""})`); caption(`<em>${esc(e?.userMsg || "Não consegui entender o áudio agora. Tente de novo ou digite o comando.")}</em>`); } }
         }
-        else if (minha===geracao) caption("<em>Não ouvi nada. Toque no núcleo e fale.</em>");
+        else if (minha===geracao) caption(`<em>Não ouvi nada. Toque no núcleo e fale.${(micsLista||[]).length>1?" Se você falou, confira em Ajustes › Atalhos e música qual microfone o Atlas está usando.":""}</em>`);
         if (minha===geracao) emit("listeningState", {status:"stopped"});
       });
     },
