@@ -314,6 +314,13 @@ textarea.inp{height:auto;padding:8px 12px;resize:vertical;font:inherit}
 .goals{list-style:none;margin:8px 0 0;padding:0;display:grid;grid-template-columns:1fr 1fr;gap:3px 12px;font-size:12px;color:var(--fg-dim)}
 .goals li{animation:rise .5s both}.goals li.v{text-align:right;grid-column:2}.goals li.m{grid-column:1}
 .stats{margin-top:12px;display:flex;flex-direction:column;gap:9px}
+.goals.cards{margin-top:4px}.goals.cards li i{display:inline-block;width:8px;height:11px;border-radius:2px;margin-right:4px;vertical-align:-1px;background:#ffd23f;box-shadow:0 0 6px #ffd23f88}.goals.cards li i.verm{background:#ff3b4e;box-shadow:0 0 6px #ff3b4e88}
+.tabela{margin-top:12px;padding:8px 10px;border:1px solid rgba(90,180,255,.18);background:rgba(67,217,255,.04);animation:rise .5s both;animation-delay:.6s}
+.tabela small{display:block;font-family:var(--f-hud);font-size:10px;letter-spacing:.14em;text-transform:uppercase;color:var(--fg-faint);margin-bottom:6px}
+.tbrow{display:grid;grid-template-columns:1fr 1fr;gap:10px}
+.tb{display:flex;align-items:baseline;gap:6px;min-width:0;font-size:12px;color:var(--fg-dim)}.tb:nth-child(2){justify-content:flex-end;text-align:right}
+.tb b{font-family:var(--f-hud);font-size:20px;color:#fff;font-variant-numeric:tabular-nums}.tb span{min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.tb em{font-style:normal;font-family:var(--f-hud);font-size:11px;color:var(--fg-faint)}.tb em.up{color:#3dffa0}.tb em.down{color:#ff5b6b}
 .stat{display:grid;grid-template-columns:auto 1fr auto;gap:2px 10px;align-items:center;font-family:var(--f-hud);font-size:13px;font-variant-numeric:tabular-nums;animation:rise .5s both}
 .stat em{font-style:normal;text-align:center;font-size:10px;letter-spacing:.14em;text-transform:uppercase;color:var(--fg-faint)}
 .stat .bar2{grid-column:1/-1;display:flex;gap:3px;height:6px}
@@ -457,7 +464,7 @@ textarea.inp{height:auto;padding:8px 12px;resize:vertical;font:inherit}
 @keyframes grow{from{transform:scaleY(0)}to{transform:scaleY(1)}}
 .lite .hero-news::after{animation:none;display:none}
 .news li:nth-child(2){animation-delay:.12s}.news li:nth-child(3){animation-delay:.24s}
-@media (prefers-reduced-motion:reduce){.crest,.goals li,.stat,.hb,.donut li,.stat .bar2 i,.hb .tr2 i{animation:none}.chart .ln{animation:none;stroke-dashoffset:0}.chart .ar,.chart .pt{animation:none;opacity:1}}
+@media (prefers-reduced-motion:reduce){.crest,.goals li,.tabela,.stat,.hb,.donut li,.stat .bar2 i,.hb .tr2 i{animation:none}.chart .ln{animation:none;stroke-dashoffset:0}.chart .ar,.chart .pt{animation:none;opacity:1}}
 /* abas sempre inteiras na tela, sem rolar de lado */
 .tabs{gap:2px}
 .tabs button{flex:1 1 0;min-width:0;padding:8px 2px;letter-spacing:.12em;white-space:nowrap;overflow:hidden;text-overflow:clip}
@@ -1844,7 +1851,7 @@ Você controla um painel (HUD). Use as ferramentas quando fizer sentido:
 - mostrar_destaque para exibir um cartão com título, um valor grande (número, porcentagem, horário) e itens curtos. Use sempre que a resposta tiver um número ou dado-chave, um resumo, ou uma lista.
 INSTAGRAM: para saber se alguém postou algo, use ver_instagram (só lê perfis que o usuário escolheu ou o @ que ele disser).
 MÚSICA: para tocar algo use tocar_musica (responda curto, a música já vai começar); para pausar, pular ou mudar o volume use controlar_musica.
-O USUÁRIO É MUITO VISUAL, EM QUALQUER ASSUNTO (não só esporte): quase toda resposta deve aparecer no painel além de ser falada, da mais simples à mais complexa. Resposta com mais de uma parte (o dia de hoje, resumo, comparação, passo a passo, notícias, finanças, saúde, viagem) → apresentar, com 2 a 6 cartões variados (numeros, grafico, agenda, clima, noticias, placar, destaque). "O que temos para hoje?", "bom dia" ou "novidades" → briefing_noticias. Placar ou resultado de jogo → mostrar_placar (com cores dos uniformes, gols e estatísticas que encontrar). Três ou mais números comparáveis ou uma evolução no tempo → mostrar_grafico. Um único dado-chave → mostrar_destaque. Para fatos atuais (placares, tabela, cotações, clima, resultados) use a busca na web antes, quando disponível. Nunca invente placar, estatística ou número: se não encontrar, diga que não achou.
+O USUÁRIO É MUITO VISUAL, EM QUALQUER ASSUNTO (não só esporte): quase toda resposta deve aparecer no painel além de ser falada, da mais simples à mais complexa. Resposta com mais de uma parte (o dia de hoje, resumo, comparação, passo a passo, notícias, finanças, saúde, viagem) → apresentar, com 2 a 6 cartões variados (numeros, grafico, agenda, clima, noticias, placar, destaque). "O que temos para hoje?", "bom dia" ou "novidades" → briefing_noticias. Placar ou resultado de jogo → mostrar_placar com a ficha completa que encontrar: cores dos uniformes, quem fez cada gol e o minuto, cartões amarelos e vermelhos, faltas e outras estatísticas, e a posição de cada time na tabela depois do jogo. Na fala, diga quem marcou e como os times ficaram na tabela. Três ou mais números comparáveis ou uma evolução no tempo → mostrar_grafico. Um único dado-chave → mostrar_destaque. Para fatos atuais (placares, tabela, cotações, clima, resultados) use a busca na web antes, quando disponível. Nunca invente placar, estatística ou número: se não encontrar, diga que não achou.
 SKILLS:
 1. Tradução (português, inglês, espanhol): quando pedirem para traduzir, ou perguntarem como se diz algo em outro idioma, chame mostrar_traducao com o texto completo traduzido de forma natural. Na sua resposta falada diga só uma frase curta em português (ex.: "Aqui está em inglês."); o app lê a tradução em voz alta no idioma certo.
 2. PDF: o usuário anexa PDFs pelo clipe. Use pdf_info para ver tamanhos e orientação das páginas, pdf_ler_texto para ler o conteúdo, pdf_padronizar para deixar todas as páginas no mesmo tamanho (A4 por padrão), pdf_girar, pdf_excluir_paginas e pdf_reordenar para alterar. Páginas fora do padrão são um problema recorrente do usuário: quando um PDF tiver formatos misturados, ofereça padronizar. Depois de alterar, diga que ele pode baixar pelo botão Baixar PDF no painel. Se não houver PDF aberto, peça para anexar pelo clipe.
@@ -2083,6 +2090,8 @@ No máximo 3 manchetes por assunto. Use só informação presente nos resultados
       if(f) f = f[0].toUpperCase()+f.slice(1);
       t.falaPura = f; t.fala = `${t.abre} ${f}`;
     });
+    // placar do briefing: busca a ficha do jogo (gols, cartões, faltas e tabela) antes de montar os cartões
+    await Promise.all(tops.filter(t=>t.placar).slice(0,3).map(async t=>{ t.placar = await detalharPlacar(t.placar, {timeout:15000}); }));
     const cotT = r.cot ? tops.find(t=>r.ehCot({nome:t.assunto})) : null;
     const next2=tasks.filter(t=>!t.feito && (!t.data||t.data===hojeData()));
     const slides=[];
@@ -2093,7 +2102,7 @@ No máximo 3 manchetes por assunto. Use só informação presente nos resultados
     if(r.cot && !cotT) slides.push({tipo:"numeros", categoria:"Mercado", titulo:"Cotações agora", numeros:r.cot.numeros, fonte:"AwesomeAPI", fala:r.cot.fala});
     tops.forEach(t=>{
       if(t===cotT){ slides.push({tipo:"numeros", categoria:"Mercado", titulo:t.assunto, numeros:r.cot.numeros, legenda:t.resumo, fonte:"AwesomeAPI", fala:[t.abre, r.cot.fala].filter(Boolean).join(" ")}); slides.push({tipo:"noticias", categoria:"Mercado · manchetes", titulo:t.assunto, resumo:"", manchetes:t.manchetes, fala:t.falaPura??t.fala}); return; }
-      if(t.placar) slides.push(Object.assign({}, t.placar, {tipo:"placar", competicao:t.placar.competicao||t.assunto, fala:t.fala, legenda:t.resumo}));
+      if(t.placar) slides.push(Object.assign({}, t.placar, {tipo:"placar", competicao:t.placar.competicao||t.assunto, fala:[t.fala, falaPlacar(t.placar)].filter(Boolean).join(" "), legenda:t.resumo}));
       slides.push({tipo:"noticias", categoria:t.placar?"Mais notícias":"Notícias", titulo:t.assunto, resumo:t.resumo, manchetes:t.manchetes, numeros:t.placar?null:t.numeros, fala:t.placar?"":t.fala});
     });
     (insta?.perfis||[]).filter(p=>p.posts.length).forEach(p=>slides.push(slideInsta(p)));
@@ -2161,6 +2170,66 @@ function crest(t={}){
     <text x="32" y="42" text-anchor="middle" font-family="Chakra Petch,sans-serif" font-weight="700" font-size="${sig.length>2?14:17}" fill="#fff" letter-spacing="1">${sig}</text></svg>`;
 }
 function statusTag(st){ const s=String(st||"").toLowerCase(); return s.includes("vivo")||s.includes("andamento") ? `<small class="live">ao vivo</small>` : s ? `<small>${esc(st)}</small>` : ""; }
+const minutoTxt = m => m ? String(m).trim().replace(/'?$/,"'") : "";
+// posição de cada time na tabela depois do jogo (e quantas posições subiu ou caiu)
+function linhaTabela(h){
+  const c=h.classificacao; if(!c || typeof c!=="object") return "";
+  const item=(t,x)=>{ if(!x || !num(x.posicao)) return ""; const pos=num(x.posicao), ant=num(x.antes), d=ant?ant-pos:0;
+    return `<div class="tb"><b>${pos}º</b><span>${esc(t.nome||"")}${x.pontos!=null&&x.pontos!==""?` · ${num(x.pontos)} pts`:""}</span>${d?`<em class="${d>0?"up":"down"}">${d>0?"▲":"▼"}${Math.abs(d)}</em>`:""}</div>`; };
+  const a=item(h.mandante||{}, c.mandante), b=item(h.visitante||{}, c.visitante);
+  return a||b ? `<div class="tabela"><small>Classificação após o jogo</small><div class="tbrow">${a||"<div></div>"}${b}</div></div>` : "";
+}
+// completa o placar com a ficha do jogo: quem fez os gols, cartões, faltas e a posição na tabela depois do jogo
+const placarCache = {};
+function mesclarPlacar(p, r){
+  if(!r || typeof r!=="object") return p;
+  const lado = x => String(x||"").toLowerCase().startsWith("v") ? "visitante" : "mandante";
+  const o = Object.assign({}, p);
+  if(!(o.gols||[]).length && Array.isArray(r.gols)) o.gols = r.gols.filter(g=>g&&g.jogador).slice(0,12).map(g=>({time:lado(g.time), jogador:String(g.jogador), minuto:String(g.minuto??""), tipo:String(g.tipo??"")}));
+  if(!(o.cartoes||[]).length && Array.isArray(r.cartoes)) o.cartoes = r.cartoes.filter(c=>c&&c.jogador).slice(0,14).map(c=>({time:lado(c.time), jogador:String(c.jogador), minuto:String(c.minuto??""), cor:/verm/i.test(c.cor||"")?"vermelho":"amarelo"}));
+  const st = Array.isArray(r.estatisticas) ? r.estatisticas.filter(x=>x&&x.nome&&x.mandante!=null&&x.visitante!=null&&String(x.mandante).trim()!==""&&String(x.visitante).trim()!=="") : [];
+  if(st.length){ const tem=new Set((o.estatisticas||[]).map(x=>String(x.nome).toLowerCase())); o.estatisticas=[...(o.estatisticas||[]), ...st.filter(x=>!tem.has(String(x.nome).toLowerCase()))].slice(0,8); }
+  if(!o.classificacao && r.classificacao && typeof r.classificacao==="object") o.classificacao = r.classificacao;
+  if(!o.fonte && r.fonte) o.fonte = String(r.fonte).slice(0,120);
+  return o;
+}
+async function detalharPlacar(p, {timeout=20000}={}){
+  if(!sample?.web || !p?.mandante?.nome || !p?.visitante?.nome) return p;
+  const gm=num(p.mandante.gols), gv=num(p.visitante.gols), agendado=/agend/i.test(p.status||"");
+  if(agendado) return p;
+  const completo = ((p.gols||[]).length || gm+gv===0) && (p.cartoes||[]).length && (p.estatisticas||[]).length>=3 && p.classificacao;
+  if(completo) return p;
+  const chave = `${p.mandante.nome}|${p.visitante.nome}|${gm}-${gv}|${hojeISO()}`;
+  if(placarCache[chave]) return mesclarPlacar(p, placarCache[chave]);
+  const prompt = `Hoje é ${new Date().toLocaleDateString("pt-BR")}. Use a busca na web para achar a ficha técnica do jogo mais recente ${p.mandante.nome} x ${p.visitante.nome}${p.competicao?` (${p.competicao})`:""}, que terminou ${gm} x ${gv}, e a classificação do campeonato atualizada depois dele.
+Responda SOMENTE com JSON:
+{"gols": [{"time": "mandante ou visitante", "jogador": "nome", "minuto": "23'", "tipo": "pênalti, contra ou vazio"}],
+ "cartoes": [{"time": "mandante ou visitante", "jogador": "nome", "minuto": "40'", "cor": "amarelo ou vermelho"}],
+ "estatisticas": [{"nome": "Faltas", "mandante": 14, "visitante": 11}, {"nome": "Cartões amarelos", "mandante": 2, "visitante": 3}, {"nome": "Cartões vermelhos", "mandante": 0, "visitante": 1}, {"nome": "Posse de bola", "mandante": 55, "visitante": 45, "unidade": "%"}, {"nome": "Finalizações", "mandante": 12, "visitante": 8}, {"nome": "Escanteios", "mandante": 6, "visitante": 3}],
+ "classificacao": {"mandante": {"posicao": 5, "pontos": 52, "antes": 7}, "visitante": {"posicao": 12, "pontos": 40, "antes": 11}},
+ "fonte": "sites usados"}
+"mandante" é ${p.mandante.nome} e "visitante" é ${p.visitante.nome}. "antes" é a posição antes desta rodada. Use só dados encontrados na busca e omita o que não encontrar. Nunca invente.`;
+  const ctl = new AbortController(), tm = setTimeout(()=>ctl.abort(), timeout);
+  try{
+    const r = await Promise.race([sample.json(prompt, {modelTier:"quick", web:true, signal:ctl.signal}), new Promise((_,rej)=>setTimeout(()=>rej(new Error("demorou")), timeout+500))]);
+    placarCache[chave] = r; const o = mesclarPlacar(p, r);
+    diario(`placar: ficha ${(o.gols||[]).length} gols, ${(o.cartoes||[]).length} cartões, ${(o.estatisticas||[]).length} estatísticas, tabela ${o.classificacao?"sim":"não"}`);
+    return o;
+  }catch(e){ diario(`placar: ficha do jogo não veio (${e?.code||e?.message||e})`); return p; }
+  finally{ clearTimeout(tm); }
+}
+// frase extra para o briefing: quem marcou e como fica na tabela
+function falaPlacar(p){
+  const partes=[];
+  const nomes=(lado)=>(p.gols||[]).filter(g=>g.time===lado).map(g=>g.jogador).filter(Boolean);
+  const gm=nomes("mandante"), gv=nomes("visitante"), lista=a=>a.length>1?`${a.slice(0,-1).join(", ")} e ${a[a.length-1]}`:a[0];
+  if(gm.length||gv.length) partes.push(`Gols: ${[gm.length?`${lista(gm)} para o ${p.mandante.nome}`:"", gv.length?`${lista(gv)} para o ${p.visitante.nome}`:""].filter(Boolean).join("; ")}.`);
+  const verm=(p.cartoes||[]).filter(c=>c.cor==="vermelho");
+  if(verm.length) partes.push(`${verm.length>1?"Expulsos":"Expulso"}: ${lista(verm.map(c=>c.jogador))}.`);
+  const c=p.classificacao, pos=x=>num(x?.posicao);
+  if(c && (pos(c.mandante)||pos(c.visitante))) partes.push(`Na tabela: ${[pos(c.mandante)?`${p.mandante.nome} em ${pos(c.mandante)}º`:"", pos(c.visitante)?`${p.visitante.nome} em ${pos(c.visitante)}º`:""].filter(Boolean).join(", ")}.`);
+  return partes.join(" ");
+}
 function renderPlacar(h){
   const m=h.mandante||{}, v=h.visitante||{}, gm=num(m.gols), gv=num(v.gols), enc=!String(h.status||"").toLowerCase().includes("agend");
   const c1=hexOk(m.cor_primaria,"#43d9ff"), c2=hexOk(v.cor_primaria,"#9a6bff");
@@ -2169,7 +2238,9 @@ function renderPlacar(h){
     <div class="score"><div class="team">${crest(m)}<b>${esc(m.nome||"Mandante")}</b></div>
       <div class="sc"><div class="nums">${enc?`<span class="${gm>gv?"win":""}" data-count="${gm}">0</span><i>×</i><span class="${gv>gm?"win":""}" data-count="${gv}">0</span>`:`<i>×</i>`}</div>${statusTag(h.status)}</div>
       <div class="team">${crest(v)}<b>${esc(v.nome||"Visitante")}</b></div></div>
-    ${(h.gols||[]).length?`<ul class="goals">${h.gols.slice(0,10).map((g,i)=>`<li class="${g.time==="visitante"?"v":"m"}" style="animation-delay:${.5+i*.08}s">⚽ ${esc(g.minuto?String(g.minuto).replace(/'?$/,"'"):"")} ${esc(g.jogador||"")}</li>`).join("")}</ul>`:""}
+    ${(h.gols||[]).length?`<ul class="goals">${h.gols.slice(0,10).map((g,i)=>`<li class="${g.time==="visitante"?"v":"m"}" style="animation-delay:${.5+i*.08}s">⚽ ${esc(minutoTxt(g.minuto))} ${esc(g.jogador||"")}${/p[eê]n/i.test(g.tipo||"")?" (pên.)":/contra/i.test(g.tipo||"")?" (contra)":""}</li>`).join("")}</ul>`:""}
+    ${(h.cartoes||[]).length?`<ul class="goals cards">${h.cartoes.slice(0,12).map((c,i)=>`<li class="${c.time==="visitante"?"v":"m"}" style="animation-delay:${.6+i*.06}s"><i class="${/verm/i.test(c.cor||"")?"verm":""}"></i>${esc(minutoTxt(c.minuto))} ${esc(c.jogador||"")}</li>`).join("")}</ul>`:""}
+    ${linhaTabela(h)}
     ${stats.length?`<div class="stats" style="--c1:${c1};--c2:${c2}">${stats.map((st,i)=>{ const a=num(st.mandante), b=num(st.visitante), t=(a+b)||1, u=esc(st.unidade||"");
       return `<div class="stat" style="animation-delay:${.3+i*.1}s"><span>${esc(String(st.mandante??""))}${u}</span><em>${esc(st.nome||"")}</em><span>${esc(String(st.visitante??""))}${u}</span><div class="bar2"><span><i style="--w:${(a/t*100).toFixed(1)}%"></i></span><span><i style="--w:${(b/t*100).toFixed(1)}%"></i></span></div></div>`; }).join("")}</div>`:""}
     ${h.legenda?`<p class="sub" style="margin-top:10px">${esc(h.legenda)}</p>`:""}${h.fonte?`<p class="src">Fonte: ${esc(h.fonte)}</p>`:""}`;
@@ -2508,6 +2579,8 @@ function renderPdfCard(){
 
 let nextId = Math.max(0,...tasks.map(t=>t.id))+1;
 const TIME_SCHEMA = {type:"object", properties:{nome:{type:"string"}, sigla:{type:"string"}, gols:{type:"number"}, cor_primaria:{type:"string"}, cor_secundaria:{type:"string"}}};
+const POS_SCHEMA = {type:"object", properties:{posicao:{type:"number"}, pontos:{type:"number"}, antes:{type:"number", description:"posição antes da rodada"}}};
+const CLASSIF_SCHEMA = {type:"object", description:"posição de cada time na tabela DEPOIS do jogo", properties:{mandante:POS_SCHEMA, visitante:POS_SCHEMA}};
 const CARTAO_SCHEMA = {type:"object", properties:{
   tipo:{type:"string", enum:["destaque","numeros","grafico","agenda","clima","noticias","placar","lista"], description:"destaque: um dado-chave grande; numeros: 2 a 6 indicadores lado a lado; grafico: barras/linha/pizza; agenda: compromissos do dia (sem 'compromissos' usa a agenda do app); clima: tempo de uma cidade; noticias: manchetes de um assunto; placar: jogo (mesmos campos de mostrar_placar); lista: tópicos curtos"},
   categoria:{type:"string"}, titulo:{type:"string"}, valor:{type:"string"}, legenda:{type:"string"}, fonte:{type:"string"},
@@ -2519,7 +2592,7 @@ const CARTAO_SCHEMA = {type:"object", properties:{
   compromissos:{type:"array", items:{type:"object", properties:{hora:{type:"string"}, titulo:{type:"string"}, nota:{type:"string"}}}},
   cidade:{type:"string"}, temperatura:{type:"number"}, minima:{type:"number"}, maxima:{type:"number"}, condicao:{type:"string"}, chuva:{type:"number", description:"chance de chuva em %"},
   resumo:{type:"string"}, manchetes:{type:"array", items:{type:"object", properties:{titulo:{type:"string"}, fonte:{type:"string"}, quando:{type:"string"}}}},
-  competicao:{type:"string"}, status:{type:"string"}, mandante:TIME_SCHEMA, visitante:TIME_SCHEMA, gols:{type:"array", items:{type:"object", properties:{time:{type:"string"}, jogador:{type:"string"}, minuto:{type:"string"}}}}, estatisticas:{type:"array", items:{type:"object", properties:{nome:{type:"string"}, mandante:{type:"number"}, visitante:{type:"number"}, unidade:{type:"string"}}}}
+  competicao:{type:"string"}, status:{type:"string"}, mandante:TIME_SCHEMA, visitante:TIME_SCHEMA, gols:{type:"array", items:{type:"object", properties:{time:{type:"string"}, jogador:{type:"string"}, minuto:{type:"string"}, tipo:{type:"string"}}}}, cartoes:{type:"array", items:{type:"object", properties:{time:{type:"string"}, jogador:{type:"string"}, minuto:{type:"string"}, cor:{type:"string"}}}}, classificacao:CLASSIF_SCHEMA, estatisticas:{type:"array", items:{type:"object", properties:{nome:{type:"string"}, mandante:{type:"number"}, visitante:{type:"number"}, unidade:{type:"string"}}}}
 }, required:["tipo"]};
 if (NATIVE || DESKTOP) setTimeout(()=>SIS?.appsMusica().then(r=>{ appsMusica=r.apps||[]; }).catch(()=>{}), 1500);
 const tools = [
@@ -2552,10 +2625,19 @@ const tools = [
       competicao:{type:"string"}, data:{type:"string"}, status:{type:"string",enum:["encerrado","ao vivo","intervalo","agendado"]},
       mandante:{type:"object",properties:{nome:{type:"string"},sigla:{type:"string",description:"3 letras"},gols:{type:"number"},cor_primaria:{type:"string",description:"cor do uniforme em hex, ex.: #d40000"},cor_secundaria:{type:"string"}},required:["nome"]},
       visitante:{type:"object",properties:{nome:{type:"string"},sigla:{type:"string"},gols:{type:"number"},cor_primaria:{type:"string"},cor_secundaria:{type:"string"}},required:["nome"]},
-      gols:{type:"array",items:{type:"object",properties:{time:{type:"string",enum:["mandante","visitante"]},jogador:{type:"string"},minuto:{type:"string"}}}},
-      estatisticas:{type:"array",description:"ex.: posse de bola, finalizações, escanteios, cartões",items:{type:"object",properties:{nome:{type:"string"},mandante:{type:"number"},visitante:{type:"number"},unidade:{type:"string",description:"ex.: %"}},required:["nome","mandante","visitante"]}},
+      gols:{type:"array",description:"quem marcou cada gol",items:{type:"object",properties:{time:{type:"string",enum:["mandante","visitante"]},jogador:{type:"string"},minuto:{type:"string"},tipo:{type:"string",description:"pênalti, contra ou vazio"}}}},
+      cartoes:{type:"array",description:"cartões amarelos e vermelhos do jogo",items:{type:"object",properties:{time:{type:"string",enum:["mandante","visitante"]},jogador:{type:"string"},minuto:{type:"string"},cor:{type:"string",enum:["amarelo","vermelho"]}}}},
+      classificacao:CLASSIF_SCHEMA,
+      estatisticas:{type:"array",description:"inclua faltas, cartões amarelos, cartões vermelhos, posse de bola, finalizações e escanteios",items:{type:"object",properties:{nome:{type:"string"},mandante:{type:"number"},visitante:{type:"number"},unidade:{type:"string",description:"ex.: %"}},required:["nome","mandante","visitante"]}},
       legenda:{type:"string"}, fonte:{type:"string"}},required:["mandante","visitante"]},
-   execute(i){ highlight=Object.assign({tipo:"placar"}, i, {titulo:`${i.mandante?.nome||""} ${num(i.mandante?.gols)} × ${num(i.visitante?.gols)} ${i.visitante?.nome||""}`}); store.set("hl",highlight); tab="destaque"; renderCard(); renderTicker(); return {ok:true}; }},
+   async execute(i){
+     const titulo=`${i.mandante?.nome||""} ${num(i.mandante?.gols)} × ${num(i.visitante?.gols)} ${i.visitante?.nome||""}`;
+     const mostra=p=>{ highlight=Object.assign({tipo:"placar"}, p, {titulo}); store.set("hl",highlight); tab="destaque"; renderCard(); renderTicker(); };
+     mostra(i);
+     // sem a ficha completa: o app busca gols, cartões, faltas e a tabela e atualiza o cartão
+     const antes=highlight, p=await detalharPlacar(i);
+     if(p!==i && highlight===antes) mostra(p);
+     return {ok:true, gols:p.gols||[], cartoes:p.cartoes||[], estatisticas:p.estatisticas||[], classificacao:p.classificacao||null, nota:"o cartão já mostra tudo isso; na fala, cite quem marcou e a posição na tabela em 1 ou 2 frases"}; }},
   {name:"mostrar_grafico", description:"Mostra no painel um gráfico animado. tipo barras: comparar valores (rankings, preços, tabelas); linha: evolução no tempo (cotação, temperatura da semana); pizza: partes de um todo (percentuais). Use sempre que a resposta tiver 3 ou mais números comparáveis.", inputSchema:{type:"object",properties:{
       titulo:{type:"string"}, categoria:{type:"string",description:"rótulo curto, ex.: Economia, Clima, Futebol"}, tipo:{type:"string",enum:["barras","linha","pizza"]}, unidade:{type:"string",description:"ex.: %, °C, R$ (vai depois do número)"},
       dados:{type:"array",items:{type:"object",properties:{rotulo:{type:"string"},valor:{type:"number"}},required:["rotulo","valor"]}},
