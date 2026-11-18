@@ -56,7 +56,7 @@ const voz = {
   addListener: (ev, cb) => ouvintes(vozOuv, ev, cb)
 };
 
-/* ---------- palavra "Atlas" sem internet: o microfone vai, em 16 kHz, para o motor ---------- */
+/* ---------- palavra "Atlas" sem internet: o microfone vai, em 16 kHz, para o motor (palavra-chave + Whisper) ---------- */
 let mic = null;
 const escOuv = {};
 const emitirEsc = (ev, d) => (escOuv[ev] || []).forEach(f => f(d));
@@ -68,7 +68,8 @@ function pararMic(){
   m.ctx.close().catch(() => {});
   ipcRenderer.send("kws-parar");
 }
-ipcRenderer.on("escuta-palavra", () => { if (!mic) return; pararMic(); emitirEsc("palavra", { palavra: "ATLAS", comando: "" }); });
+// ouviu o nome; se a pessoa já disse o pedido junto ("Atlas, toca uma música"), vem o áudio da frase para a página transcrever
+ipcRenderer.on("escuta-palavra", (e, m) => { if (!mic) return; pararMic(); emitirEsc("palavra", { palavra: "ATLAS", texto: m?.texto || "", comando: m?.comando || "", audio: m?.audio || null }); });
 const escuta = {
   async iniciar(){
     if (mic) return {};

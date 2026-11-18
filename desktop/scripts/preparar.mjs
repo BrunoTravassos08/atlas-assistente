@@ -1,6 +1,6 @@
 // Prepara a versão desktop:
 // 1) copia o index.html da raiz (a mesma interface do APK) para desktop/app/;
-// 2) baixa a voz neural Faber (Piper) e o modelo da palavra "Atlas" para desktop/recursos/.
+// 2) baixa a voz neural Faber (Piper), o modelo da palavra "Atlas", o Whisper tiny e o silero para desktop/recursos/.
 // Os modelos são grandes, então não ficam no git: o GitHub Actions roda este script antes de empacotar.
 import { mkdirSync, readFileSync, writeFileSync, existsSync, statSync, copyFileSync, rmSync, readdirSync, cpSync, mkdtempSync } from "node:fs";
 import { join, dirname } from "node:path";
@@ -79,6 +79,30 @@ if (!temArquivo(join(KWS, "encoder.onnx"))){
   for (const p of ["encoder", "decoder", "joiner"]) copyFileSync(join(k, `${p}-epoch-12-avg-2-chunk-16-left-64.int8.onnx`), join(KWS, `${p}.onnx`));
   copyFileSync(join(k, "tokens.txt"), join(KWS, "tokens.txt"));
   rmSync(tmp, { recursive: true, force: true });
+}
+// Whisper tiny + detector de fala (silero): confirmam a palavra "Atlas" no Windows, onde a palavra-chave sozinha erra muito
+const WH = join(REC, "whisper");
+if (!temArquivo(join(WH, "decoder.onnx"))){
+  console.log("Baixando o Whisper tiny…");
+  const tmp = mkdtempSync(join(tmpdir(), "atlas-whisper-"));
+  await baixarExtrair(`${SHERPA}/asr-models/sherpa-onnx-whisper-tiny.tar.bz2`, tmp);
+  const w = join(tmp, "sherpa-onnx-whisper-tiny");
+  mkdirSync(WH, { recursive: true });
+  copyFileSync(join(w, "tiny-encoder.int8.onnx"), join(WH, "encoder.onnx"));
+  copyFileSync(join(w, "tiny-decoder.int8.onnx"), join(WH, "decoder.onnx"));
+  copyFileSync(join(w, "tiny-tokens.txt"), join(WH, "tokens.txt"));
+  rmSync(tmp, { recursive: true, force: true });
+}
+if (!temArquivo(join(REC, "silero_vad.onnx"))){
+  console.log("Baixando o detector de fala (silero)…");
+  for (let tentativa = 1; ; tentativa++){
+    try {
+      const r = await fetch(`${SHERPA}/asr-models/silero_vad.onnx`, { redirect: "follow" });
+      if (!r.ok) throw new Error("HTTP " + r.status);
+      writeFileSync(join(REC, "silero_vad.onnx"), Buffer.from(await r.arrayBuffer()));
+      break;
+    } catch (e){ if (tentativa >= 4) throw e; await new Promise(r => setTimeout(r, 3000 * tentativa)); }
+  }
 }
 // jeitos de pronunciar "Atlas": a mesma lista do APK (scripts/preparar-voz.sh), para os dois ouvirem igual
 // (no Windows o git pode trazer o arquivo com fim de linha \r\n)

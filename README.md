@@ -67,7 +67,7 @@ O que muda em relação ao Android:
 - **Tela grande**: a mesma interface, com núcleo e painel maiores em monitores grandes. O cabeçalho do Atlas vira a barra da janela. **F11** deixa em tela cheia.
 - **Voz**: a mesma voz neural offline (Faber, Piper) do APK, rodando no computador. Também dá para usar as vozes do Windows ou a voz do Gemini.
 - **Microfone**: o Windows não tem o reconhecimento de voz do Google, então o Atlas grava a fala e a transcreve com a chave do Gemini (grátis) ou da OpenAI. Só com a chave do Claude, o comando precisa ser digitado.
-- **Chamar pelo nome**: "Atlas" é reconhecido sem internet, com a janela aberta (o mesmo modelo do APK).
+- **Chamar pelo nome**: "Atlas" é reconhecido sem internet, com a janela aberta: a palavra-chave do APK escuta, e o Whisper tiny confirma a frase (evita alarme falso e entende "Atlas, toca uma música" de uma vez; o pedido é transcrito pela IA da chave).
 - **Botão flutuante**: no computador vira um atalho de teclado (**Ctrl + Alt + Espaço** por padrão), que chama o Atlas já ouvindo de qualquer programa.
 - **Bandeja**: fechar a janela deixa o Atlas perto do relógio. Ele abre junto com o Windows (dá para desligar em Ajustes) e avisa na hora do briefing.
 - **Música**: toca direto no YouTube ou YouTube Music (abre no navegador); com o Spotify instalado, abre a busca no Spotify. Pausar, pular e volume usam as teclas de mídia do Windows.
