@@ -142,6 +142,29 @@ button{cursor:pointer}
 }
 @media (max-height:640px) and (max-width:859px){.card{min-height:110px;max-height:24vh}.caption{min-height:2em}}
 
+/* Windows: o cabeçalho é a barra de título (arrasta a janela); os botões da janela ficam à direita, por cima */
+html.desktop .top{-webkit-app-region:drag;padding-right:150px;min-height:44px}
+html.desktop .top button,html.desktop .top a,html.desktop .top input,html.desktop .top select{-webkit-app-region:no-drag}
+html.desktop .app{padding-top:0}
+html.desktop .overlay{-webkit-app-region:no-drag}
+html.desktop #cnOther,html.desktop details:has(> #cnErro){display:none}
+/* barras de rolagem finas, na cor do HUD (as do Windows são grossas e brancas) */
+html.desktop *{scrollbar-width:thin;scrollbar-color:rgba(67,217,255,.35) transparent}
+html.desktop .card{overflow-x:hidden}
+html.desktop .card::after{bottom:0;right:0}
+html.desktop:has(.overlay:not([hidden])) body::after{content:"";position:fixed;top:0;left:0;right:150px;height:28px;z-index:99;-webkit-app-region:drag}
+/* monitor grande: núcleo e painel crescem junto com a tela, sem sobrar vazio */
+@media (min-width:1280px) and (min-height:700px){
+  .main{grid-template-columns:minmax(0,1.1fr) minmax(420px,.9fr);gap:clamp(28px,3vw,64px);padding-inline:clamp(0px,2vw,48px)}
+  .side{max-width:760px}
+  .card{min-height:clamp(300px,46vh,560px)}
+  .caption{font-size:17px;max-width:64ch}
+  .eyebrow{font-size:11px}
+  .card h3{font-size:24px}
+  .rows .t{font-size:15px}
+  .tabs button{font-size:11px;padding:10px 12px}
+}
+
 /* Login / boot overlays */
 .overlay{position:fixed;inset:0;z-index:20;display:flex;align-items:center;justify-content:center;background:rgba(4,9,20,.78);backdrop-filter:blur(3px);
   padding:max(16px,var(--sat)) max(16px,var(--sar)) max(16px,var(--sab)) max(16px,var(--sal));overflow:auto}
@@ -227,6 +250,10 @@ button{cursor:pointer}
 @media (min-width:860px) and (min-height:621px){
   .orb-wrap{width:max(0px,min(92cqw, calc(100cqh - 9em), 520px))}
   .core:has(.qchips:not([hidden])) .orb-wrap{width:max(0px,min(86cqw, calc(100cqh - 13em), 480px))}
+}
+@media (min-width:1280px) and (min-height:700px){
+  .orb-wrap{width:max(0px,min(86cqw, calc(100cqh - 9em), 680px))}
+  .core:has(.qchips:not([hidden])) .orb-wrap{width:max(0px,min(80cqw, calc(100cqh - 13em), 620px))}
 }
 /* celular deitado (ou qualquer tela baixa e larga): núcleo à esquerda, painel à direita */
 @media (orientation:landscape) and (max-height:620px){
@@ -660,6 +687,13 @@ let sample = null, tts = null, dict = null;
 const PROV = {gpt:"GPT", claude:"CLAUDE", gemini:"GEMINI"};
 /* app Android (Capacitor) ou navegador/claude.ai */
 const NATIVE = !!window.Capacitor?.isNativePlatform?.();
+/* app para Windows (Electron): o preload expõe as mesmas funções dos plugins do Android */
+const DESKTOP = window.atlasDesktop || null;
+if (DESKTOP) document.documentElement.classList.add("desktop");
+const APARELHO = DESKTOP ? "computador" : "celular";
+// no Windows, textos escritos para o celular: "toque" vira "clique", "celular" vira "computador"
+const noAparelho = t => DESKTOP ? String(t).replace(/\bToque\b/g,"Clique").replace(/\btoque\b/g,"clique").replace(/\bcelular\b/g,"computador") : t;
+if (DESKTOP) document.querySelectorAll("#onbView .sub, #onbView .check span, #loginView .sub").forEach(el=>{ if (/celular|[Tt]oque/.test(el.innerHTML)) el.innerHTML = noAparelho(el.innerHTML); });
 // O APK não traz o @capacitor/core (o index.html é um arquivo só), então registerPlugin não existe.
 // Falamos direto com a ponte nativa: cada método vira Capacitor.nativePromise(plugin, método, opções).
 const plugin = name => {
@@ -685,7 +719,7 @@ function diario(linha){
 }
 addEventListener("error", e=>diario(`ERRO JS: ${e.message} (${String(e.filename||"").split("/").pop()}:${e.lineno})`));
 addEventListener("unhandledrejection", e=>diario(`ERRO JS (promessa): ${e.reason?.message||e.reason?.code||e.reason}`));
-diario(`app aberto · ${NATIVE?"Android":"navegador"} · ${navigator.userAgent.match(/Chrome\/[\d.]+/)?.[0]||""}`);
+diario(`app aberto · ${NATIVE?"Android":DESKTOP?"Windows":"navegador"} · ${navigator.userAgent.match(/Chrome\/[\d.]+/)?.[0]||""}`);
 
 /* ---------- internet sem passar pela IA: Google Notícias e previsão do tempo ---------- */
 // no app usa o HTTP nativo do Capacitor (sem bloqueio de CORS); no navegador, fetch comum
@@ -852,7 +886,7 @@ function ajustesInsta(){
     : `<p class="note" style="margin:0">O ${esc(cfg.name)} pode avisar no briefing quando um perfil postar. Ele usa o caminho oficial da Meta, com um token seu${ig.vencido?". <b>O token anterior parou de funcionar</b>: gere outro e cole aqui":""}.</p>
       ${passos}
       <div><label class="lbl" for="sInstaTok">Token de acesso da Meta</label><input class="inp" id="sInstaTok" placeholder="cole o token aqui" autocomplete="off" autocapitalize="off" spellcheck="false"></div>
-      <div class="row"><span class="sub">O token fica só neste celular.</span><button class="btn-line" data-act="insta-conectar" type="button">Conectar</button></div>`}
+      <div class="row"><span class="sub">O token fica só neste ${APARELHO}.</span><button class="btn-line" data-act="insta-conectar" type="button">Conectar</button></div>`}
     ${instaErro?`<p class="note bad" style="margin:0">${esc(instaErro)}</p>`:""}`;
 }
 const TEMPO_COD = c => c===0?"céu limpo":c<=2?"poucas nuvens":c===3?"nublado":c<=48?"neblina":c<=57?"garoa":c<=67?"chuva":c<=77?"neve":c<=82?"pancadas de chuva":"tempestade";
@@ -894,11 +928,11 @@ async function cotacoes(){
   return {numeros:lista, fala:`O dólar está em ${d.valor.toLocaleString("pt-BR",{minimumFractionDigits:2})} reais${d.variacao?`, ${d.variacao.startsWith("-")?"queda":"alta"} de ${d.variacao.replace(/^[+-]/,"").replace("%"," por cento")} no dia`:""}.`};
 }
 /* links: abre no navegador de verdade do aparelho (não numa aba interna) */
-const SIS = plugin("AtlasSistema");
+const SIS = plugin("AtlasSistema") || DESKTOP?.sistema || null;
 // voz neural offline (Piper) embutida no APK
-const VOZ = plugin("AtlasVoz");
+const VOZ = plugin("AtlasVoz") || DESKTOP?.voz || null;
 /* palavra de ativação: o Android escuta "Atlas" sem internet (só com o app na tela) e abre o microfone */
-const ESCUTA = plugin("AtlasEscuta");
+const ESCUTA = plugin("AtlasEscuta") || DESKTOP?.escuta || null;
 let escutaErro = "", escutaLigada = false, escutaTimer = null, escutaPediuPerm = false;
 function podeEscutar(){ return !!(ESCUTA && cfg?.chamarNome!==false && bootFeito && dict && !document.hidden && mode==="idle" && !ocupado() && !wakeOn && $("#loginView").hidden && $("#onbView").hidden && $("#setupView").hidden); }
 async function pararEscuta(){ if(!ESCUTA) return; escutaLigada=false; clearTimeout(escutaTimer); await ESCUTA.parar().catch(()=>{}); }
@@ -968,6 +1002,28 @@ if (BOLHA){
     else if (ajOpen) renderAjustes();
   });
 }
+/* ---------- Windows: atalho global, bandeja, lembrete do briefing e atualização ---------- */
+let deskCfg = null;
+async function deskCfgLer(){ if (!DESKTOP) return null; deskCfg = await DESKTOP.config.ler().catch(()=>null); if (ajOpen && !$("#ajCard").contains(document.activeElement)) renderAjustes(); return deskCfg; }
+const ATALHOS = [["Control+Alt+Space","Ctrl + Alt + Espaço"],["Control+Shift+Space","Ctrl + Shift + Espaço"],["Alt+Shift+A","Alt + Shift + A"],["Control+Alt+J","Ctrl + Alt + J"],["","Desligado"]];
+function ajustesDesktop(){
+  const d = deskCfg || {}, at = d.atalho ?? "Control+Alt+Space";
+  return `<div class="row"><label class="lbl" for="sAtalho" style="margin:0">Atalho para chamar o ${esc(cfg.name)} de qualquer programa</label><select class="inp" id="sAtalho" style="width:auto">${ATALHOS.map(([v,n])=>`<option value="${v}" ${at===v?"selected":""}>${n}</option>`).join("")}</select></div>
+    ${d.atalhoOk===false?`<p class="note bad" style="margin:0">Outro programa já usa esse atalho. Escolha outro.</p>`:""}
+    <div class="row"><label class="lbl" for="sAutoIni" style="margin:0">Abrir junto com o Windows (fica na bandeja, perto do relógio)</label><input type="checkbox" id="sAutoIni" ${d.abrirComWindows?"checked":""}></div>
+    <div class="row"><label class="lbl" for="sBandeja" style="margin:0">Ao fechar a janela, continuar na bandeja</label><input type="checkbox" id="sBandeja" ${d.fecharParaBandeja!==false?"checked":""}></div>
+    <div class="row"><span class="sub">Tela cheia (ou aperte F11)</span><button class="btn-line" data-act="tela-cheia" type="button">Tela cheia</button></div>
+    ${d.atualizacao?.pronta?`<div class="row"><span class="sub">A versão <b style="color:var(--green)">${esc(d.atualizacao.versao)}</b> já foi baixada</span><button class="btn-line" data-act="atualizar-agora" type="button">Atualizar agora</button></div>`:""}`;
+}
+if (DESKTOP){
+  deskCfgLer();
+  DESKTOP.on("ouvir", ()=>{ abrirOuvindo = true; diario("chamado pelo atalho do Windows"); setTimeout(ouvirPelaBolha, 0); });
+  DESKTOP.on("microfone", ()=>{ if (bootFeito && dict && $("#loginView").hidden && $("#onbView").hidden) toggleMic(); });
+  DESKTOP.on("briefing", ()=>{ abrirOuvindo = true; briefingBolha = true; setTimeout(ouvirPelaBolha, 0); });
+  DESKTOP.on("config", deskCfgLer);
+  DESKTOP.on("atualizacao", d=>{ diario(`atualização ${d.versao} ${d.pronta?"baixada":"encontrada"}`); deskCfgLer(); });
+  DESKTOP.on("log", m=>diario(String(m)));
+}
 if (ESCUTA){
   const pulsoNome = () => { waves.push({r:W*.24,a:1}); setTimeout(()=>waves.push({r:W*.24,a:.8}),140); voiceKick=1; addRipple(innerWidth/2, innerHeight*.35, true); };
   // ouviu o nome no meio da frase: mostra que está prestando atenção (sem mudar de estado)
@@ -995,7 +1051,7 @@ if (VOZ){
 }
 let appsMusica = null;
 let sisInfo = null;
-async function infoSistema(){ if(!SIS) return null; try{ sisInfo = await SIS.info(); }catch{ sisInfo = null; } return sisInfo; }
+async function infoSistema(){ if(!SIS || DESKTOP) return null; try{ sisInfo = await SIS.info(); }catch{ sisInfo = null; } return sisInfo; }
 const CHROMIUM_MIN = 110; // a página da OpenAI quebra ("throwIfAborted is not a function") em Chrome antigo
 const CHROMES = ["com.android.chrome","com.chrome.beta","com.chrome.dev","com.google.android.webview","com.android.webview"];
 function navegadorVelho(inf){
@@ -1502,7 +1558,7 @@ function ajustesPiper(){
   return `<div class="row"><label class="lbl" for="sVozP" style="margin:0">Voz</label><select class="inp" id="sVozP" style="width:auto">${vs.map(v=>`<option value="${esc(v.id)}" ${v.id===atual?"selected":""}>${esc(v.nome)} · ${esc(VOZES_PIPER_DESC[v.id]||"")}${v.instalada?"":" (baixar)"}</option>`).join("")}</select></div>
     ${sel && !sel.instalada ? `<div class="row"><span class="sub" id="piperPct">${baixando?"Baixando…":`A voz ${esc(sel.nome)} ainda não está no aparelho (cerca de 65 MB).`}</span><button class="btn-line" data-act="piper-baixar" type="button" ${baixando?"disabled":""}>Baixar voz</button></div>`
       : (sel && !sel.embutida ? `<div class="row"><span class="sub">Voz baixada no aparelho</span><button class="btn-line" data-act="piper-remover" type="button">Apagar</button></div>` : "")}
-    <p class="note" style="margin:0">Voz neural que roda no próprio celular, sem internet e sem gastar cota.${sel?.licenca && !/CC0/.test(sel.licenca)?` Licença da voz ${esc(sel.nome)}: ${esc(sel.licenca)}.`:""}${piperInfo?.erro?` <span style="color:var(--amber)">Não consegui iniciar a voz neural (${esc(String(piperInfo.erro).slice(0,90))}); usando a do aparelho.</span>`:""}</p>`;
+    <p class="note" style="margin:0">Voz neural que roda no próprio ${APARELHO}, sem internet e sem gastar cota.${sel?.licenca && !/CC0/.test(sel.licenca)?` Licença da voz ${esc(sel.nome)}: ${esc(sel.licenca)}.`:""}${piperInfo?.erro?` <span style="color:var(--amber)">Não consegui iniciar a voz neural (${esc(String(piperInfo.erro).slice(0,90))}); usando a do aparelho.</span>`:""}</p>`;
 }
 let shown={h:null,i:null}, swapT=null;
 function renderCard(){
@@ -1527,6 +1583,7 @@ function renderCard(){
   }
 }
 function abrirAjustes(foco){
+  if (DESKTOP) deskCfgLer();
   ajOpen = true; $("#ajModal").hidden = false; $("#ajBtn").setAttribute("aria-expanded","true");
   renderAjustes(); $("#ajCard").scrollTop = 0;
   if (foco) setTimeout(()=>{ const f=$(foco); if(f){ f.scrollIntoView({block:"center"}); f.focus(); } }, 80);
@@ -1545,14 +1602,14 @@ function renderAjustes(){
       <div><label class="lbl" for="sName">Nome do assistente</label><input class="inp" id="sName" value="${esc(cfg.name)}"></div>
       <div><label class="lbl" for="sUser">Seu nome</label><input class="inp" id="sUser" value="${esc(cfg.user)}"></div>
       <div class="aj-sec">Voz</div>
-      ${NATIVE ? `<div class="gbox">
+      ${NATIVE || DESKTOP ? `<div class="gbox">
         <div class="row"><label class="lbl" for="sMotor" style="margin:0">Voz do ${esc(cfg.name)}</label><select class="inp" id="sMotor" style="width:auto">${VOZ?`<option value="piper" ${motorVoz()==="piper"?"selected":""}>Neural offline (recomendada)</option>`:""}${cfg.keys?.gemini?`<option value="gemini" ${motorVoz()==="gemini"?"selected":""}>Gemini (online)</option>`:""}<option value="aparelho" ${motorVoz()==="aparelho"?"selected":""}>Do aparelho</option></select></div>
         ${motorVoz()==="piper" ? ajustesPiper()
           : motorVoz()==="gemini"
           ? `<div class="row"><label class="lbl" for="sVozG" style="margin:0">Voz</label><select class="inp" id="sVozG" style="width:auto">${VOZES_GEMINI.map(([id,n])=>`<option value="${id}" ${(cfg.vozGemini||"Charon")===id?"selected":""}>${esc(n)}</option>`).join("")}</select></div>
              <p class="note" style="margin:0">A voz do Gemini usa a cota grátis do Google (1 pedido por fala). Quando a cota acabar, o ${esc(cfg.name)} volta sozinho para a voz do aparelho.</p>`
           : `<div class="row"><label class="lbl" for="sVozN" style="margin:0">Voz</label><select class="inp" id="sVozN" style="width:auto"><option value="">Automática (a mais natural)</option>${vozesPT.map((v,k)=>`<option value="${esc(v.voiceURI)}" ${cfg.vozNativa===v.voiceURI?"selected":""}>${esc(nomeVoz(v,k))}</option>`).join("")}</select></div>
-             ${vozesPT.length<3?`<p class="note" style="margin:0">Poucas vozes em português neste aparelho. Para vozes mais naturais: Configurações do Android › Gerenciamento geral (ou Sistema) › Idioma › Saída de texto para fala › Mecanismo preferido: <b>Serviços de fala do Google</b> › engrenagem › Instalar dados de voz › Português (Brasil). Depois volte aqui.</p>`:""}`}
+             ${DESKTOP ? (vozesPT.length ? "" : `<p class="note" style="margin:0">O Windows não tem voz em português instalada. Para instalar: Configurações do Windows › Hora e idioma › Fala › Adicionar vozes › Português (Brasil). Depois volte aqui. Enquanto isso, prefira a voz neural offline.</p>`) : vozesPT.length<3?`<p class="note" style="margin:0">Poucas vozes em português neste aparelho. Para vozes mais naturais: Configurações do Android › Gerenciamento geral (ou Sistema) › Idioma › Saída de texto para fala › Mecanismo preferido: <b>Serviços de fala do Google</b> › engrenagem › Instalar dados de voz › Português (Brasil). Depois volte aqui.</p>`:""}`}
         <div class="row"><label class="lbl" for="sVel" style="margin:0">Velocidade</label><select class="inp" id="sVel" style="width:auto">${[[0.85,"Mais devagar"],[1,"Normal"],[1.15,"Mais rápida"]].map(([v,n])=>`<option value="${v}" ${(cfg.vozVelocidade||1)==v?"selected":""}>${n}</option>`).join("")}</select></div>
         <div class="row"><span class="sub">Ouça como fica</span><button class="btn-line" data-act="voz-testar" type="button">Testar voz</button></div>
       </div>` : `<div class="row"><label class="lbl" for="sVoice" style="margin:0">Voz</label><select class="inp" id="sVoice" style="width:auto">${["buttery","airy","glassy","rounded"].map(v=>`<option ${cfg.voice===v?"selected":""}>${v}</option>`).join("")}</select></div>`}
@@ -1572,9 +1629,10 @@ function renderAjustes(){
         <p class="note" style="margin:0">Aviso aos 80% do limite. O valor é uma estimativa pelos preços de tabela.</p></div>
       <div class="row"><span class="sub">Conversa salva: ${history.length} mensagens</span><button class="btn-line" data-act="limpar" type="button">Limpar conversa</button></div>
       <div class="aj-sec">Atalhos e música</div>
-      ${NATIVE?`<div class="row"><label class="lbl" for="sMus" style="margin:0">App de música</label><select class="inp" id="sMus" style="width:auto"><option value="">Automático</option>${(appsMusica||[]).map(a=>`<option value="${esc(a.id)}" ${cfg.musicaApp===a.id?"selected":""}>${esc(a.nome)}</option>`).join("")}</select></div>`:""}
-      ${ESCUTA?`<div class="row"><label class="lbl" for="sNome" style="margin:0">Chamar pelo nome: diga "Atlas" com o app aberto</label><input type="checkbox" id="sNome" ${cfg.chamarNome!==false?"checked":""}></div>${cfg.chamarNome!==false?`<div class="row"><label class="lbl" for="sNomeModo" style="margin:0">Como ouvir o nome</label><select class="inp" id="sNomeModo" style="width:auto"><option value="google" ${(cfg.escutaModo||"google")==="google"?"selected":""}>Google (mais preciso)</option><option value="offline" ${cfg.escutaModo==="offline"?"selected":""}>Sem internet (menos preciso)</option></select></div>`:""}${escutaErro?`<p class="note bad" style="margin:0">${esc(escutaErro)}</p>`:""}`:""}
+      ${NATIVE||DESKTOP?`<div class="row"><label class="lbl" for="sMus" style="margin:0">App de música</label><select class="inp" id="sMus" style="width:auto"><option value="">Automático</option>${(appsMusica||[]).map(a=>`<option value="${esc(a.id)}" ${cfg.musicaApp===a.id?"selected":""}>${esc(a.nome)}</option>`).join("")}</select></div>`:""}
+      ${ESCUTA?`<div class="row"><label class="lbl" for="sNome" style="margin:0">Chamar pelo nome: diga "Atlas" com o app aberto${DESKTOP?" (funciona sem internet; o som não sai do computador)":""}</label><input type="checkbox" id="sNome" ${cfg.chamarNome!==false?"checked":""}></div>${cfg.chamarNome!==false && !DESKTOP?`<div class="row"><label class="lbl" for="sNomeModo" style="margin:0">Como ouvir o nome</label><select class="inp" id="sNomeModo" style="width:auto"><option value="google" ${(cfg.escutaModo||"google")==="google"?"selected":""}>Google (mais preciso)</option><option value="offline" ${cfg.escutaModo==="offline"?"selected":""}>Sem internet (menos preciso)</option></select></div>`:""}${escutaErro?`<p class="note bad" style="margin:0">${esc(escutaErro)}</p>`:""}`:""}
       ${BOLHA?`<div class="row"><label class="lbl" for="sBolha" style="margin:0">Botão flutuante: bolinha do Atlas por cima dos outros apps</label><input type="checkbox" id="sBolha" ${bolhaInfo?.ligada?"checked":""}></div>${bolhaInfo?.ligada&&!bolhaInfo?.permissao?`<p class="note bad" style="margin:0">A permissão "Sobrepor a outros apps" foi tirada. Desmarque e marque de novo para liberar.</p>`:""}`:""}
+      ${DESKTOP?ajustesDesktop():""}
       <div class="aj-sec">Sistema</div>
       <div class="row"><label class="lbl" for="sFx" style="margin:0">Efeitos visuais</label><select class="inp" id="sFx" style="width:auto"><option value="leve" ${FX.lite?"selected":""}>Leve (recomendado)</option><option value="completo" ${FX.lite?"":"selected"}>Completo</option></select></div>
       ${cfg.agent?`<div class="sub">Modelo: <b style="color:var(--fg)">${esc(cfg.model?.[cfg.provider]||cfg.agent.id)}</b><br>Conectado em ${new Date(cfg.agent.criadoEm).toLocaleString("pt-BR")}</div>`:""}
@@ -1600,6 +1658,8 @@ function cliqueCartao(e){
   if(act==="briefing") runBriefing();
   if(act==="piper-baixar" && VOZ){ const id=cfg.vozPiper||"faber"; piperBaixa={id, pct:0, ativo:true}; e.target.disabled=true; const el=$("#piperPct"); if(el) el.textContent="Baixando… 0%";
     VOZ.baixar({id}).then(()=>{ piperBaixa=null; caption(`Voz baixada. Toque em Testar voz para ouvir.`); diario(`voz neural: ${id} baixada`); return VOZ.carregar({voz:id}); }).catch(err=>{ piperBaixa=null; caption(`<em>${esc(err?.message||"Não consegui baixar a voz. Confira a internet.")}</em>`); }).finally(atualizarPiper); }
+  if(act==="tela-cheia") DESKTOP?.config.telaCheia();
+  if(act==="atualizar-agora") DESKTOP?.config.atualizarAgora();
   if(act==="piper-remover" && VOZ){ const id=cfg.vozPiper; if(id && id!=="faber"){ VOZ.remover({id}).catch(()=>{}).finally(()=>{ cfg.vozPiper="faber"; store.set("cfg",cfg); atualizarPiper(); }); } }
   if(act==="abrir-noticia"){ const u=e.target.closest("[data-url]")?.dataset.url; if(u && /^https:\/\//.test(u)){ if(story){ storyStop(); try{ tts?.stop(); }catch{} } openExternal(u); } }
   if(act==="voz-testar"){ store.set("cfg",cfg); vozGeminiPausaAte=0; const t=`Olá, ${cfg.user||"senhor"}. Eu sou o ${cfg.name.charAt(0)+cfg.name.slice(1).toLowerCase()}. É assim que eu vou falar com você.`; caption(esc(t)); if(tts){ tts.stop(); setMode("speaking"); tts.speak(t,{language:"pt-BR"}).catch(()=>{}).finally(()=>setMode("idle")); } }
@@ -1655,6 +1715,9 @@ function mudouAjuste(e){
   if(id==="sNomeModo"){ cfg.escutaModo=e.target.value; store.set("cfg",cfg); pararEscuta().then(escutaNome); }
   if(id==="sNome"){ cfg.chamarNome=e.target.checked; store.set("cfg",cfg); escutaErro=""; escutaNome(); }
   if(id==="sMus"){ cfg.musicaApp=e.target.value; store.set("cfg",cfg); }
+  if(id==="sAtalho") DESKTOP?.config.gravar({atalho:e.target.value}).then(r=>{ if(!r?.atalhoOk) caption("<em>Outro programa já usa esse atalho. Escolha outro.</em>"); deskCfgLer(); });
+  if(id==="sAutoIni") DESKTOP?.config.gravar({abrirComWindows:e.target.checked}).then(deskCfgLer);
+  if(id==="sBandeja") DESKTOP?.config.gravar({fecharParaBandeja:e.target.checked}).then(deskCfgLer);
   if(id==="sCot"){ const v=num(e.target.value); if(v>0){ const lim=num(cfg.limite?.usd)*cotacao(); cfg.cotacao=v; if(lim>0) cfg.limite.usd=lim/v; } store.set("cfg",cfg); renderAjustes(); }
   if(id==="sLim"){ const v=num(e.target.value); cfg.limite=Object.assign({acao:"confirmar"}, cfg.limite, {usd: v>0 ? v/cotacao() : 0}); const g=gastoAtual(); g.aviso80=false; g.liberado=false; store.set("gasto",g); store.set("cfg",cfg); renderAjustes(); }
   if(id==="sLimAcao"){ cfg.limite=Object.assign({usd:0}, cfg.limite, {acao:e.target.value}); store.set("cfg",cfg); }
@@ -1673,7 +1736,7 @@ function renderTicker(){
 function applyName(){ const n=cfg?.name||"ATLAS"; $("#bName").textContent=n; $("#bootName").textContent=n; document.title=n.charAt(0)+n.slice(1).toLowerCase()+" Central de Inteligência"; $("#engine").textContent = cfg?.provider ? PROV[cfg.provider] : "—"; }
 
 /* ---------- caption ---------- */
-function caption(html){ $("#caption").innerHTML=html; }
+function caption(html){ $("#caption").innerHTML=noAparelho(html); }
 
 /* ---------- AI ---------- */
 function context(){
@@ -2197,7 +2260,7 @@ function renderMusica(h){
     <div class="ctrl" style="--mc:${cor}"><button type="button" data-act="mus-anterior" aria-label="Anterior">⏮</button><button type="button" class="main" data-act="mus-alternar" aria-label="Pausar ou continuar">${musicaPausada?"▶":"⏸"}</button><button type="button" data-act="mus-proxima" aria-label="Próxima">⏭</button><button type="button" data-act="mus-diminuir_volume" aria-label="Diminuir volume">🔉</button><button type="button" data-act="mus-aumentar_volume" aria-label="Aumentar volume">🔊</button></div>`;
 }
 async function controleMusica(acao){
-  if(!SIS) throw new Error("Os controles de música funcionam no app Android.");
+  if(!SIS) throw new Error("Os controles de música funcionam no app do Atlas (Android ou Windows).");
   const r=await SIS.controleMidia({acao});
   if(acao==="pausar") musicaPausada=true; else if(acao==="continuar"||acao==="proxima"||acao==="anterior") musicaPausada=false; else if(acao==="alternar") musicaPausada=!musicaPausada;
   if(highlight.tipo==="musica" && tab==="destaque") renderCard();
@@ -2368,19 +2431,19 @@ const CARTAO_SCHEMA = {type:"object", properties:{
   resumo:{type:"string"}, manchetes:{type:"array", items:{type:"object", properties:{titulo:{type:"string"}, fonte:{type:"string"}, quando:{type:"string"}}}},
   competicao:{type:"string"}, status:{type:"string"}, mandante:TIME_SCHEMA, visitante:TIME_SCHEMA, gols:{type:"array", items:{type:"object", properties:{time:{type:"string"}, jogador:{type:"string"}, minuto:{type:"string"}}}}, estatisticas:{type:"array", items:{type:"object", properties:{nome:{type:"string"}, mandante:{type:"number"}, visitante:{type:"number"}, unidade:{type:"string"}}}}
 }, required:["tipo"]};
-if (NATIVE) setTimeout(()=>SIS?.appsMusica().then(r=>{ appsMusica=r.apps||[]; }).catch(()=>{}), 1500);
+if (NATIVE || DESKTOP) setTimeout(()=>SIS?.appsMusica().then(r=>{ appsMusica=r.apps||[]; }).catch(()=>{}), 1500);
 const tools = [
   {name:"mostrar_gasto", description:"Mostra no painel quanto já foi gasto com a IA neste mês (estimativa em reais e dólar), o limite mensal e, no Gemini grátis, o uso da cota do dia.",
    inputSchema:{type:"object", properties:{}},
    execute(){ const g=gastoAtual(), lim=num(cfg?.limite?.usd); highlight={tipo:"gasto", titulo:"Gasto com a IA"}; tab="destaque"; renderCard();
      return {gasto_reais:brl(g.usd), gasto_dolar:usdTxt(g.usd), limite_reais: lim>0?brl(lim):"sem limite", respostas:g.chamadas, gemini_gratis: cfg?.provider==="gemini"&&geminiGratis(), pedidos_gemini_hoje:g.gemDia.pedidos}; }},
-  {name:"tocar_musica", description:"Toca uma música, artista, álbum ou playlist no app de música do celular (Spotify, YouTube Music, Deezer etc.) e volta para o Atlas, mostrando o cartão Tocando agora. Use para 'toca', 'coloca', 'quero ouvir'.",
+  {name:"tocar_musica", description:"Toca uma música, artista, álbum ou playlist no app de música do aparelho (Spotify, YouTube Music, Deezer etc.) e volta para o Atlas, mostrando o cartão Tocando agora. Use para 'toca', 'coloca', 'quero ouvir'.",
    inputSchema:{type:"object", properties:{busca:{type:"string", description:"o que tocar, ex.: Asa Branca Luiz Gonzaga, Alceu Valença, playlist de frevo"}, tipo:{type:"string", enum:["musica","artista","album","playlist","qualquer"]}, app:{type:"string", enum:["spotify","ytmusic","youtube","deezer","soundcloud","amazon"], description:"só se o usuário pedir um app específico"}}, required:["busca"]},
    async execute(i){
-     if(!SIS) throw new Error("Tocar música funciona no app Android do Atlas.");
+     if(!SIS) throw new Error("Tocar música funciona no app do Atlas (Android ou Windows).");
      const busca=String(i.busca).slice(0,120);
-     let r; try{ r=await SIS.tocarMusica({busca, tipo:i.tipo||"qualquer", app:i.app||cfg.musicaApp||"spotify"}); }
-     catch{ throw new Error("Não encontrei um app de música instalado. Instale o Spotify ou o YouTube Music."); }
+     let r; try{ r=await SIS.tocarMusica({busca, tipo:i.tipo||"qualquer", app:i.app||cfg.musicaApp||(DESKTOP?"youtube":"spotify")}); }
+     catch{ throw new Error(DESKTOP ? "Não consegui abrir a música no computador." : "Não encontrei um app de música instalado. Instale o Spotify ou o YouTube Music."); }
      musicaPausada=false;
      highlight={tipo:"musica", titulo:`Tocando: ${busca}`, busca, app:r.app, nome:r.nome, metodo:r.metodo}; store.set("hl",highlight); tab="destaque"; renderCard(); renderTicker();
      return {ok:true, app:r.nome, metodo:r.metodo, nota: r.metodo==="tocar" ? "a música foi pedida ao app; responda em uma frase curta, sem repetir detalhes" : "o app só abriu a busca; diga para tocar na música"}; }},
@@ -2544,7 +2607,7 @@ function toggleMic(){
   if (!dict) { if (vozMotivo) caption(`<em>${esc(vozMotivo)}</em>`); $("#msg").focus(); return; }
   escutaCancelada=false;
   heard=""; caption(`<span class="you">Pode falar… (toque de novo para cancelar)</span>`);
-  dict.start({language:"pt-BR"}).catch(err=>{ if(err?.code==="not_granted"){ caption("<em>O microfone não foi liberado. Toque no núcleo de novo e permita, ou libere em Configurações › Apps › Atlas › Permissões.</em>"); } else caption(`<em>Não consegui ligar o microfone (${esc(String(err?.message||err?.code||err))}). Tente de novo.</em>`); });
+  dict.start({language:"pt-BR"}).catch(err=>{ if(err?.userMsg){ caption(`<em>${esc(err.userMsg)}</em>`); } else if(err?.code==="not_granted"){ caption(DESKTOP ? "<em>O microfone não foi liberado. Libere em Configurações do Windows › Privacidade e segurança › Microfone (e permita apps da área de trabalho).</em>" : "<em>O microfone não foi liberado. Toque no núcleo de novo e permita, ou libere em Configurações › Apps › Atlas › Permissões.</em>"); } else caption(`<em>Não consegui ligar o microfone (${esc(String(err?.message||err?.code||err))}). Tente de novo.</em>`); });
 }
 $("#mic").addEventListener("click", toggleMic);
 
@@ -2642,8 +2705,8 @@ $("#prov").addEventListener("click", e=>{
   const st=document.querySelectorAll("#loginView .steps li"); st[0].className="ok"; st[1].className="on";
   $("#cnTitle").textContent=`Conectar ${info.nome}`;
   $("#cnHelp").innerHTML=info.ajuda;
-  $("#cnSteps").innerHTML=info.passos.map(t=>`<li><span>${t}</span></li>`).join("");
-  $("#cnErro").innerHTML=`Se aparecer <b>Unexpected Application Error</b> ou a página ficar em branco, o navegador do celular está desatualizado. Atualize o Chrome na Play Store ou toque em <b>Outro navegador</b>. Você também pode criar a chave no computador, em <b>${info.site}</b>, e mandar para o celular (por WhatsApp para você mesmo, por exemplo).`;
+  $("#cnSteps").innerHTML=info.passos.map(t=>`<li><span>${noAparelho(t)}</span></li>`).join("");
+  $("#cnErro").innerHTML= DESKTOP ? "" : `Se aparecer <b>Unexpected Application Error</b> ou a página ficar em branco, o navegador do celular está desatualizado. Atualize o Chrome na Play Store ou toque em <b>Outro navegador</b>. Você também pode criar a chave no computador, em <b>${info.site}</b>, e mandar para o celular (por WhatsApp para você mesmo, por exemplo).`;
   avisosConexao(p);
   $("#cnKey").placeholder=info.prefixo+"…";
   $("#cnKey").value = (cfg?.keys?.[p]) || "";
@@ -2804,7 +2867,7 @@ document.addEventListener("visibilitychange", ()=>{
 });
 setInterval(()=>{ if (!document.hidden && cfg?.onboarded && sample && !busy && !briefingBusy && mode==="idle" && $("#loginView").hidden && $("#onbView").hidden && briefingDevido()) runBriefing({abertura:true}); }, 60000);
 async function agendarLembrete(){
-  const LN = plugin("LocalNotifications"); if (!LN) return;
+  const LN = plugin("LocalNotifications") || DESKTOP?.notificacoes; if (!LN) return;
   try{
     const ids = [100,101,102,103,104,105,106,107];
     await LN.cancel({notifications:ids.map(id=>({id}))}).catch(()=>{});
@@ -2876,7 +2939,7 @@ async function createAgent(check={}){
   await sleep(1100);
   $("#setupView").hidden = true; setMode("idle");
 }
-function showBoot(){ $("#bootView").hidden=false; if (NATIVE) setTimeout(()=>$("#bootBtn").click(), 1200); $("#bootHint").textContent = `Conectado a ${PROV[cfg.provider]}. ${briefingAoAbrir()?"Toque para ouvir o briefing de hoje":"Toque para começar"}`; }
+function showBoot(){ $("#bootView").hidden=false; if (NATIVE || DESKTOP) setTimeout(()=>$("#bootBtn").click(), 1200); $("#bootHint").textContent = noAparelho(`Conectado a ${PROV[cfg.provider]}. ${briefingAoAbrir()?"Toque para ouvir o briefing de hoje":"Toque para começar"}`); }
 let bootFeito=false;
 $("#bootBtn").addEventListener("click", ()=>{ if(bootFeito) return; bootFeito=true; $("#bootView").hidden=true; activate(); });
 function activate({primeira=false}={}){
@@ -3280,7 +3343,38 @@ const AI = (() => {
     }
     throw ultimo || new Error("sem modelo de voz");
   }
-  return {INFO, validate, client, hooks, modeloLeve, falar};
+  // fala → texto (usado no Windows, que não tem o reconhecimento de voz do Google): Gemini ou OpenAI
+  async function transcrever(p, key, {wav, idioma="pt-BR", auth="header", modelo, rpm=0}={}){
+    const lingua = {"pt-BR":"português do Brasil", en:"inglês", "en-US":"inglês", es:"espanhol", "es-ES":"espanhol"}[idioma] || idioma;
+    if (p==="gemini"){
+      const H = auth==="query" ? {"content-type":"application/json"} : {"content-type":"application/json","x-goog-api-key":key};
+      const Q = auth==="query" ? `?key=${encodeURIComponent(key)}` : "";
+      const m = modelo || "gemini-flash-lite-latest";
+      await vagaGemini(rpm);
+      const r = await http(`${GBASE}/models/${encodeURIComponent(m)}:generateContent${Q}`, {method:"POST", headers:H, body:JSON.stringify({
+        contents:[{role:"user", parts:[{text:`Transcreva exatamente o que a pessoa fala neste áudio, em ${lingua}. Responda só com o texto falado, sem aspas nem comentários. Se não houver fala, responda com nada.`}, {inlineData:{mimeType:"audio/wav", data:wav}}]}],
+        generationConfig:{temperature:0, maxOutputTokens:400}})}, "o Google");
+      const u = r.usageMetadata||{};
+      hooks.usage?.({p:"gemini", model:m, inTok:u.promptTokenCount||0, outTok:(u.candidatesTokenCount||0)+(u.thoughtsTokenCount||0)});
+      return (r.candidates?.[0]?.content?.parts||[]).map(x=>x.text||"").join("").trim();
+    }
+    if (p==="gpt"){
+      const bin = atob(wav), bytes = new Uint8Array(bin.length); for (let i=0;i<bin.length;i++) bytes[i]=bin.charCodeAt(i);
+      let ultimo;
+      for (const m of ["gpt-4o-mini-transcribe","whisper-1"]){
+        const fd = new FormData();
+        fd.append("file", new Blob([bytes], {type:"audio/wav"}), "fala.wav"); fd.append("model", m); fd.append("language", String(idioma).slice(0,2));
+        try {
+          const r = await http("https://api.openai.com/v1/audio/transcriptions", {method:"POST", headers:{Authorization:`Bearer ${key}`}, body:fd}, "a OpenAI");
+          hooks.usage?.({p:"gpt", model:m, inTok:r.usage?.input_tokens||0, outTok:r.usage?.output_tokens||0});
+          return String(r.text||"").trim();
+        } catch(e){ ultimo = e; if (e.status===404 || e.status===400) continue; throw e; }
+      }
+      throw ultimo;
+    }
+    throw Object.assign(new Error("sem transcrição"), {code:"sem_chave"});
+  }
+  return {INFO, validate, client, hooks, modeloLeve, falar, transcrever};
 })();
 AI.hooks.usage = registrarUso;
 AI.hooks.trace = diario;
@@ -3317,11 +3411,114 @@ const VOZES_GEMINI = [["Charon","Charon · masculina, calma (estilo Jarvis)"],["
 let vozesPT = [];   // vozes pt-BR do Android (do motor de voz padrão do aparelho)
 const nomeVoz = (v, k) => `Voz ${k+1}${/network/i.test(v.voiceURI)||v.localService===false ? " · online, mais natural" : " · offline"}`;
 
+/* ---------- Windows: vozes do sistema e microfone, no mesmo formato dos plugins do Android ---------- */
+// vozes instaladas no Windows (speechSynthesis), com a mesma interface do TextToSpeech do Capacitor
+function ttsWindows(){
+  const s = window.speechSynthesis; if (!s) return null;
+  return {
+    async getSupportedVoices(){ return {voices: s.getVoices().map(v=>({voiceURI:v.voiceURI, name:v.name, lang:v.lang, localService:v.localService}))}; },
+    speak({text, lang="pt-BR", rate=1, voice=-1}={}){
+      return new Promise(res=>{
+        s.cancel();
+        const vs = s.getVoices(), base = String(lang).slice(0,2);
+        const u = new SpeechSynthesisUtterance(String(text));
+        u.lang = lang; u.rate = rate;
+        const v = vs[voice] || vs.find(x=>x.lang===lang) || vs.find(x=>x.lang.startsWith(base));
+        if (v) u.voice = v;
+        u.onend = u.onerror = () => res();
+        s.speak(u);
+      });
+    },
+    async stop(){ s.cancel(); }
+  };
+}
+// microfone no computador: grava até a pessoa parar de falar e a IA da chave transcreve (Gemini ou OpenAI)
+function wavBase64(partes, taxa=16000){
+  const n = partes.reduce((t,p)=>t+p.length, 0), buf = new ArrayBuffer(44+n*2), d = new DataView(buf);
+  const txt = (o,s)=>{ for(let i=0;i<s.length;i++) d.setUint8(o+i, s.charCodeAt(i)); };
+  txt(0,"RIFF"); d.setUint32(4, 36+n*2, true); txt(8,"WAVE"); txt(12,"fmt "); d.setUint32(16,16,true); d.setUint16(20,1,true); d.setUint16(22,1,true);
+  d.setUint32(24,taxa,true); d.setUint32(28,taxa*2,true); d.setUint16(32,2,true); d.setUint16(34,16,true); txt(36,"data"); d.setUint32(40,n*2,true);
+  let o = 44; for (const p of partes) for (let i=0;i<p.length;i++,o+=2) d.setInt16(o, Math.max(-1,Math.min(1,p[i]))*32767, true);
+  const b = new Uint8Array(buf); let bin = ""; for (let i=0;i<b.length;i+=0x8000) bin += String.fromCharCode.apply(null, b.subarray(i,i+0x8000));
+  return btoa(bin);
+}
+async function transcreverFala(wav, idioma){
+  const k = cfg?.keys || {};
+  const usarGemini = k.gemini && (cfg.provider==="gemini" || !k.gpt);
+  if (usarGemini){
+    const m = cfg.model?.gemini || "gemini-flash-lite-latest", gratis = geminiGratis();
+    return AI.transcrever("gemini", k.gemini, {wav, idioma, auth:cfg.gemAuth||"header", modelo:m, rpm: gratis ? (/lite/.test(m) ? 14 : 4) : 0});
+  }
+  if (k.gpt) return AI.transcrever("gpt", k.gpt, {wav, idioma});
+  throw {code:"sem_chave", userMsg:`Para falar por voz no computador, o ${cfg?.name||"Atlas"} usa uma chave do Gemini (grátis) ou da OpenAI para entender o áudio. Conecte uma em Ajustes › Trocar IA. Enquanto isso, digite o comando.`};
+}
+function srWindows(){
+  const ouv = {}, emit = (ev, d) => (ouv[ev]||[]).forEach(f=>f(d));
+  let rec = null, geracao = 0;
+  async function gravar(){
+    let stream;
+    try { stream = await navigator.mediaDevices.getUserMedia({audio:{echoCancellation:true, noiseSuppression:true, autoGainControl:true, channelCount:1}}); }
+    catch(e){ throw e?.name==="NotAllowedError" ? {code:"not_granted"} : {userMsg:"Não achei um microfone neste computador. Confira se ele está ligado e escolhido no Windows."}; }
+    const ctx = new AudioContext(), src = ctx.createMediaStreamSource(stream), proc = ctx.createScriptProcessor(4096, 1, 1);
+    const passo = ctx.sampleRate/16000, partes = [], t0 = performance.now();
+    let pos = 0, total = 0, falou = false, calado = 0, ruido = 0, nRuido = 0, fechado = false, terminar;
+    const fim = new Promise(r=>terminar=r);
+    const fechar = manter => {
+      if (fechado) return; fechado = true;
+      proc.onaudioprocess = null;
+      try { proc.disconnect(); src.disconnect(); } catch {}
+      stream.getTracks().forEach(t=>t.stop()); ctx.close().catch(()=>{});
+      terminar(manter && falou ? partes : null);
+    };
+    proc.onaudioprocess = ev => {
+      const x = ev.inputBuffer.getChannelData(0), out = [];
+      while (pos < x.length){ const a=Math.max(0,Math.floor(pos-passo/2)), b=Math.min(x.length,Math.ceil(pos+passo/2)); let s=0; for(let i=a;i<b;i++) s+=x[i]; out.push(b>a?s/(b-a):0); pos+=passo; }
+      pos -= x.length;
+      const f = Float32Array.from(out); partes.push(f); total += f.length;
+      let e = 0; for (const v of f) e += v*v; const rms = Math.sqrt(e/Math.max(1,f.length));
+      // o primeiro terço de segundo mede o ruído da sala; fala é o que passa bem acima dele
+      if (nRuido < 4){ ruido = (ruido*nRuido + rms)/(nRuido+1); nRuido++; return; }
+      const limiar = Math.max(0.012, ruido*2.6), agora = performance.now();
+      voiceKick = Math.max(voiceKick, Math.min(1, rms*10));
+      if (rms > limiar){ falou = true; calado = 0; } else if (falou && !calado) calado = agora;
+      if (falou && calado && agora-calado > 1300) fechar(true);           // parou de falar
+      else if (!falou && agora-t0 > 7000) fechar(false);                    // ninguém falou
+      else if (total > 16000*40) fechar(true);                              // no máximo 40 s
+    };
+    src.connect(proc); proc.connect(ctx.destination);
+    return {fim, parar:()=>fechar(true)};
+  }
+  return {
+    available: async () => ({available: true}),
+    checkPermissions: async () => ({speechRecognition: "granted"}),
+    requestPermissions: async () => ({speechRecognition: "granted"}),
+    addListener(ev, cb){ (ouv[ev] = ouv[ev] || []).push(cb); return {remove(){}}; },
+    async start({language="pt-BR"}={}){
+      if (!cfg?.keys?.gemini && !cfg?.keys?.gpt) await transcreverFala("", language);   // avisa logo que falta a chave
+      rec?.parar();
+      const minha = ++geracao;
+      rec = await gravar();
+      emit("listeningState", {status:"started"});
+      rec.fim.then(async partes=>{
+        if (minha!==geracao) return;
+        if (partes){
+          $("#state").textContent = "Entendendo…";
+          try { const t = await transcreverFala(wavBase64(partes), language); if (minha===geracao && t) emit("partialResults", {matches:[t]}); }
+          catch(e){ if (minha===geracao){ diario(`microfone: transcrição falhou (${e?.code||""} ${e?.detalhe||e?.message||""})`); caption(`<em>${esc(e?.userMsg || "Não consegui entender o áudio agora. Tente de novo ou digite o comando.")}</em>`); } }
+        }
+        else if (minha===geracao) caption("<em>Não ouvi nada. Toque no núcleo e fale.</em>");
+        if (minha===geracao) emit("listeningState", {status:"stopped"});
+      });
+    },
+    async stop(){ rec?.parar(); }
+  };
+}
+
 /* ---------- voz nativa no Android (plugins Capacitor) ---------- */
 let vozMotivo = "";
 async function setupNativeVoice(){
-  if (!NATIVE) return;
-  const TTS = plugin("TextToSpeech"), SR = plugin("SpeechRecognition");
+  if (!NATIVE && !DESKTOP) return;
+  const TTS = plugin("TextToSpeech") || (DESKTOP ? ttsWindows() : null), SR = plugin("SpeechRecognition") || (DESKTOP ? srWindows() : null);
   const LANGS = {"pt-BR":"pt-BR", en:"en-US", es:"es-ES"};
   if (TTS){
     let stateCb = null, todas = [];
@@ -3398,7 +3595,8 @@ async function setupNativeVoice(){
         try { await SR.start({language, maxResults:1, partialResults:true, popup:false}); }
         catch(e){ listening=false; cbs.s?.({state:"idle", reason:"erro"}); throw e; }
         // se em 8 s ninguém falar, o Android desiste em silêncio: avisa e libera o núcleo
-        clearTimeout(guarda); guarda=setTimeout(()=>{ if(!last){ SR.stop().catch(()=>{}); listening=false; cbs.s?.({state:"idle", reason:"silencio"}); } }, 8000);
+        // (no Windows a fala é gravada e depois transcrita: quem decide o silêncio é o gravador)
+        clearTimeout(guarda); guarda=setTimeout(()=>{ if(!last){ SR.stop().catch(()=>{}); listening=false; cbs.s?.({state:"idle", reason:"silencio"}); } }, DESKTOP ? 45000 : 8000);
       },
       async stop(){ await SR.stop().catch(()=>{}); if(fim||listening){ clearTimeout(fim); fim=setTimeout(concluir, 900); } },
       // para de ouvir e joga fora o que foi dito
