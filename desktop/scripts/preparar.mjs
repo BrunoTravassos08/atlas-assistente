@@ -81,7 +81,8 @@ if (!temArquivo(join(KWS, "encoder.onnx"))){
   rmSync(tmp, { recursive: true, force: true });
 }
 // jeitos de pronunciar "Atlas": a mesma lista do APK (scripts/preparar-voz.sh), para os dois ouvirem igual
-const sh = readFileSync(join(RAIZ, "scripts", "preparar-voz.sh"), "utf8");
+// (no Windows o git pode trazer o arquivo com fim de linha \r\n)
+const sh = readFileSync(join(RAIZ, "scripts", "preparar-voz.sh"), "utf8").replace(/\r\n/g, "\n");
 const lista = (sh.match(/<<'PALAVRAS'\n([\s\S]*?)\nPALAVRAS/) || [])[1];
 if (!lista) throw new Error("não achei a lista de palavras em scripts/preparar-voz.sh");
 writeFileSync(join(KWS, "keywords.txt"), lista.trim() + "\n");
