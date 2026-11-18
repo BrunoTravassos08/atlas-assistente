@@ -124,6 +124,7 @@ ipcRenderer.on("desk-log", (e, msg) => (evOuv.log || []).forEach(f => f(msg)));
 
 contextBridge.exposeInMainWorld("atlasDesktop", {
   plataforma: process.platform,
+  http: o => chamar("http-get", o),
   voz, escuta, sistema, notificacoes,
   config: {
     ler: () => chamar("desk-config"),

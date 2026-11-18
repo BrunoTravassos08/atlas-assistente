@@ -87,8 +87,26 @@ const enviar = (canal, dados) => { try { win?.webContents.send(canal, dados); } 
 
 /* ---------- internet: o Atlas busca notícias, clima e Instagram direto dos sites (como o app Android) ----------
    O navegador bloquearia por CORS; aqui o Atlas é um app, então liberamos as respostas para a página local. */
+// identidade de navegador comum (sem "Electron"): alguns sites do Google recusam o app com 403
+const UA_CHROME = () => `Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/${process.versions.chrome} Safari/537.36`;
+// pedidos de texto feitos pelo processo principal, como o HTTP nativo do APK: sem Origin, sem CORS
+async function httpNativo({ url, ms = 15000, headers = {} }){
+  if (!/^https:\/\//i.test(String(url))) throw new Error("link inválido");
+  const ctl = new AbortController(), t = setTimeout(() => ctl.abort(), ms);
+  try {
+    const r = await net.fetch(String(url), { signal: ctl.signal, headers: Object.assign({ "User-Agent": UA_CHROME(), "Accept-Language": "pt-BR,pt;q=0.9", "Accept": "*/*" }, headers) });
+    return { status: r.status, data: await r.text() };
+  } finally { clearTimeout(t); }
+}
 function liberarCors(){
   const ses = session.defaultSession;
+  ses.setUserAgent(UA_CHROME(), "pt-BR,pt");
+  // a página é local (file://): o Origin "null" faz o Google Notícias responder 403, então não mandamos
+  ses.webRequest.onBeforeSendHeaders((det, cb) => {
+    const h = Object.assign({}, det.requestHeaders);
+    for (const k of Object.keys(h)) if (/^(origin|sec-fetch-site|sec-fetch-mode|sec-fetch-dest)$/i.test(k)) delete h[k];
+    cb({ requestHeaders: h });
+  });
   ses.webRequest.onHeadersReceived((det, cb) => {
     if (!/^https?:/i.test(det.url)) return cb({});
     const h = {};
@@ -280,6 +298,7 @@ function ponte(){
   const h = (canal, fn) => ipcMain.handle(canal, async (e, a) => fn(a || {}));
   // sistema
   h("sis-info", () => ({ plataforma: process.platform, versao: app.getVersion() }));
+  h("http-get", httpNativo);
   h("sis-abrir", ({ url }) => { if (!/^(https?:|mailto:|tel:)/i.test(String(url))) throw new Error("link inválido"); return shell.openExternal(String(url)); });
   h("sis-apps-musica", () => ({ apps: appsMusica() }));
   h("sis-tocar", tocarMusica);

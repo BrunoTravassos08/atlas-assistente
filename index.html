@@ -730,6 +730,9 @@ async function httpTexto(url, ms=15000){
     if (NATIVE && typeof window.Capacitor?.nativePromise==="function"){
       const r = await Promise.race([window.Capacitor.nativePromise("CapacitorHttp","request",{url, method:"GET", responseType:"text", connectTimeout:ms, readTimeout:ms, headers:{"Accept-Language":"pt-BR,pt;q=0.9"}}), sleep(ms+2000).then(()=>{ throw new Error("sem resposta"); })]);
       status = r?.status; data = typeof r?.data==="string" ? r.data : JSON.stringify(r?.data??"");
+    } else if (DESKTOP?.http){
+      // Windows: o pedido sai pelo app (como o HTTP nativo do Android), sem as travas de navegador
+      const r = await DESKTOP.http({url, ms}); status = r?.status; data = r?.data ?? "";
     } else {
       const ctl = new AbortController(), tm = setTimeout(()=>ctl.abort(), ms);
       try{ const r = await fetch(url, {signal:ctl.signal}); status = r.status; data = await r.text(); } finally{ clearTimeout(tm); }
@@ -783,6 +786,8 @@ async function graphGet(caminho, params={}, token=cfg?.insta?.token){
     if (NATIVE && typeof window.Capacitor?.nativePromise==="function"){
       const r = await Promise.race([window.Capacitor.nativePromise("CapacitorHttp","request",{url, method:"GET", responseType:"json", connectTimeout:15000, readTimeout:15000}), sleep(17000).then(()=>{ throw new Error("sem resposta"); })]);
       status = r?.status; data = r?.data;
+    } else if (DESKTOP?.http){
+      const r = await DESKTOP.http({url}); status = r?.status; data = r?.data;
     } else {
       const r = await fetch(url); status = r.status; data = await r.text();
     }
