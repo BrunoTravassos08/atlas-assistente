@@ -1,7 +1,7 @@
 // Atlas para Windows: a mesma interface do APK (app/index.html) numa janela do Electron,
 // com o que no Android vinha de plugins nativos refeito para o computador:
 // voz neural offline, palavra "Atlas", música, lembretes, atalho global, bandeja e atualização automática.
-const { app, BrowserWindow, Tray, Menu, globalShortcut, ipcMain, shell, session, Notification, nativeImage, utilityProcess, net, screen } = require("electron");
+const { app, BrowserWindow, Tray, Menu, globalShortcut, ipcMain, shell, session, Notification, nativeImage, utilityProcess, net, screen, systemPreferences } = require("electron");
 const path = require("node:path");
 const fs = require("node:fs");
 const os = require("node:os");
@@ -321,6 +321,9 @@ function ponte(){
   h("lembretes-agendar", ({ notifications }) => { const ids = new Set((notifications || []).map(n => n.id)); cfg.lembretes = (cfg.lembretes || []).filter(l => !ids.has(l.id)).concat(notifications || []); salvar(); return {}; });
   h("lembretes-cancelar", ({ notifications }) => { const ids = new Set((notifications || []).map(n => n.id)); cfg.lembretes = (cfg.lembretes || []).filter(l => !ids.has(l.id)); salvar(); return {}; });
   // ajustes do desktop
+  // acesso ao microfone nas Configurações do Windows (Privacidade › Microfone)
+  h("desk-mic", () => ({ acesso: ["win32", "darwin"].includes(process.platform) ? systemPreferences.getMediaAccessStatus("microphone") : "granted" }));
+  h("desk-mic-ajustes", () => process.platform === "win32" ? shell.openExternal("ms-settings:privacy-microphone") : null);
   h("desk-config", () => ({ abrirComWindows: !!cfg.abrirComWindows, fecharParaBandeja: !!cfg.fecharParaBandeja, atalho: cfg.atalho, atalhoNome: nomeAtalho(), atalhoOk: !cfg.atalho || globalShortcut.isRegistered(cfg.atalho), versao: app.getVersion(), atualizacao }));
   h("desk-config-gravar", a => {
     if ("abrirComWindows" in a){ cfg.abrirComWindows = !!a.abrirComWindows; aplicarInicioAutomatico(); }

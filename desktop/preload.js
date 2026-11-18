@@ -71,12 +71,19 @@ function pararMic(){
 // ouviu o nome; se a pessoa já disse o pedido junto ("Atlas, toca uma música"), vem o áudio da frase para a página transcrever
 ipcRenderer.on("escuta-palavra", (e, m) => { if (!mic) return; pararMic(); emitirEsc("palavra", { palavra: "ATLAS", texto: m?.texto || "", comando: m?.comando || "", audio: m?.audio || null }); });
 const escuta = {
-  async iniciar(){
+  async iniciar({ micId = "" } = {}){
     if (mic) return {};
     try { await chamar("kws-iniciar"); } catch (e){ throw { code: "sem_modelo", message: e?.message || "modelo da palavra não carregou" }; }
     let stream;
-    try { stream = await navigator.mediaDevices.getUserMedia({ audio: { echoCancellation: true, noiseSuppression: true, autoGainControl: true, channelCount: 1 } }); }
-    catch (e){ throw { code: e?.name === "NotAllowedError" ? "sem_permissao" : "sem_microfone", message: e?.message || String(e) }; }
+    // o microfone escolhido em Ajustes; se não der, o padrão do Windows; por último, sem filtros de som
+    const base = { echoCancellation: true, noiseSuppression: true, autoGainControl: true, channelCount: 1 };
+    const tent = [...(micId ? [{ audio: { ...base, deviceId: { exact: micId } } }] : []), { audio: base }, { audio: true }];
+    let erro;
+    for (const c of tent){
+      try { stream = await navigator.mediaDevices.getUserMedia(c); break; }
+      catch (e){ erro = e; if (e?.name === "NotAllowedError") break; }
+    }
+    if (!stream){ ipcRenderer.send("kws-parar"); throw { code: erro?.name === "NotAllowedError" ? "sem_permissao" : "sem_microfone", message: `${erro?.name || ""} ${erro?.message || erro}`.trim() }; }
     const ctx = new AudioContext(), src = ctx.createMediaStreamSource(stream), proc = ctx.createScriptProcessor(4096, 1, 1);
     const passo = ctx.sampleRate / 16000; let pos = 0;
     proc.onaudioprocess = ev => {
@@ -131,7 +138,9 @@ contextBridge.exposeInMainWorld("atlasDesktop", {
     ler: () => chamar("desk-config"),
     gravar: o => chamar("desk-config-gravar", o),
     atualizarAgora: () => chamar("desk-atualizar"),
-    telaCheia: () => chamar("desk-tela-cheia")
+    telaCheia: () => chamar("desk-tela-cheia"),
+    microfone: () => chamar("desk-mic"),
+    ajustesMicrofone: () => chamar("desk-mic-ajustes")
   },
   on: (ev, cb) => ouvintes(evOuv, ev, cb)
 });
