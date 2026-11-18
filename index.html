@@ -684,6 +684,8 @@ const store = {
 
 /* ---------- state ---------- */
 let cfg = store.get("cfg", null); // {provider, user, name, voice, speak}
+// versões antigas desligavam "chamar pelo nome" sozinhas quando a escuta falhava uma vez; religa, a não ser que a pessoa tenha escolhido
+if (cfg && cfg.chamarNome===false && !cfg.chamarNomeEscolhido){ cfg.chamarNome = true; store.set("cfg", cfg); }
 let tasks = store.get("tasks", null);
 if (!tasks) tasks = [];
 let highlight = store.get("hl", {categoria:"Sistema", titulo:"Pronto para começar", valor:"100%", legenda:"Todos os módulos online. Peça algo por voz ou texto."});
@@ -1049,7 +1051,22 @@ if (ESCUTA){
     escutaLigada = false; escutaUI(false);
     if (document.hidden || mode!=="idle" || ocupado() || !dict) return;
     pulsoNome();
-    const cmd = String(d?.comando||"").trim();
+    let cmd = String(d?.comando||"").trim();
+    // no computador a frase vem em áudio: a IA da chave transcreve direito e tiramos o nome do começo
+    if (d?.audio && (cfg?.keys?.gemini || cfg?.keys?.gpt)){
+      $("#state").textContent = "Entendendo…";
+      transcreverFala(wavBase64([d.audio instanceof Float32Array ? d.audio : Float32Array.from(d.audio)]), "pt-BR").then(t=>{
+        const nome = String(cfg?.name||"Atlas").trim().replace(/[.*+?^${}()|[\]\\]/g,"\\$&") || "Atlas";
+        const re = new RegExp(`^.*?(?:^|[^\\p{L}])(${nome}|[aá]tl[aá]s)(?![\\p{L}])[\\s,.!?:;-]*`, "iu");
+        const frase = String(t||"").trim();
+        if (!re.test(frase)){ diario(`escuta do nome: alarme falso ("${frase.slice(0,60)}")`); $("#state").textContent=PAL[mode].label; escutaNome(); return; }
+        const pedido = frase.replace(re, "").trim();
+        if (pedido.split(/\s+/).filter(Boolean).length >= 2 && mode==="idle"){ diario(`ouvi "Atlas" com o pedido: ${pedido.slice(0,60)}`); $("#qchips").hidden=true; caption(`<span class="you">${esc(pedido)}</span>`); ask(pedido); }
+        else { $("#state").textContent=PAL[mode].label; toggleMic(); }
+      }).catch(e=>{ diario(`escuta do nome: transcrição do pedido falhou (${e?.code||""} ${e?.message||""})`); toggleMic(); });
+      return;
+    }
+    if (d?.audio) cmd = "";   // sem chave para transcrever: abre o microfone (que explica o que falta)
     // "Atlas, toca uma música": a frase já veio junto, vai direto
     if (cmd.split(/\s+/).filter(Boolean).length >= 2){ diario(`ouvi "Atlas" com o pedido: ${cmd.slice(0,60)}`); $("#qchips").hidden=true; caption(`<span class="you">${esc(cmd)}</span>`); return ask(cmd); }
     diario("ouvi \"Atlas\": abrindo o microfone");
@@ -1748,7 +1765,7 @@ function mudouAjuste(e){
   if(id==="sBolha"){ if(e.target.checked) bolhaLigar(); else BOLHA?.desligar().then(r=>{ bolhaInfo=r; caption("Botão flutuante desligado."); }).catch(()=>{}); }
   if(id==="sBrAbrir"){ cfg.briefingAbrir=e.target.value; store.set("cfg",cfg); }
   if(id==="sNomeModo"){ cfg.escutaModo=e.target.value; store.set("cfg",cfg); pararEscuta().then(escutaNome); }
-  if(id==="sNome"){ cfg.chamarNome=e.target.checked; store.set("cfg",cfg); escutaErro=""; escutaNome(); }
+  if(id==="sNome"){ cfg.chamarNome=e.target.checked; cfg.chamarNomeEscolhido=true; store.set("cfg",cfg); escutaErro=""; escutaNome(); }
   if(id==="sMus"){ cfg.musicaApp=e.target.value; store.set("cfg",cfg); }
   if(id==="sAtalho") DESKTOP?.config.gravar({atalho:e.target.value}).then(r=>{ if(!r?.atalhoOk) caption("<em>Outro programa já usa esse atalho. Escolha outro.</em>"); deskCfgLer(); });
   if(id==="sAutoIni") DESKTOP?.config.gravar({abrirComWindows:e.target.checked}).then(deskCfgLer);

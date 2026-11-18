@@ -1,6 +1,6 @@
 // Motor de voz do Atlas no Windows (processo separado, para não travar a janela):
 // - voz neural offline (Piper, pelo sherpa-onnx), a mesma do APK;
-// - palavra de ativação "Atlas" sem internet (modelo de palavra-chave do sherpa-onnx).
+// - palavra de ativação "Atlas" sem internet (palavra-chave + detector de fala + Whisper tiny).
 // Conversa com o processo principal por mensagens (process.parentPort).
 const path = require("node:path");
 const fs = require("node:fs");
@@ -73,24 +73,79 @@ async function falar({ id, texto, voz, velocidade }){
   }
 }
 
+// Palavra "Atlas": três peças trabalhando juntas, tudo sem internet.
+// 1) o modelo de palavra-chave (rápido, mas no Windows erra muito sozinho);
+// 2) o detector de fala (silero) recorta cada frase dita;
+// 3) o Whisper tiny transcreve a frase curta e confere se ela tem o nome.
+// Se o Whisper não estiver disponível, volta ao modo antigo (só a palavra-chave).
+const NOME = /(?:^|[^a-zà-ú])(atlas|atlass|atlaz|atl[aá]s|atlis|atles|hatlas)(?![a-zà-ú])/i;
+// no começo da frase o Whisper tiny costuma ouvir "Atlas" como "Atos"/"Atas"
+const NOME_INICIO = /^\s*(?:(?:e|ei|ey|hey|oi|ô|olá|ola)[\s,!.]+)?(atos|atas|átos|atlos|ats)(?![a-zà-ú])/i;
+const NAO = /atlet|atl[aâ]nt|at[aâ]nt|atetis|atr[aá]s/i;
+let vad = null, whisper = null, vadResto = new Float32Array(0), tAudio = 0, kwsHit = 0;
 function kwsIniciar(){
   if (!kws){
     const K = path.join(REC, "kws");
     kws = new sherpa.KeywordSpotter({
       featConfig: { sampleRate: 16000, featureDim: 80 },
       modelConfig: { transducer: { encoder: path.join(K, "encoder.onnx"), decoder: path.join(K, "decoder.onnx"), joiner: path.join(K, "joiner.onnx") }, tokens: path.join(K, "tokens.txt"), numThreads: 1, provider: "cpu", debug: 0 },
-      keywordsFile: path.join(K, "keywords.txt"), keywordsScore: 1.0, keywordsThreshold: 0.1, maxActivePaths: 4, numTrailingBlanks: 1
+      keywordsFile: path.join(K, "keywords.txt"), keywordsScore: 1.5, keywordsThreshold: 0.06, maxActivePaths: 4, numTrailingBlanks: 1
     });
+    try {
+      const W = path.join(REC, "whisper"), V = path.join(REC, "silero_vad.onnx");
+      if (fs.existsSync(path.join(W, "decoder.onnx")) && fs.existsSync(V)){
+        vad = new sherpa.Vad({ sileroVad: { model: V, threshold: 0.45, minSilenceDuration: 0.35, minSpeechDuration: 0.15, windowSize: 512, maxSpeechDuration: 6 }, sampleRate: 16000, numThreads: 1, provider: "cpu", debug: 0 }, 30);
+        whisper = new sherpa.OfflineRecognizer({ featConfig: { sampleRate: 16000, featureDim: 80 }, modelConfig: { whisper: { encoder: path.join(W, "encoder.onnx"), decoder: path.join(W, "decoder.onnx"), language: "pt", task: "transcribe" }, tokens: path.join(W, "tokens.txt"), numThreads: THREADS, provider: "cpu", debug: 0 } });
+        enviar({ t: "log", msg: "escuta do nome: usando o Whisper para confirmar" });
+      }
+    } catch (e){ vad = whisper = null; enviar({ t: "log", msg: "escuta do nome sem Whisper: " + (e?.message || e) }); }
   }
   kwsStream = kws.createStream();
+  vad?.reset(); vadResto = new Float32Array(0); tAudio = 0; kwsHit = 0;
+}
+function transcrever(amostras){
+  const r = whisper.createStream();
+  r.acceptWaveform({ samples: amostras, sampleRate: 16000 });
+  whisper.decode(r);
+  return whisper.getResult(r).text.trim();
+}
+function avaliarFrase(seg){
+  const amostras = Float32Array.from(seg.samples), dur = amostras.length / 16000;
+  const kwsNaFrase = kwsHit && kwsHit >= seg.start - 8000;
+  kwsHit = 0;
+  if (dur > 6.5) return;
+  const texto = transcrever(amostras);
+  const m = texto.match(NOME) || texto.match(NOME_INICIO);
+  if (m){
+    const resto = texto.slice(m.index + m[0].length).replace(/^[\s,.!?:;-]+/, "").trim();
+    const comPedido = resto.split(/\s+/).filter(w => /[a-zà-ú]/i.test(w)).length >= 2;
+    // com pedido junto, manda o áudio para a página transcrever direito (o Whisper tiny erra o resto da frase)
+    enviar({ t: "palavra", palavra: "ATLAS", texto, comando: comPedido ? resto : "", audio: comPedido ? amostras : null });
+  } else if (kwsNaFrase && dur < 2.5 && texto.split(/\s+/).length <= 3 && !NAO.test(texto)){
+    enviar({ t: "palavra", palavra: "ATLAS", texto, comando: "" });
+  } else if (kwsNaFrase) enviar({ t: "log", msg: `escuta do nome: descartei "${texto}"` });
 }
 function kwsAudio(amostras){
   if (!kws || !kwsStream) return;
+  tAudio += amostras.length;
   kwsStream.acceptWaveform({ samples: amostras, sampleRate: 16000 });
   while (kws.isReady(kwsStream)){
     kws.decode(kwsStream);
     const r = kws.getResult(kwsStream);
-    if (r.keyword){ kws.reset(kwsStream); enviar({ t: "palavra", palavra: r.keyword }); }
+    if (r.keyword){
+      kws.reset(kwsStream);
+      if (!whisper) return enviar({ t: "palavra", palavra: r.keyword });
+      kwsHit = tAudio;
+    }
+  }
+  if (!whisper) return;
+  const b = new Float32Array(vadResto.length + amostras.length); b.set(vadResto); b.set(amostras, vadResto.length);
+  let i = 0;
+  for (; i + 512 <= b.length; i += 512) vad.acceptWaveform(b.subarray(i, i + 512));
+  vadResto = b.slice(i);
+  while (kwsStream && !vad.isEmpty()){
+    const seg = vad.front(false); vad.pop();
+    avaliarFrase(seg);
   }
 }
 
