@@ -1667,7 +1667,7 @@ function renderAjustes(){
       <div class="aj-sec">Briefing</div>
       <div><label class="lbl" for="sTopics">Assuntos do briefing (um por linha)</label><textarea class="inp" id="sTopics" rows="4" style="height:auto;padding:8px 12px;resize:vertical">${esc(topics().map(t=>t.nome).join("\n"))}</textarea></div>
       <div class="row"><span class="sub">Rotina: ${cfg.rotina?`briefing às <b style="color:var(--fg)">${esc(cfg.rotina.hora)}</b>${cfg.rotina.dias==="uteis"?", seg a sex":", todos os dias"}${cfg.rotina.lembrete?" · com aviso":""}`:"não configurada"}</span><button class="btn-line" data-act="onboarding" type="button">Refazer configuração</button></div>
-      <div class="row"><label class="lbl" for="sBrAbrir" style="margin:0">Briefing ao abrir</label><select class="inp" id="sBrAbrir" style="width:auto"><option value="sempre" ${briefingSempre()?"selected":""}>Toda vez que abrir</option><option value="dia" ${briefingSempre()?"":"selected"}>Só 1 vez por dia</option></select></div>
+      <div class="row"><label class="lbl" for="sBrAbrir" style="margin:0">Briefing ao abrir</label><select class="inp" id="sBrAbrir" style="width:auto"><option value="dia" ${briefingSempre()?"":"selected"}>Só na 1ª abertura do dia</option><option value="sempre" ${briefingSempre()?"selected":""}>Toda vez que abrir</option></select></div>
       ${ajustesInsta()}
       <div class="aj-sec">Inteligência artificial</div>
       <div><span class="lbl">Skills instaladas</span><div class="chips">${(cfg.agent?.skills||["Agenda","Destaques","Tradução PT/EN/ES","PDF: ler e padronizar","Pesquisa avançada","Briefing de notícias","Tutor de estudos"]).map(x=>`<span>✓ ${x}</span>`).join("")}</div></div>
@@ -1763,7 +1763,7 @@ function mudouAjuste(e){
   if(id==="sSpeak") cfg.speak=e.target.checked;
   if(id==="sFx"){ cfg.fx=e.target.value; store.set("cfg",cfg); applyFx(); }
   if(id==="sBolha"){ if(e.target.checked) bolhaLigar(); else BOLHA?.desligar().then(r=>{ bolhaInfo=r; caption("Botão flutuante desligado."); }).catch(()=>{}); }
-  if(id==="sBrAbrir"){ cfg.briefingAbrir=e.target.value; store.set("cfg",cfg); }
+  if(id==="sBrAbrir"){ cfg.briefingAbrir=e.target.value; cfg.briefingAbrirV=2; store.set("cfg",cfg); }
   if(id==="sNomeModo"){ cfg.escutaModo=e.target.value; store.set("cfg",cfg); pararEscuta().then(escutaNome); }
   if(id==="sNome"){ cfg.chamarNome=e.target.checked; cfg.chamarNomeEscolhido=true; store.set("cfg",cfg); escutaErro=""; escutaNome(); }
   if(id==="sMus"){ cfg.musicaApp=e.target.value; store.set("cfg",cfg); }
@@ -2908,8 +2908,9 @@ function briefingDevido(){
   return true;
 }
 function marcarBriefing(){ cfg.ultimoBriefing = hojeISO(); cfg.ultimoBriefingEm = Date.now(); store.set("cfg", cfg); }
-// padrão: briefing toda vez que o app abre (dá para voltar a "1 vez por dia" nos Ajustes)
-const briefingSempre = () => cfg?.briefingAbrir !== "dia";
+// padrão: briefing só na primeira abertura do dia ("toda vez que abrir" fica como opção nos Ajustes;
+// escolhas antigas de "sempre" feitas antes desta versão não contam, pois "sempre" era o padrão)
+const briefingSempre = () => cfg?.briefingAbrir === "sempre" && cfg?.briefingAbrirV === 2;
 function briefingAoAbrir(){ return briefingSempre() ? !!(cfg && topics().length) : briefingDevido(); }
 // voltou depois de muito tempo em segundo plano: conta como abrir de novo
 let escondidoEm = 0;
