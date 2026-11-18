@@ -83,8 +83,17 @@ public class AtlasEscuta extends Plugin {
     private final Handler main = new Handler(Looper.getMainLooper());
     private SpeechRecognizer sr;
     private volatile boolean googleAtivo = false;
-    private boolean noAparelho = false, semPacote = false, avisouOuvindo = false;
-    private Pattern nome = Pattern.compile("\\b(atlas|atlass|attlas|adlas|atlaz|atilas|atlis)\\b");
+    private boolean noAparelho = false, semPacote = false, avisouOuvindo = false, falou = false;
+    private int errosSeguidos = 0, ultimoErro = -1, ciclos = 0;
+    // como o Google costuma escrever "Atlas" falado em português
+    private Pattern nome = Pattern.compile("\\b(atlas|atlass|attlas|athlas|adlas|atlaz|atilas|atlis|atla|atles|atlais|hatlas)\\b");
+
+    /** manda uma linha para o diagnóstico do app (Ajustes › Copiar diagnóstico) */
+    private void log(String msg) {
+        Log.i(TAG, msg);
+        JSObject d = new JSObject(); d.put("msg", msg);
+        notifyListeners("log", d);
+    }
 
     private static String normalizar(String t) {
         String n = Normalizer.normalize(String.valueOf(t).toLowerCase(), Normalizer.Form.NFD).replaceAll("\\p{M}", "");
@@ -92,15 +101,17 @@ public class AtlasEscuta extends Plugin {
     }
 
     private void criarReconhecedor() {
+        falou = false; errosSeguidos = 0;
         if (sr != null) { try { sr.destroy(); } catch (Exception ignorado) {} sr = null; }
         // o reconhecedor "no aparelho" (Android 13+) não usa internet nem faz bipe; se não tiver o português baixado, usa o normal
         if (Build.VERSION.SDK_INT >= 33 && !semPacote && SpeechRecognizer.isOnDeviceRecognitionAvailable(getContext())) {
             try { sr = SpeechRecognizer.createOnDeviceSpeechRecognizer(getContext()); noAparelho = true; } catch (Exception e) { sr = null; }
         }
         if (sr == null) { sr = SpeechRecognizer.createSpeechRecognizer(getContext()); noAparelho = false; }
+        log("escuta do nome: reconhecedor " + (noAparelho ? "no aparelho (sem internet)" : "do Google (online)"));
         sr.setRecognitionListener(new RecognitionListener() {
             @Override public void onReadyForSpeech(Bundle b) {}
-            @Override public void onBeginningOfSpeech() {}
+            @Override public void onBeginningOfSpeech() { falou = true; errosSeguidos = 0; }
             @Override public void onRmsChanged(float v) {}
             @Override public void onBufferReceived(byte[] b) {}
             @Override public void onEndOfSpeech() {}
@@ -113,7 +124,9 @@ public class AtlasEscuta extends Plugin {
                 }
             }
             @Override public void onResults(Bundle b) {
+                errosSeguidos = 0;
                 ArrayList<String> rs = b == null ? null : b.getStringArrayList(SpeechRecognizer.RESULTS_RECOGNITION);
+                if (rs != null && !rs.isEmpty()) log("escuta do nome ouviu: \"" + rs.get(0).substring(0, Math.min(50, rs.get(0).length())) + "\"");
                 if (rs != null) for (String t : rs) {
                     Matcher m = nome.matcher(normalizar(t));
                     if (m.find()) {
@@ -133,10 +146,33 @@ public class AtlasEscuta extends Plugin {
                         return;
                     }
                 }
+                if (avisouOuvindo) {
+                    // o nome apareceu no meio da frase, mas sumiu do texto final: atende mesmo assim
+                    googleAtivo = false;
+                    JSObject d = new JSObject();
+                    d.put("palavra", "ATLAS");
+                    d.put("texto", rs != null && !rs.isEmpty() ? rs.get(0) : "");
+                    d.put("comando", "");
+                    notifyListeners("palavra", d);
+                    return;
+                }
                 proximo(80);
             }
             @Override public void onError(int erro) {
                 if (!googleAtivo) return;
+                errosSeguidos++;
+                // erro 7 (não entendeu) e 6 (silêncio) são normais no ciclo; os outros vão para o diagnóstico
+                if (erro != SpeechRecognizer.ERROR_NO_MATCH && erro != SpeechRecognizer.ERROR_SPEECH_TIMEOUT && (erro != ultimoErro || errosSeguidos % 20 == 0))
+                    log("escuta do nome: erro " + erro + (noAparelho ? " (no aparelho)" : "") + ", seguidos " + errosSeguidos);
+                ultimoErro = erro;
+                // o reconhecedor "no aparelho" falhando sem parar (sem pacote de português, por exemplo): passa para o do Google
+                if (noAparelho && errosSeguidos >= 4 && !falou) {
+                    log("escuta do nome: o reconhecedor do aparelho não está funcionando; usando o do Google");
+                    semPacote = true;
+                    criarReconhecedor();
+                    proximo(300);
+                    return;
+                }
                 if ((erro == SpeechRecognizer.ERROR_LANGUAGE_NOT_SUPPORTED || erro == SpeechRecognizer.ERROR_LANGUAGE_UNAVAILABLE) && noAparelho) {
                     // sem o pacote de português no aparelho: passa para o reconhecedor normal
                     semPacote = true; noAparelho = false; // não tenta de novo o "no aparelho"
@@ -177,6 +213,7 @@ public class AtlasEscuta extends Plugin {
         if (!googleAtivo) return;
         if (sr == null) criarReconhecedor();
         avisouOuvindo = false;
+        if (++ciclos % 30 == 1) log("escuta do nome: ouvindo (ciclo " + ciclos + ")");
         Intent i = new Intent(RecognizerIntent.ACTION_RECOGNIZE_SPEECH);
         i.putExtra(RecognizerIntent.EXTRA_LANGUAGE_MODEL, RecognizerIntent.LANGUAGE_MODEL_FREE_FORM);
         i.putExtra(RecognizerIntent.EXTRA_LANGUAGE, "pt-BR");
