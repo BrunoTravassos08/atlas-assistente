@@ -480,6 +480,10 @@ textarea.inp{height:auto;padding:8px 12px;resize:vertical;font:inherit}
 .aj-head button{background:transparent;border:1px solid var(--line-hi);color:var(--fg);width:36px;height:36px;font-size:16px}
 #ajModal .card{border:0;max-height:none;min-height:0;flex:1 1 auto;overflow:auto;background:transparent;backdrop-filter:none;-webkit-backdrop-filter:none;overscroll-behavior:contain}
 #ajModal .card::before,#ajModal .card::after{display:none}
+#ajModal .card{overflow-x:hidden}
+#ajModal .set{grid-template-columns:minmax(0,1fr)}
+#ajModal .set .row>.lbl,#ajModal .set .row>.sub{flex:1 1 auto;min-width:0}
+#ajModal .set .row>select.inp{flex:0 1 auto;max-width:62%;min-width:0;text-overflow:ellipsis}
 .aj-sec{font-family:var(--f-hud);font-size:10px;font-weight:600;letter-spacing:.26em;text-transform:uppercase;color:var(--cyan);margin-top:6px;padding-bottom:4px;border-bottom:1px solid var(--line)}
 .aj-passos{margin:6px 0 0;padding-left:20px;font-size:13px;line-height:1.5;color:var(--fg-dim)}.aj-passos li{margin-bottom:6px}.aj-passos b{color:var(--fg)}
 .aj-passos a{color:var(--cyan);text-decoration:underline;cursor:pointer}
@@ -667,6 +671,11 @@ textarea.inp{height:auto;padding:8px 12px;resize:vertical;font:inherit}
 const $ = s => document.querySelector(s);
 // saudação pelo relógio do aparelho: 5h–11h59 bom dia, 12h–17h59 boa tarde, 18h–4h59 boa noite
 const periodo = (d=new Date()) => { const h=d.getHours(); return h>=5&&h<12 ? "Bom dia" : h>=12&&h<18 ? "Boa tarde" : "Boa noite"; };
+// a IA às vezes repete a saudação de conversas antigas ("boa noite" à tarde): troca pela do relógio do aparelho
+function corrigeSaudacao(t){
+  const certo = periodo();
+  return String(t??"").replace(/(^|[.!?…]\s*|\n\s*)(bom dia|boa tarde|boa noite)(?=\s*[,!.…]|\s*$|\s+(?!brasil)[\p{Lu}])/giu, (m, antes, s) => antes + (s[0]===s[0].toUpperCase() ? certo : certo.toLowerCase()));
+}
 const hojeData = (d=new Date()) => `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,"0")}-${String(d.getDate()).padStart(2,"0")}`;
 const store = {
   get(k, d){ try{ const v = localStorage.getItem("atlas."+k); return v==null ? d : JSON.parse(v); }catch{ return d; } },
@@ -938,24 +947,26 @@ const SIS = plugin("AtlasSistema") || DESKTOP?.sistema || null;
 const VOZ = plugin("AtlasVoz") || DESKTOP?.voz || null;
 /* palavra de ativação: o Android escuta "Atlas" sem internet (só com o app na tela) e abre o microfone */
 const ESCUTA = plugin("AtlasEscuta") || DESKTOP?.escuta || null;
-let escutaErro = "", escutaLigada = false, escutaTimer = null, escutaPediuPerm = false;
+let escutaErro = "", escutaLigada = false, escutaTimer = null, escutaPediuPerm = false, escutaPausaAte = 0;
+// mostra "Diga Atlas" embaixo do núcleo enquanto a escuta do nome está ligada
+function escutaUI(on){ if (wakeOn) return; const b=$("#wakebar"); if(!b) return; b.hidden=!on; if(on) $("#wakeTxt").textContent=`Diga "${(cfg?.name||"Atlas").charAt(0)+(cfg?.name||"Atlas").slice(1).toLowerCase()}"`; }
 function podeEscutar(){ return !!(ESCUTA && cfg?.chamarNome!==false && bootFeito && dict && !document.hidden && mode==="idle" && !ocupado() && !wakeOn && $("#loginView").hidden && $("#onbView").hidden && $("#setupView").hidden); }
-async function pararEscuta(){ if(!ESCUTA) return; escutaLigada=false; clearTimeout(escutaTimer); await ESCUTA.parar().catch(()=>{}); }
+async function pararEscuta(){ if(!ESCUTA) return; escutaLigada=false; escutaUI(false); clearTimeout(escutaTimer); await ESCUTA.parar().catch(()=>{}); }
 function escutaNome(){
   if (!ESCUTA) return;
   clearTimeout(escutaTimer);
   escutaTimer = setTimeout(async ()=>{
     if (!podeEscutar()){ if (escutaLigada) pararEscuta(); return; }
-    if (escutaLigada) return;
+    if (escutaLigada || Date.now()<escutaPausaAte) return;
     escutaLigada = true;
-    try { await ESCUTA.iniciar({modo: cfg.escutaModo || "google"}); }
+    try { await ESCUTA.iniciar({modo: cfg.escutaModo || "google"}); escutaErro=""; if (escutaLigada && podeEscutar()) escutaUI(true); }
     catch(e){
       escutaLigada = false;
       if (e?.code==="sem_permissao"){
         escutaErro = "Para chamar pelo nome, libere o microfone: toque no microfone uma vez e permita.";
         if (!escutaPediuPerm){ escutaPediuPerm=true; const SR=plugin("SpeechRecognition"); const r=await SR?.requestPermissions().catch(()=>null); if (r?.speechRecognition==="granted"){ escutaErro=""; escutaNome(); } }
       } else if (e?.code==="sem_google" && cfg.escutaModo!=="offline"){ cfg.escutaModo="offline"; store.set("cfg",cfg); diario("escuta do nome: sem reconhecimento do Google, usando o modo sem internet"); escutaNome(); return;
-      } else { escutaErro = "Não consegui ligar a escuta do nome neste aparelho."; cfg.chamarNome=false; diario(`escuta do nome falhou (${e?.code||""} ${e?.message||e})`); }
+      } else { escutaErro = "Não consegui ligar a escuta do nome agora. Vou tentar de novo sozinho."; escutaPausaAte = Date.now()+30e3; diario(`escuta do nome falhou (${e?.code||""} ${e?.message||e})`); }
       if (ajOpen) renderAjustes();
     }
   }, 500);
@@ -1032,9 +1043,10 @@ if (DESKTOP){
 if (ESCUTA){
   const pulsoNome = () => { waves.push({r:W*.24,a:1}); setTimeout(()=>waves.push({r:W*.24,a:.8}),140); voiceKick=1; addRipple(innerWidth/2, innerHeight*.35, true); };
   // ouviu o nome no meio da frase: mostra que está prestando atenção (sem mudar de estado)
-  ESCUTA.addListener("ouvindo", ()=>{ if (mode==="idle"){ pulsoNome(); $("#state").textContent="Ouvindo…"; } });
+  ESCUTA.addListener("ouvindo", ()=>{ diario("escuta do nome: ouvi o nome no meio da frase"); if (mode==="idle"){ pulsoNome(); $("#state").textContent="Ouvindo…"; } });
+  ESCUTA.addListener("log", d=>diario(String(d?.msg||"")));
   ESCUTA.addListener("palavra", d=>{
-    escutaLigada = false;
+    escutaLigada = false; escutaUI(false);
     if (document.hidden || mode!=="idle" || ocupado() || !dict) return;
     pulsoNome();
     const cmd = String(d?.comando||"").trim();
@@ -1043,8 +1055,8 @@ if (ESCUTA){
     diario("ouvi \"Atlas\": abrindo o microfone");
     toggleMic();
   });
-  ESCUTA.addListener("parou", d=>{ escutaLigada = false; diario(`escuta do nome parou (${d?.erro||""})`); });
-  document.addEventListener("visibilitychange", ()=>{ if (document.hidden) escutaLigada = false; else escutaNome(); });
+  ESCUTA.addListener("parou", d=>{ escutaLigada = false; escutaUI(false); diario(`escuta do nome parou (${d?.erro||""})`); });
+  document.addEventListener("visibilitychange", ()=>{ if (document.hidden){ escutaLigada = false; escutaUI(false); } else escutaNome(); });
   setInterval(()=>{ if (!escutaLigada && podeEscutar()) escutaNome(); }, 4000);
 }
 let piperInfo = null, piperBaixa = null;
@@ -1556,6 +1568,21 @@ function setMode(m){ if(m!==mode) bgDirty=performance.now()+1500; mode=m; $("#st
 /* ---------- panel ---------- */
 const esc = s => String(s??"").replace(/[&<>"]/g, c=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;"}[c]));
 const VOZES_PIPER_DESC = {faber:"tom médio, já instalada", cadu:"grave", jeff:"tom médio", dii:"aguda, alta qualidade", miro:"bem grave, alta qualidade"};
+const VOZES_CLOUD = [["Charon","Charon · masculina, calma (estilo Jarvis)"],["Orus","Orus · masculina, firme"],["Fenrir","Fenrir · masculina, animada"],["Puck","Puck · masculina, leve"],["Kore","Kore · feminina, firme"],["Aoede","Aoede · feminina, leve"],["Leda","Leda · feminina, jovem"],["Zephyr","Zephyr · feminina, clara"]];
+let vozCloudErro = "";
+function ajustesCloud(){
+  const link = (u, t) => `<a data-act="abrir-noticia" data-url="${u}" role="link" tabindex="0">${t}</a>`;
+  const tem = !!cfg.keys?.cloudTts;
+  return `<div class="row"><label class="lbl" for="sVozC" style="margin:0">Voz</label><select class="inp" id="sVozC" style="width:auto">${VOZES_CLOUD.map(([id,n])=>`<option value="${id}" ${(cfg.vozCloud||"Charon")===id?"selected":""}>${esc(n)}</option>`).join("")}</select></div>
+    <div><label class="lbl" for="sCloudKey">Chave do Google Cloud (Text-to-Speech)</label><input class="inp" id="sCloudKey" placeholder="${tem?"chave salva · cole outra para trocar":"cole a chave aqui"}" autocomplete="off" autocapitalize="off" spellcheck="false"></div>
+    <p class="note" style="margin:0">Vozes Chirp 3 HD do Google, as mais naturais em português. Até <b>1 milhão de caracteres por mês é grátis</b>: um briefing tem uns 2 mil, então sobra muito. Sem chave ou se der erro, o ${esc(cfg.name)} usa a voz neural do celular.${vozCloudErro?` <span style="color:var(--amber)">Último erro: ${esc(vozCloudErro)}</span>`:""}</p>
+    <details class="diag"${tem?"":" open"}><summary>Como pegar a chave (no computador, uns 10 minutos)</summary><ol class="aj-passos">
+      <li>Entre em ${link("https://console.cloud.google.com/","console.cloud.google.com")} com a sua conta Google e crie um projeto (ex.: Atlas).</li>
+      <li>Ative o <b>faturamento</b> no projeto. O Google pede um cartão, mas só cobra o que passar de 1 milhão de caracteres no mês. Dica: em Faturamento › <b>Orçamentos e alertas</b>, crie um alerta de R$ 1.</li>
+      <li>Em ${link("https://console.cloud.google.com/apis/library/texttospeech.googleapis.com","APIs e serviços › Biblioteca")}, procure <b>Cloud Text-to-Speech API</b> e clique em <b>Ativar</b>.</li>
+      <li>Em ${link("https://console.cloud.google.com/apis/credentials","Credenciais")}, clique em <b>Criar credenciais › Chave de API</b>. Em restrições, deixe só a <b>Cloud Text-to-Speech API</b>.</li>
+      <li>Cole a chave aqui em cima e toque em <b>Testar voz</b>.</li></ol></details>`;
+}
 function ajustesPiper(){
   const vs = piperInfo?.vozes || [{id:"faber", nome:"Faber", instalada:true, embutida:true, licenca:"CC0"}];
   const atual = cfg.vozPiper || "faber", sel = vs.find(v=>v.id===atual) || vs[0];
@@ -1608,8 +1635,9 @@ function renderAjustes(){
       <div><label class="lbl" for="sUser">Seu nome</label><input class="inp" id="sUser" value="${esc(cfg.user)}"></div>
       <div class="aj-sec">Voz</div>
       ${NATIVE || DESKTOP ? `<div class="gbox">
-        <div class="row"><label class="lbl" for="sMotor" style="margin:0">Voz do ${esc(cfg.name)}</label><select class="inp" id="sMotor" style="width:auto">${VOZ?`<option value="piper" ${motorVoz()==="piper"?"selected":""}>Neural offline (recomendada)</option>`:""}${cfg.keys?.gemini?`<option value="gemini" ${motorVoz()==="gemini"?"selected":""}>Gemini (online)</option>`:""}<option value="aparelho" ${motorVoz()==="aparelho"?"selected":""}>Do aparelho</option></select></div>
+        <div class="row"><label class="lbl" for="sMotor" style="margin:0">Voz do ${esc(cfg.name)}</label><select class="inp" id="sMotor" style="width:auto">${VOZ?`<option value="piper" ${motorVoz()==="piper"?"selected":""}>Neural offline (recomendada)</option>`:""}<option value="cloud" ${motorVoz()==="cloud"?"selected":""}>Google Cloud (a mais natural)</option>${cfg.keys?.gemini?`<option value="gemini" ${motorVoz()==="gemini"?"selected":""}>Gemini (online)</option>`:""}<option value="aparelho" ${motorVoz()==="aparelho"?"selected":""}>Do aparelho</option></select></div>
         ${motorVoz()==="piper" ? ajustesPiper()
+          : motorVoz()==="cloud" ? ajustesCloud()
           : motorVoz()==="gemini"
           ? `<div class="row"><label class="lbl" for="sVozG" style="margin:0">Voz</label><select class="inp" id="sVozG" style="width:auto">${VOZES_GEMINI.map(([id,n])=>`<option value="${id}" ${(cfg.vozGemini||"Charon")===id?"selected":""}>${esc(n)}</option>`).join("")}</select></div>
              <p class="note" style="margin:0">A voz do Gemini usa a cota grátis do Google (1 pedido por fala). Quando a cota acabar, o ${esc(cfg.name)} volta sozinho para a voz do aparelho.</p>`
@@ -1667,7 +1695,7 @@ function cliqueCartao(e){
   if(act==="atualizar-agora") DESKTOP?.config.atualizarAgora();
   if(act==="piper-remover" && VOZ){ const id=cfg.vozPiper; if(id && id!=="faber"){ VOZ.remover({id}).catch(()=>{}).finally(()=>{ cfg.vozPiper="faber"; store.set("cfg",cfg); atualizarPiper(); }); } }
   if(act==="abrir-noticia"){ const u=e.target.closest("[data-url]")?.dataset.url; if(u && /^https:\/\//.test(u)){ if(story){ storyStop(); try{ tts?.stop(); }catch{} } openExternal(u); } }
-  if(act==="voz-testar"){ store.set("cfg",cfg); vozGeminiPausaAte=0; const t=`Olá, ${cfg.user||"senhor"}. Eu sou o ${cfg.name.charAt(0)+cfg.name.slice(1).toLowerCase()}. É assim que eu vou falar com você.`; caption(esc(t)); if(tts){ tts.stop(); setMode("speaking"); tts.speak(t,{language:"pt-BR"}).catch(()=>{}).finally(()=>setMode("idle")); } }
+  if(act==="voz-testar"){ store.set("cfg",cfg); vozGeminiPausaAte=0; vozCloudPausaAte=0; vozCloudErro=""; const t=`Olá, ${cfg.user||"senhor"}. Eu sou o ${cfg.name.charAt(0)+cfg.name.slice(1).toLowerCase()}. É assim que eu vou falar com você.`; caption(esc(t)); if(tts){ tts.stop(); setMode("speaking"); tts.speak(t,{language:"pt-BR"}).catch(()=>{}).finally(()=>{ setMode("idle"); if(ajOpen) renderAjustes(); }); } }
   if(act==="diag-copiar"){ const txt=`Atlas ${VERSAO_APP} · ${new Date().toLocaleString("pt-BR")} · ${cfg.provider} ${cfg.model?.[cfg.provider]||""}\n`+DIAG.join("\n"); (navigator.clipboard?.writeText(txt)||Promise.reject()).then(()=>caption("Diagnóstico copiado. Cole no WhatsApp e mande para quem está te ajudando.")).catch(()=>caption("<em>Não consegui copiar. Abra 'Ver as últimas linhas' e tire um print.</em>")); }
   if(act==="gasto-ver"){ fecharAjustes(); highlight={tipo:"gasto", titulo:"Gasto com a IA", deAjustes:true}; tab="destaque"; renderCard(); }
   if(act==="voltar-ajustes") abrirAjustes();
@@ -1710,6 +1738,8 @@ function mudouAjuste(e){
   if(id==="sVoice") cfg.voice=e.target.value;
   if(id==="sMotor"){ cfg.vozMotor=e.target.value; vozGeminiPausaAte=0; store.set("cfg",cfg); renderAjustes(); }
   if(id==="sVozG"){ cfg.vozGemini=e.target.value; vozGeminiPausaAte=0; }
+  if(id==="sVozC"){ cfg.vozCloud=e.target.value; vozCloudPausaAte=0; vozCloudErro=""; }
+  if(id==="sCloudKey"){ const k=e.target.value.trim(); if(k){ cfg.keys=Object.assign({}, cfg.keys, {cloudTts:k}); vozCloudPausaAte=0; vozCloudErro=""; store.set("cfg",cfg); renderAjustes(); caption("Chave salva. Toque em Testar voz para ouvir."); } }
   if(id==="sVozN"){ cfg.vozNativa=e.target.value; }
   if(id==="sVozP"){ cfg.vozPiper=e.target.value; piperPausaAte=0; store.set("cfg",cfg); renderAjustes(); const v=piperInfo?.vozes?.find(x=>x.id===cfg.vozPiper); if(v?.instalada) VOZ?.carregar({voz:cfg.vozPiper}).catch(()=>{}); }
   if(id==="sVel"){ cfg.vozVelocidade=parseFloat(e.target.value)||1; }
@@ -2233,7 +2263,7 @@ function storyPlay({narrar=false, de=0}={}){
       if(h.i!==i) storyGo(i); else if(tab==="destaque") renderCard();
       const c=h.slides[i];
       if(narrar && c.fala){
-        caption(esc(c.fala));
+        caption(esc(corrigeSaudacao(c.fala)));
         await Promise.all([speak(c.fala), new Promise(r=>{ me.wake=r; me.t=setTimeout(r, (cfg.speak&&tts) ? 3000 : slideDur(c)); })]);
       } else {
         await new Promise(r=>{ me.wake=r; me.t=setTimeout(r, slideDur(c)); });
@@ -2529,7 +2559,7 @@ async function ask(userText, {greeting=false}={}){
   const criadasAntes = tarefasCriadas;
   try{
     const {text} = await sample(turns, {signal:ctl.signal, tools, modelTier:"quick", web:!!sample.web,
-      onText:({text})=>{ shown=text; if(mode==="thinking" && !(cfg.speak&&tts)) setMode("speaking"); caption(esc(text)); }});
+      onText:({text})=>{ shown=text; if(mode==="thinking" && !(cfg.speak&&tts)) setMode("speaking"); caption(esc(corrigeSaudacao(text))); }});
     if (ctl!==busy) return;
     let resposta = text;
     // a IA às vezes responde sem chamar a ferramenta da agenda: nesse caso o app extrai e anota sozinho
@@ -2542,7 +2572,7 @@ Se ele pediu para anotar/agendar/lembrar algo, responda SOMENTE com JSON {"anota
         if (t?.anotar && t.titulo){ const x=novaTarefa(t); diario("agenda: anotada pelo plano B (a IA não chamou a ferramenta)"); resposta = `Pronto, anotei na agenda: ${x.titulo}${x.data?`, ${rotuloData(x.data)}`:""}${x.hora?` às ${x.hora}`:""}.`; }
       }catch(e){ if (e?.code==="cancelled") return; diario(`agenda: plano B falhou (${e?.code||e?.message||e})`); }
     }
-    const text2 = resposta;
+    const text2 = corrigeSaudacao(resposta);
     history.push({role:"assistant",content:text2}); saveHist();
     caption(esc(text2));
     if (tab==="historico") renderCard();
@@ -2562,6 +2592,7 @@ Se ele pediu para anotar/agendar/lembrar algo, responda SOMENTE com JSON {"anota
   }
 }
 async function speak(text){
+  text = corrigeSaudacao(text);
   if (cfg.speak && wakeOn) { pendingSpeak=null; return speakWake(text, "pt-BR"); }
   if (!(cfg.speak && tts) || (dict && dict.active())) { pendingSpeak=null; setMode("speaking"); await new Promise(r=>setTimeout(r, Math.min(6000, 600+text.length*45))); if(mode==="speaking") setMode("idle"); return; }
   setMode("speaking");
@@ -3401,11 +3432,13 @@ function connectAI(){
 }
 
 /* ---------- voz do Gemini: toca o áudio PCM com Web Audio ---------- */
-let audioCtx = null, fonteVoz = null, vozGeminiPausaAte = 0, piperPausaAte = 0;
+let audioCtx = null, fonteVoz = null, vozGeminiPausaAte = 0, piperPausaAte = 0, vozCloudPausaAte = 0;
 async function tocarPCM(b64, mime){
   audioCtx = audioCtx || new (window.AudioContext||window.webkitAudioContext)();
   if (audioCtx.state==="suspended") await audioCtx.resume().catch(()=>{});
-  const rate = +((mime.match(/rate=(\d+)/)||[])[1]||24000), bin = atob(b64), n = bin.length>>1;
+  let bin = atob(b64), rate = +((mime.match(/rate=(\d+)/)||[])[1]||24000);
+  if (bin.startsWith("RIFF")){ const k = bin.indexOf("data"); if (k>0) bin = bin.slice(k+8); }
+  const n = bin.length>>1;
   const buf = audioCtx.createBuffer(1, n, rate), ch = buf.getChannelData(0);
   for (let i=0;i<n;i++){ let v = bin.charCodeAt(2*i) | (bin.charCodeAt(2*i+1)<<8); if (v>=32768) v-=65536; ch[i] = v/32768; }
   const src = audioCtx.createBufferSource(); src.buffer = buf; src.connect(audioCtx.destination); fonteVoz = src;
@@ -3550,12 +3583,31 @@ async function setupNativeVoice(){
       if (g!==falaGen) return;   // cancelado enquanto o áudio chegava
       await tocarPCM(a.b64, a.mime);
     };
+    // Google Cloud Text-to-Speech (vozes Chirp 3 HD), com a chave do próprio usuário
+    const falarCloud = async (text, g) => {
+      const r = await fetch("https://texttospeech.googleapis.com/v1/text:synthesize", {method:"POST", headers:{"Content-Type":"application/json", "X-Goog-Api-Key":cfg.keys.cloudTts},
+        body: JSON.stringify({input:{text:String(text).slice(0,4500)}, voice:{languageCode:"pt-BR", name:`pt-BR-Chirp3-HD-${cfg.vozCloud||"Charon"}`}, audioConfig:{audioEncoding:"LINEAR16", sampleRateHertz:24000, speakingRate:cfg?.vozVelocidade||1}})});
+      const j = await r.json().catch(()=>({}));
+      if (!r.ok || !j.audioContent) throw Object.assign(new Error(j?.error?.message || ("HTTP "+r.status)), {status:r.status});
+      if (g!==falaGen) return;
+      await tocarPCM(j.audioContent, "audio/L16;rate=24000");
+    };
     tts = {
       async speak(text, {language="pt-BR"}={}){
         const g = ++falaGen;
         stateCb?.({state:"speaking"});
         try {
-          if (VOZ && motorVoz()==="piper" && language==="pt-BR" && Date.now()>piperPausaAte){
+          if (motorVoz()==="cloud" && language==="pt-BR" && cfg.keys?.cloudTts && Date.now()>vozCloudPausaAte){
+            try { return await falarCloud(text, g); }
+            catch(e){
+              if (g!==falaGen) return;
+              vozCloudPausaAte = Date.now() + (e?.status===429 ? 60e3 : 10*60e3);
+              vozCloudErro = e?.status===403 ? "a chave não tem permissão (confira se a Cloud Text-to-Speech API está ativada e o faturamento ligado)" : e?.status===400 ? `pedido recusado (${String(e?.message||"").slice(0,80)})` : String(e?.message||e).slice(0,100);
+              diario(`voz do Google Cloud falhou (${e?.status||""} ${e?.message||e}); usando a voz neural do celular`);
+            }
+          }
+          if (g!==falaGen) return;
+          if (VOZ && (motorVoz()==="piper" || motorVoz()==="cloud") && language==="pt-BR" && Date.now()>piperPausaAte){
             try { await VOZ.falar({texto:String(text), voz:cfg.vozPiper||"faber", velocidade:cfg?.vozVelocidade||1}); return; }
             catch(e){ if (g!==falaGen) return; piperPausaAte = Date.now()+5*60e3; diario(`voz neural falhou (${e?.message||e}); usando a voz do aparelho`); }
           }
