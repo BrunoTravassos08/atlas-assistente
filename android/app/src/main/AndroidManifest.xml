@@ -22,6 +22,14 @@
                 <category android:name="android.intent.category.LAUNCHER" />
             </intent-filter>
 
+            <!-- volta do login do Spotify (atlas://spotify?code=…) -->
+            <intent-filter>
+                <action android:name="android.intent.action.VIEW" />
+                <category android:name="android.intent.category.DEFAULT" />
+                <category android:name="android.intent.category.BROWSABLE" />
+                <data android:scheme="atlas" android:host="spotify" />
+            </intent-filter>
+
         </activity>
 
         <!-- botão flutuante por cima dos outros apps -->

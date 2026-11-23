@@ -70,7 +70,17 @@ O que muda em relação ao Android:
 - **Chamar pelo nome**: "Atlas" é reconhecido sem internet, com a janela aberta: a palavra-chave do APK escuta, e o Whisper tiny confirma a frase (evita alarme falso e entende "Atlas, toca uma música" de uma vez; o pedido é transcrito pela IA da chave).
 - **Botão flutuante**: no computador vira um atalho de teclado (**Ctrl + Alt + Espaço** por padrão), que chama o Atlas já ouvindo de qualquer programa.
 - **Bandeja**: fechar a janela deixa o Atlas perto do relógio. Ele abre junto com o Windows (dá para desligar em Ajustes) e avisa na hora do briefing.
-- **Música**: toca direto no YouTube ou YouTube Music (abre no navegador); com o Spotify instalado, abre a busca no Spotify. Pausar, pular e volume usam as teclas de mídia do Windows.
+- **Música**: toca direto no YouTube ou YouTube Music (abre no navegador); com o Spotify instalado, abre a busca no Spotify (ou dá o play sozinho, com o Spotify conectado: veja abaixo). Pausar, pular e volume usam as teclas de mídia do Windows.
+
+## Spotify: o Atlas dá o play sozinho
+
+Com a conta do Spotify conectada (Ajustes › Atalhos e música › Conectar Spotify), o Atlas procura a música pela Web API do Spotify e manda tocar, no celular e no Windows. Se o Spotify estiver fechado, ele abre o app, espera o aparelho aparecer e toca. Sem Premium, ou se algo falhar, continua o jeito antigo (abre a música no app).
+
+Regras do Spotify (desde fevereiro de 2026, modo de desenvolvimento):
+- O dono do app no Spotify Developer precisa ter **Premium**, e cada pessoa que usa também precisa de Premium para o play automático.
+- No máximo **5 pessoas** por app; cada uma precisa ter o e-mail adicionado em *User Management*.
+
+Para configurar: crie um app em developer.spotify.com/dashboard com a Web API marcada e os Redirect URIs `atlas://spotify` (Android) e `http://127.0.0.1:8898/spotify` (Windows). O Client ID vai em `SPOTIFY_CLIENT_ID` no index.html, ou cada pessoa cola o seu em Ajustes. O login usa PKCE, então não há segredo dentro do app.
 
 Para rodar no computador durante o desenvolvimento: `cd desktop && npm install && npm start`. Para gerar o instalador: `npm run dist` (no Windows).
 

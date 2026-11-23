@@ -277,6 +277,81 @@ public class AtlasSistema extends Plugin {
         call.reject("nenhum app de música");
     }
 
+    // ---------- Spotify: login (volta em atlas://spotify) e abrir o app para ele virar um aparelho ----------
+    private PluginCall spotifyCall = null;
+    private String spotifyVolta = null;
+
+    private boolean ehVoltaSpotify(Intent i) {
+        Uri d = i == null ? null : i.getData();
+        return d != null && "atlas".equals(d.getScheme()) && "spotify".equals(d.getHost());
+    }
+
+    @Override
+    public void load() {
+        Activity act = getActivity();
+        // o Android pode ter fechado o Atlas durante o login: o endereço de volta chega na abertura
+        if (act != null && ehVoltaSpotify(act.getIntent())) spotifyVolta = act.getIntent().getDataString();
+    }
+
+    @Override
+    protected void handleOnNewIntent(Intent intent) {
+        super.handleOnNewIntent(intent);
+        if (!ehVoltaSpotify(intent)) return;
+        String url = intent.getDataString();
+        if (spotifyCall != null) {
+            JSObject r = new JSObject();
+            r.put("url", url);
+            spotifyCall.resolve(r);
+            spotifyCall = null;
+        } else {
+            spotifyVolta = url;
+        }
+    }
+
+    @PluginMethod
+    public void spotifyLogin(PluginCall call) {
+        String url = call.getString("url", "");
+        if (!url.startsWith("https://accounts.spotify.com/")) { call.reject("link inválido"); return; }
+        if (spotifyCall != null) spotifyCall.reject("cancelado");
+        spotifyVolta = null;
+        try {
+            getActivity().startActivity(viewIntent(url));
+            spotifyCall = call;   // responde quando o navegador voltar para atlas://spotify
+        } catch (Exception e) {
+            call.reject("nenhum navegador");
+        }
+    }
+
+    @PluginMethod
+    public void spotifyRetorno(PluginCall call) {
+        JSObject r = new JSObject();
+        if (spotifyVolta != null) r.put("url", spotifyVolta);
+        spotifyVolta = null;
+        call.resolve(r);
+    }
+
+    @PluginMethod
+    public void abrirSpotify(PluginCall call) {
+        String uri = call.getString("uri", "spotify:");
+        if (!uri.startsWith("spotify:")) uri = "spotify:";
+        if (!instalado("com.spotify.music")) { call.reject("Spotify não instalado"); return; }
+        try {
+            Intent i = new Intent(Intent.ACTION_VIEW, Uri.parse(uri));
+            i.setPackage("com.spotify.music");
+            i.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK | Intent.FLAG_ACTIVITY_NO_ANIMATION);
+            getActivity().startActivity(i);
+            call.resolve();
+        } catch (Exception e) {
+            call.reject(String.valueOf(e.getMessage()));
+        }
+    }
+
+    @PluginMethod
+    public void voltarAtlas(PluginCall call) {
+        new Handler(Looper.getMainLooper()).postDelayed(this::voltarParaAtlas, 600);
+        call.resolve();
+    }
+
     private void tecla(int code) {
         AudioManager am = audio();
         long t = SystemClock.uptimeMillis();
