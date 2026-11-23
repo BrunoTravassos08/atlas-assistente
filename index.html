@@ -2437,7 +2437,7 @@ async function controleMusica(acao){
    Ao pedir uma música: busca a faixa, escolhe o aparelho e manda tocar. Se o Spotify estiver fechado,
    abre o app, espera ele aparecer como aparelho e toca. Sem Premium, volta para o jeito antigo. */
 // Client ID do app "Atlas" no Spotify Developer (não é segredo). Dá para trocar em Ajustes › Música.
-const SPOTIFY_CLIENT_ID = "";
+const SPOTIFY_CLIENT_ID = "ae78e02478b947a49463c4bcd76fc8bd";
 const SP_REDIRECT = DESKTOP ? "http://127.0.0.1:8898/spotify" : "atlas://spotify";
 const SP_ESCOPOS = "user-read-private user-read-playback-state user-modify-playback-state";
 let spConta = store.get("spotify", null);   // {cid, access, refresh, exp, nome, premium}
