@@ -379,7 +379,31 @@ textarea.inp{height:auto;padding:8px 12px;resize:vertical;font:inherit}
 .musica h3{margin:0}
 .musica .app{font-family:var(--f-hud);font-size:12px;letter-spacing:.12em;color:var(--mc,#1ed760);text-transform:uppercase}
 .ctrl{display:flex;gap:8px;margin-top:12px;flex-wrap:wrap}
-.ctrl button{flex:1;min-width:44px;min-height:44px;border:1px solid var(--line-hi);background:rgba(67,217,255,.06);color:var(--fg);font-size:18px;cursor:pointer}
+.ctrl button{flex:1;min-width:44px;min-height:44px;border:1px solid var(--line-hi);background:rgba(67,217,255,.06);color:var(--fg);cursor:pointer;display:flex;align-items:center;justify-content:center;padding:0;line-height:0}
+.ctrl button svg{display:block;flex:none}
+.card.musico{display:flex;flex-direction:column}
+.card.musico>.slide{flex:1 1 auto;display:flex;flex-direction:column;min-height:0}
+.viz{flex:1 1 auto;display:flex;flex-direction:column;min-height:150px;margin-top:12px;border:1px solid var(--line);background:#040914;overflow:hidden}
+.viz-tela{position:relative;flex:1 1 auto;min-height:100px;background:radial-gradient(120% 90% at 50% 100%,rgba(67,217,255,.08),transparent 60%)}
+.viz canvas{position:absolute;inset:0;width:100%;height:100%;cursor:pointer;display:block}
+.viz-barra{display:flex;align-items:center;justify-content:space-between;gap:8px;padding:5px 6px;border-top:1px solid var(--line);background:rgba(67,217,255,.04)}
+.viz-est{display:flex;gap:4px;flex-wrap:wrap}
+.viz-est button{font:600 10px/1 var(--f-hud);letter-spacing:.1em;text-transform:uppercase;padding:6px 8px;min-height:26px;border:1px solid var(--line);background:rgba(4,9,20,.7);color:var(--muted,#8fb3c9);cursor:pointer}
+.viz-est button.on{color:#04140a;background:var(--mc,#1ed760);border-color:transparent}
+.viz-fonte{font:600 10px/1 var(--f-hud);letter-spacing:.1em;text-transform:uppercase;color:var(--muted,#8fb3c9);white-space:nowrap}
+@media (max-width:420px){.viz-fonte{display:none}}
+/* deitado ou tela baixa: tudo cabe no cartão sem rolar */
+@media (max-height:520px){
+  .card.musico .musica{gap:12px;margin-top:2px}
+  .card.musico .disco{width:56px;height:56px}
+  .card.musico .disco::after{inset:20px}
+  .card.musico .eq{display:none}
+  .card.musico .ctrl{margin-top:8px}
+  .card.musico .ctrl button{min-height:38px}
+  .card.musico .viz{min-height:84px;margin-top:8px}
+  .card.musico .viz-tela{min-height:48px}
+  .card.musico .viz-est button{padding:5px 7px;min-height:24px}
+}
 .ctrl button.main{background:var(--mc,#1ed760);color:#04140a;border-color:transparent;font-weight:700}
 
 /* ---------- apresentação: cartões que entram, passam e saem ---------- */
@@ -1657,7 +1681,8 @@ function ajustesPiper(){
 let shown={h:null,i:null}, swapT=null;
 function renderCard(){
   const el=$("#card");
-  el.classList.toggle("rich", tab==="destaque" && ["placar","grafico","briefing","apresentacao","gasto"].includes(highlight?.tipo));
+  el.classList.toggle("rich", tab==="destaque" && ["placar","grafico","briefing","apresentacao","gasto","musica"].includes(highlight?.tipo));
+  el.classList.toggle("musico", tab==="destaque" && highlight?.tipo==="musica");
   document.querySelectorAll(".tabs button").forEach(b=>b.setAttribute("aria-selected", String(b.dataset.tab===tab)));
   if (tab==="agenda"){
     const list=tarefasVisiveis();
@@ -1669,6 +1694,7 @@ function renderCard(){
     clearTimeout(swapT); shown={h:highlight, i:highlight.i};
     el.innerHTML = `<div class="slide${novo?"":" still"}">${renderHighlight(highlight)}</div>`;
     if (novo){ el.scrollTop=0; animateCounts(el); }
+    if (highlight?.tipo==="musica") vizMontar();
   } else if (tab==="pdf"){
     el.innerHTML = renderPdfCard();
   } else if (tab==="historico"){
@@ -1763,6 +1789,7 @@ function cliqueCartao(e){
   if(act==="voltar-ajustes") abrirAjustes();
   if(act==="gasto-ajustes") abrirAjustes("#sLim");
   if(act==="gasto-liberar"){ const g=gastoAtual(); g.liberado=true; store.set("gasto",g); renderCard(); caption("Uso liberado até o fim do mês."); }
+  if(act?.startsWith("viz-")) vizTrocar(act.slice(4));
   if(act?.startsWith("mus-")) controleMusica(act.slice(4)).catch(err=>caption(`<em>${esc(err.message)}</em>`));
   if(highlight.tipo==="apresentacao"){
     const k=e.target.closest("[data-story]")?.dataset.story;
@@ -2416,13 +2443,24 @@ function limparCartao(c){
 /* ---------- música ---------- */
 const COR_APP = {spotify:"#1ed760", ytmusic:"#ff3d3d", youtube:"#ff3d3d", deezer:"#a238ff", soundcloud:"#ff7700", amazon:"#25d1da"};
 let musicaPausada=false;
+// ícones em SVG: os emojis ⏸ ▶ ficavam fora do centro (cada sistema desenha com uma fonte diferente)
+const icoMus = d => `<svg viewBox="0 0 24 24" width="22" height="22" aria-hidden="true" fill="currentColor">${d}</svg>`;
+const ICO_MUS = {
+  pausa: icoMus('<rect x="6" y="5" width="4.2" height="14" rx="1"/><rect x="13.8" y="5" width="4.2" height="14" rx="1"/>'),
+  play: icoMus('<path d="M8 5.2v13.6a.8.8 0 0 0 1.2.7l10.6-6.8a.8.8 0 0 0 0-1.4L9.2 4.5A.8.8 0 0 0 8 5.2z"/>'),
+  anterior: icoMus('<rect x="5" y="5" width="2.6" height="14" rx=".8"/><path d="M19 5.8v12.4a.7.7 0 0 1-1.1.6L9.4 12.6a.7.7 0 0 1 0-1.2l8.5-6.2a.7.7 0 0 1 1.1.6z"/>'),
+  proxima: icoMus('<rect x="16.4" y="5" width="2.6" height="14" rx=".8"/><path d="M5 5.8v12.4a.7.7 0 0 0 1.1.6l8.5-6.2a.7.7 0 0 0 0-1.2L6.1 5.2A.7.7 0 0 0 5 5.8z"/>'),
+  menos: icoMus('<path d="M4 9.5h3.5L12 5.6v12.8l-4.5-3.9H4z"/><path d="M15.5 9.2a4 4 0 0 1 0 5.6" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"/>'),
+  mais: icoMus('<path d="M3 9.5h3.5L11 5.6v12.8l-4.5-3.9H3z"/><path d="M14.5 9.2a4 4 0 0 1 0 5.6M17.4 6.6a7.6 7.6 0 0 1 0 10.8" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"/>')
+};
 function renderMusica(h){
   const cor=COR_APP[h.app]||"#43d9ff";
   return `<div class="eyebrow">Tocando agora${h.nome?` · ${esc(h.nome)}`:""}</div>
     <div class="musica${musicaPausada?" pausado":""}" style="--mc:${cor}"><div class="disco">${/^https:\/\/[a-z0-9.-]+\.scdn\.co\//.test(h.capa||"")?`<img class="capa" src="${esc(h.capa)}" alt="">`:""}</div>
       <div><div class="app">${esc(h.nome||"Música")}</div><h3>${esc(h.busca||"")}</h3>${h.artista?`<div class="sub" style="margin:2px 0 0">${esc(h.artista)}</div>`:""}<div class="eq"><i></i><i></i><i></i><i></i><i></i><i></i></div>
       ${h.metodo==="busca"?`<p class="sub" style="margin:4px 0 0">Abri a busca no ${esc(h.nome||"app")}. Toque na música para começar.</p>`:""}</div></div>
-    <div class="ctrl" style="--mc:${cor}"><button type="button" data-act="mus-anterior" aria-label="Anterior">⏮</button><button type="button" class="main" data-act="mus-alternar" aria-label="Pausar ou continuar">${musicaPausada?"▶":"⏸"}</button><button type="button" data-act="mus-proxima" aria-label="Próxima">⏭</button><button type="button" data-act="mus-diminuir_volume" aria-label="Diminuir volume">🔉</button><button type="button" data-act="mus-aumentar_volume" aria-label="Aumentar volume">🔊</button></div>`;
+    <div class="ctrl" style="--mc:${cor}"><button type="button" data-act="mus-anterior" aria-label="Anterior">${ICO_MUS.anterior}</button><button type="button" class="main" data-act="mus-alternar" aria-label="Pausar ou continuar">${musicaPausada?ICO_MUS.play:ICO_MUS.pausa}</button><button type="button" data-act="mus-proxima" aria-label="Próxima">${ICO_MUS.proxima}</button><button type="button" data-act="mus-diminuir_volume" aria-label="Diminuir volume">${ICO_MUS.menos}</button><button type="button" data-act="mus-aumentar_volume" aria-label="Aumentar volume">${ICO_MUS.mais}</button></div>
+    ${vizHtml(cor)}`;
 }
 async function controleMusica(acao){
   if(!SIS) throw new Error("Os controles de música funcionam no app do Atlas (Android ou Windows).");
@@ -2431,6 +2469,159 @@ async function controleMusica(acao){
   if(highlight.tipo==="musica" && tab==="destaque") renderCard();
   return r;
 }
+
+/* ---------- visualizador do "Tocando agora" (estilo Windows Media Player) ----------
+   O som vem do próprio aparelho: no Windows, o som que sai do computador (loopback, sem microfone);
+   no Android, o Visualizer do sistema (usa a permissão do microfone). Sem acesso ao som, anima no ritmo
+   e para quando a música pausa. Só desenha enquanto o cartão está na tela. */
+const VIZ_ESTILOS = [["barras","Barras"],["espiral","Espiral"],["aurora","Aurora"],["onda","Onda"]];
+const VIZ_N = 32;
+const viz = {raf:0, cv:null, cx:null, t0:0, ult:0, nivel:0, bins:new Float32Array(VIZ_N), alvo:new Float32Array(VIZ_N), picos:new Float32Array(VIZ_N), onda:null,
+  fonte:"ritmo", an:null, ac:null, stream:null, nat:null, natUlt:0, natSom:0, tentou:false, ang:0};
+const vizEstilo = () => VIZ_ESTILOS.some(e=>e[0]===cfg?.vizEstilo) ? cfg.vizEstilo : "barras";
+function vizHtml(cor){
+  const e = vizEstilo();
+  return `<div class="viz" style="--mc:${cor}"><div class="viz-tela"><canvas data-act="viz-proximo" aria-label="Visualizador: toque para trocar o estilo"></canvas></div>
+    <div class="viz-barra"><div class="viz-est">${VIZ_ESTILOS.map(([id,n])=>`<button type="button" data-act="viz-${id}" class="${id===e?"on":""}">${n}</button>`).join("")}</div><span class="viz-fonte" id="vizFonte"></span></div></div>`;
+}
+function vizTrocar(id){
+  if (id==="proximo"){ const k=VIZ_ESTILOS.findIndex(e=>e[0]===vizEstilo()); id=VIZ_ESTILOS[(k+1)%VIZ_ESTILOS.length][0]; }
+  cfg.vizEstilo=id; store.set("cfg",cfg);
+  document.querySelectorAll(".viz-est button").forEach(b=>b.classList.toggle("on", b.dataset.act==="viz-"+id));
+  if (viz.cx){ viz.cx.clearRect(0,0,viz.cv.width,viz.cv.height); }
+  vizSom();   // um toque também serve de gesto para liberar o som do Windows, se ainda não liberou
+}
+// ---- de onde vem o som ----
+async function vizSomDesktop(){
+  const md = navigator.mediaDevices; if (!md) throw new Error("sem mídia");
+  let st = null;
+  // Electron: o som do sistema inteiro (loopback). Primeiro o jeito antigo, que não pede clique; depois o novo.
+  try{ st = await md.getUserMedia({audio:{mandatory:{chromeMediaSource:"desktop"}}, video:{mandatory:{chromeMediaSource:"desktop", maxWidth:16, maxHeight:16, maxFrameRate:1}}}); }
+  catch{ st = await md.getDisplayMedia({audio:true, video:{width:16, height:16, frameRate:1}}); }
+  st.getVideoTracks().forEach(t=>t.stop());
+  if (!st.getAudioTracks().length) throw new Error("sem faixa de áudio");
+  const ac = new AudioContext(), an = ac.createAnalyser();
+  an.fftSize = 512; an.smoothingTimeConstant = .72;
+  ac.createMediaStreamSource(st).connect(an);
+  Object.assign(viz, {ac, an, stream:st, fonte:"som", onda:new Uint8Array(an.fftSize)});
+}
+async function vizSomAndroid(){
+  if (!SIS?.visualizador) throw new Error("sem visualizer");
+  if (!viz.nat) viz.nat = SIS.addListener("fft", d=>{ const b=d?.b||[]; let s=0; for (let k=0;k<VIZ_N;k++){ viz.alvo[k]=(b[k]||0)/255; s+=b[k]||0; } viz.natUlt=Date.now(); if (s>40) viz.natSom=Date.now(); });
+  await SIS.visualizador({ligar:true, bandas:VIZ_N});
+  viz.fonte = "som";
+}
+async function vizSom(){
+  if (viz.fonte==="som" || viz.ocupado) return;
+  viz.ocupado = true;
+  try{ if (DESKTOP) await vizSomDesktop(); else if (NATIVE) await vizSomAndroid(); diario("visualizador: usando o som do aparelho"); }
+  catch(e){ if (!viz.tentou) diario(`visualizador: sem acesso ao som (${e?.message||e}); animando no ritmo`); viz.tentou = true; }
+  finally{ viz.ocupado = false; vizRotulo(); }
+}
+function vizSomParar(){
+  if (viz.stream){ viz.stream.getTracks().forEach(t=>t.stop()); viz.ac?.close().catch(()=>{}); viz.stream=viz.ac=viz.an=null; }
+  if (NATIVE && viz.fonte==="som") SIS?.visualizador?.({ligar:false}).catch(()=>{});
+  viz.fonte = "ritmo";
+}
+function vizRotulo(){ const el=$("#vizFonte"); if (el) el.textContent = viz.fonte==="som" && !vizMudo() ? "♪ som do aparelho" : "♪ no ritmo"; }
+// Android: alguns aparelhos entregam só zeros; aí anima no ritmo
+const vizMudo = () => NATIVE && viz.fonte==="som" && Date.now()-viz.natSom > 2500;
+// ---- leitura de cada quadro: 0..1 por banda ----
+function vizLer(t){
+  const B = viz.bins, A = viz.alvo;
+  if (viz.an){
+    const f = new Uint8Array(viz.an.frequencyBinCount); viz.an.getByteFrequencyData(f);
+    // faixas em escala logarítmica, como num equalizador
+    const n = f.length;
+    for (let k=0;k<VIZ_N;k++){ const a=Math.floor(Math.pow(n*.7, k/VIZ_N)), b=Math.max(a+1, Math.floor(Math.pow(n*.7,(k+1)/VIZ_N))); let m=0; for (let j=a;j<b;j++) m=Math.max(m,f[j]); A[k]=m/255; }
+    viz.an.getByteTimeDomainData(viz.onda);
+  } else if (!(viz.fonte==="som" && !vizMudo())){
+    // sem o som: um "espectro" que respira numa batida de ~118 bpm
+    const bat = Math.pow(Math.max(0, Math.sin(t*2*Math.PI*118/60)), 6);
+    for (let k=0;k<VIZ_N;k++){ const x=k/VIZ_N; A[k] = Math.max(0, (.55-.35*x) + .22*Math.sin(t*(2.1+k*.37)+k*1.7) + .12*Math.sin(t*(5.3+k*.11)) + bat*(.45-.3*x)); }
+  }
+  const pausa = musicaPausada ? 0 : 1;
+  let s = 0;
+  for (let k=0;k<VIZ_N;k++){ const a=A[k]*pausa; B[k] += (a-B[k])*(a>B[k]?.55:.18); viz.picos[k] = Math.max(B[k], viz.picos[k]-.012); s+=B[k]; }
+  viz.nivel = s/VIZ_N;
+}
+// ---- desenhos ----
+function vizDesenhar(t){
+  const cv = viz.cv, c = viz.cx, W = cv.width, H = cv.height, B = viz.bins, mc = viz.mc, est = vizEstilo();
+  if (est==="barras"){
+    c.clearRect(0,0,W,H);
+    const n = FX.lite ? 24 : VIZ_N, gap = W*.006, bw = (W - gap*(n+1))/n, base = H*.84;
+    const g = c.createLinearGradient(0,base,0,0); g.addColorStop(0,mc); g.addColorStop(.6,"#43d9ff"); g.addColorStop(1,"#e8f6ff");
+    for (let k=0;k<n;k++){
+      const v = B[Math.floor(k*VIZ_N/n)], h = Math.max(2, v*base*.96), x = gap + k*(bw+gap);
+      c.fillStyle = g; c.fillRect(x, base-h, bw, h);
+      c.fillStyle = "#e8f6ff"; c.fillRect(x, base - viz.picos[Math.floor(k*VIZ_N/n)]*base*.96 - 4, bw, 2.5);
+      c.globalAlpha = .18; c.fillStyle = mc; c.fillRect(x, base+2, bw, h*.28); c.globalAlpha = 1;   // reflexo
+    }
+  } else if (est==="espiral"){
+    // como o "Battery" do Windows XP: braços curvos girando e deixando rastro
+    c.fillStyle = "rgba(4,9,20,.16)"; c.fillRect(0,0,W,H);
+    const cx = W/2, cy = H/2, R = Math.hypot(W,H)*.55, grave = (B[0]+B[1]+B[2]+B[3])/4, braços = 7;
+    viz.ang += .012 + grave*.05;
+    c.lineWidth = Math.max(1, W/500); c.strokeStyle = mc; c.globalAlpha = .75;
+    for (let b=0;b<braços;b++){
+      const a0 = viz.ang + b*2*Math.PI/braços, curva = 2.2 + grave*2.5;
+      c.beginPath();
+      for (let s=0;s<=28;s++){ const r = R*s/28, a = a0 + curva*s/28 + .25*Math.sin(t*1.3+s*.3)*viz.nivel; s ? c.lineTo(cx+r*Math.cos(a), cy+r*Math.sin(a)) : c.moveTo(cx,cy); }
+      c.stroke();
+    }
+    c.globalAlpha = 1; c.strokeStyle = "#43d9ff"; c.beginPath(); c.arc(cx, cy, 4+grave*H*.2, 0, 7); c.stroke();
+  } else if (est==="aurora"){
+    // como o WMP 11: faixas de luz azul que ondulam
+    c.fillStyle = "rgba(4,9,20,.22)"; c.fillRect(0,0,W,H);
+    c.globalCompositeOperation = "lighter";
+    const camadas = FX.lite ? 3 : 5;
+    for (let l=0;l<camadas;l++){
+      const amp = H*(.12 + .3*B[2+l*4]), y0 = H*(.3+.12*l), fase = t*(.35+.12*l)+l*1.9;
+      const g = c.createLinearGradient(0,y0-amp,0,y0+amp); g.addColorStop(0,"rgba(67,217,255,0)"); g.addColorStop(.5, l%2?"rgba(67,140,255,.22)":"rgba(67,217,255,.2)"); g.addColorStop(1,"rgba(67,217,255,0)");
+      c.fillStyle = g; c.beginPath(); c.moveTo(0,H);
+      for (let x=0;x<=W;x+=W/40) c.lineTo(x, y0 + amp*Math.sin(x/W*3.2+fase) + amp*.4*Math.sin(x/W*7.1-fase*1.3));
+      c.lineTo(W,H); c.closePath(); c.fill();
+    }
+    c.globalCompositeOperation = "source-over";
+  } else {
+    // osciloscópio com brilho
+    c.fillStyle = "rgba(4,9,20,.35)"; c.fillRect(0,0,W,H);
+    c.lineWidth = Math.max(1.5, W/350); c.strokeStyle = mc; c.shadowColor = mc; c.shadowBlur = FX.lite ? 0 : 12;
+    c.beginPath();
+    const pts = 96, o = viz.an && viz.onda;
+    for (let p=0;p<=pts;p++){
+      const x = W*p/pts;
+      const y = o ? H/2 + (o[Math.floor(p*(o.length-1)/pts)]-128)/128*H*.45
+                  : H/2 + H*.4*viz.nivel*Math.sin(p/pts*Math.PI*(4+B[1]*6)+t*6)*Math.sin(p/pts*Math.PI) * (.6+.4*Math.sin(t*3+p*.4)*B[p%VIZ_N]);
+      p ? c.lineTo(x,y) : c.moveTo(x,y);
+    }
+    c.stroke(); c.shadowBlur = 0;
+  }
+}
+function vizLoop(agora){
+  const cv = viz.cv;
+  if (!cv?.isConnected || document.hidden){ viz.raf = 0; viz.cv = null; vizSomParar(); return; }
+  viz.raf = requestAnimationFrame(vizLoop);
+  if (agora - viz.ult < 1000/(FX.lite?30:60) - 2) return;
+  viz.ult = agora;
+  const dpr = Math.min(devicePixelRatio||1, FX.lite?1:2), w = Math.round(cv.clientWidth*dpr), h = Math.round(cv.clientHeight*dpr);
+  if (!w || !h) return;
+  if (cv.width!==w || cv.height!==h){ cv.width=w; cv.height=h; }
+  const t = (agora - viz.t0)/1000;
+  vizLer(t); vizDesenhar(t);
+  if (agora - (viz.rot||0) > 1000){ viz.rot = agora; vizRotulo(); }
+}
+function vizMontar(){
+  const cv = document.querySelector("#card .viz canvas");
+  if (!cv) return;
+  if (viz.cv===cv && viz.raf) return;
+  viz.cv = cv; viz.cx = cv.getContext("2d"); viz.mc = getComputedStyle(cv).getPropertyValue("--mc").trim() || "#1ed760";
+  if (!viz.t0) viz.t0 = performance.now();
+  vizRotulo(); vizSom();
+  if (!viz.raf) viz.raf = requestAnimationFrame(vizLoop);
+}
+document.addEventListener("visibilitychange", ()=>{ if (!document.hidden && highlight?.tipo==="musica" && tab==="destaque") vizMontar(); });
 
 /* ---------- Spotify: o Atlas dá o play sozinho (Web API; precisa de conta Premium) ----------
    A pessoa conecta a conta uma vez (login do Spotify com PKCE, sem senha nem segredo no app).

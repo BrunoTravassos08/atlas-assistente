@@ -352,6 +352,67 @@ public class AtlasSistema extends Plugin {
         call.resolve();
     }
 
+    // ---------- visualizador: o espectro do som que está tocando no aparelho (sessão 0 = saída geral) ----------
+    private android.media.audiofx.Visualizer visualizer = null;
+
+    @PluginMethod
+    public void visualizador(PluginCall call) {
+        boolean ligar = Boolean.TRUE.equals(call.getBoolean("ligar", true));
+        final int bandas = Math.max(8, Math.min(64, call.getInt("bandas", 32)));
+        pararVisualizer();
+        if (!ligar) { call.resolve(); return; }
+        if (androidx.core.content.ContextCompat.checkSelfPermission(getContext(), android.Manifest.permission.RECORD_AUDIO)
+                != PackageManager.PERMISSION_GRANTED) { call.reject("sem permissão do microfone"); return; }
+        try {
+            android.media.audiofx.Visualizer v = new android.media.audiofx.Visualizer(0);
+            v.setEnabled(false);
+            int[] faixa = android.media.audiofx.Visualizer.getCaptureSizeRange();
+            v.setCaptureSize(Math.max(faixa[0], Math.min(512, faixa[1])));
+            int taxa = Math.min(android.media.audiofx.Visualizer.getMaxCaptureRate(), 20000);   // até 20 por segundo
+            v.setDataCaptureListener(new android.media.audiofx.Visualizer.OnDataCaptureListener() {
+                @Override public void onWaveFormDataCapture(android.media.audiofx.Visualizer vis, byte[] w, int sr) { }
+                @Override public void onFftDataCapture(android.media.audiofx.Visualizer vis, byte[] fft, int sr) {
+                    int n = fft.length / 2;
+                    JSArray b = new JSArray();
+                    for (int k = 0; k < bandas; k++) {
+                        // faixas em escala logarítmica, como num equalizador
+                        int de = (int) Math.floor(Math.pow(n * 0.7, (double) k / bandas));
+                        int ate = Math.max(de + 1, (int) Math.floor(Math.pow(n * 0.7, (double) (k + 1) / bandas)));
+                        double m = 0;
+                        for (int j = Math.max(1, de); j < ate && j < n; j++) {
+                            double re = fft[2 * j], im = fft[2 * j + 1];
+                            m = Math.max(m, Math.hypot(re, im));
+                        }
+                        double db = m <= 0 ? 0 : 20 * Math.log10(m);   // 0..~45
+                        b.put((int) Math.max(0, Math.min(255, (db - 4) * 6.5)));
+                    }
+                    JSObject r = new JSObject();
+                    r.put("b", b);
+                    notifyListeners("fft", r);
+                }
+            }, taxa, false, true);
+            v.setEnabled(true);
+            visualizer = v;
+            call.resolve();
+        } catch (Throwable e) {
+            pararVisualizer();
+            call.reject("visualizer indisponível: " + e.getMessage());
+        }
+    }
+
+    private void pararVisualizer() {
+        if (visualizer == null) return;
+        try { visualizer.setEnabled(false); } catch (Throwable ignored) { }
+        try { visualizer.release(); } catch (Throwable ignored) { }
+        visualizer = null;
+    }
+
+    @Override
+    protected void handleOnDestroy() {
+        pararVisualizer();
+        super.handleOnDestroy();
+    }
+
     private void tecla(int code) {
         AudioManager am = audio();
         long t = SystemClock.uptimeMillis();
