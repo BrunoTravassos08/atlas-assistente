@@ -370,6 +370,7 @@ textarea.inp{height:auto;padding:8px 12px;resize:vertical;font:inherit}
 .musica{display:grid;grid-template-columns:auto 1fr;gap:16px;align-items:center;margin-top:6px}
 .disco{position:relative;width:96px;height:96px;border-radius:50%;background:repeating-radial-gradient(circle,#0b1424 0 2px,#111d33 2px 4px);box-shadow:0 0 0 2px rgba(67,217,255,.25),0 0 24px var(--mc,#1ed760);animation:spin 3.2s linear infinite}
 .disco::after{content:"";position:absolute;inset:34px;border-radius:50%;background:var(--mc,#1ed760);box-shadow:inset 0 0 0 6px rgba(0,0,0,.35)}
+.disco .capa{position:absolute;left:20%;top:20%;width:60%;height:60%;border-radius:50%;object-fit:cover;box-shadow:0 0 0 3px #0b1424}
 .musica.pausado .disco,.musica.pausado .eq i{animation-play-state:paused}
 .eq{display:flex;align-items:flex-end;gap:3px;height:26px;margin:8px 0 2px}
 .eq i{width:5px;background:var(--mc,#1ed760);border-radius:2px;animation:eq 1s ease-in-out infinite alternate;box-shadow:0 0 8px var(--mc,#1ed760)}
@@ -1723,7 +1724,7 @@ function renderAjustes(){
         <p class="note" style="margin:0">Aviso aos 80% do limite. O valor é uma estimativa pelos preços de tabela.</p></div>
       <div class="row"><span class="sub">Conversa salva: ${history.length} mensagens</span><button class="btn-line" data-act="limpar" type="button">Limpar conversa</button></div>
       <div class="aj-sec">Atalhos e música</div>
-      ${NATIVE||DESKTOP?`<div class="row"><label class="lbl" for="sMus" style="margin:0">App de música</label><select class="inp" id="sMus" style="width:auto"><option value="">Automático</option>${(appsMusica||[]).map(a=>`<option value="${esc(a.id)}" ${cfg.musicaApp===a.id?"selected":""}>${esc(a.nome)}</option>`).join("")}</select></div>`:""}
+      ${NATIVE||DESKTOP?`<div class="row"><label class="lbl" for="sMus" style="margin:0">App de música</label><select class="inp" id="sMus" style="width:auto"><option value="">Automático</option>${(appsMusica||[]).map(a=>`<option value="${esc(a.id)}" ${cfg.musicaApp===a.id?"selected":""}>${esc(a.nome)}</option>`).join("")}</select></div>${ajustesSpotify()}`:""}
       ${ESCUTA?`<div class="row"><label class="lbl" for="sNome" style="margin:0">Chamar pelo nome: diga "Atlas" com o app aberto${DESKTOP?" (funciona sem internet; o som não sai do computador)":""}</label><input type="checkbox" id="sNome" ${cfg.chamarNome!==false?"checked":""}></div>${cfg.chamarNome!==false && !DESKTOP?`<div class="row"><label class="lbl" for="sNomeModo" style="margin:0">Como ouvir o nome</label><select class="inp" id="sNomeModo" style="width:auto"><option value="google" ${(cfg.escutaModo||"google")==="google"?"selected":""}>Google (mais preciso)</option><option value="offline" ${cfg.escutaModo==="offline"?"selected":""}>Sem internet (menos preciso)</option></select></div>`:""}${escutaErro?`<p class="note bad" style="margin:0">${esc(escutaErro)}</p>`:""}`:""}
       ${BOLHA?`<div class="row"><label class="lbl" for="sBolha" style="margin:0">Botão flutuante: bolinha do Atlas por cima dos outros apps</label><input type="checkbox" id="sBolha" ${bolhaInfo?.ligada?"checked":""}></div>${bolhaInfo?.ligada&&!bolhaInfo?.permissao?`<p class="note bad" style="margin:0">A permissão "Sobrepor a outros apps" foi tirada. Desmarque e marque de novo para liberar.</p>`:""}`:""}
       ${DESKTOP?ajustesDesktop():""}
@@ -1770,6 +1771,8 @@ function cliqueCartao(e){
     if(act==="story-next") storyManual((highlight.i||0)+1);
     if(act==="story-replay"){ highlight.i=0; storyPlay(); }
   }
+  if(act==="sp-conectar"){ spErro=""; caption("Abrindo o Spotify para você autorizar o Atlas…"); spConectar().then(c=>{ caption(c.premium===false?"Spotify conectado, mas a conta não é Premium: eu abro a música e você dá o play.":"Spotify conectado. Agora, quando você pedir uma música, eu dou o play sozinho."); }).catch(e=>{ spErro=e.message; diario("Spotify: "+e.message); caption(`<em>${esc(e.message)}</em>`); }).finally(()=>{ if(ajOpen) renderAjustes(); }); }
+  if(act==="sp-sair"){ spConta=null; store.set("spotify",null); renderAjustes(); caption("Spotify desconectado."); }
   if(act==="limpar"){ history.length=0; saveHist(); renderCard(); renderAjustes(); caption("Conversa apagada. Podemos começar do zero."); }
   if(act==="onboarding"){ fecharAjustes(); } if(act==="onboarding") onboarding().then(()=>{ renderCard(); renderTicker(); runBriefing({abertura:true}); });
   if(act==="resumir") ask("Leia o PDF aberto e me faça um resumo.");
@@ -1812,6 +1815,7 @@ function mudouAjuste(e){
   if(id==="sMic"){ cfg.micId=e.target.value||""; store.set("cfg",cfg); diario(`microfone escolhido: ${e.target.selectedOptions[0]?.textContent||"padrão"}`); pararEscuta().then(()=>escutaNome()); }
   if(id==="sNome"){ cfg.chamarNome=e.target.checked; cfg.chamarNomeEscolhido=true; store.set("cfg",cfg); escutaErro=""; escutaNome(); }
   if(id==="sMus"){ cfg.musicaApp=e.target.value; store.set("cfg",cfg); }
+  if(id==="sSpCid"){ cfg.spotifyCid=e.target.value.trim(); spErro=""; store.set("cfg",cfg); renderAjustes(); }
   if(id==="sAtalho") DESKTOP?.config.gravar({atalho:e.target.value}).then(r=>{ if(!r?.atalhoOk) caption("<em>Outro programa já usa esse atalho. Escolha outro.</em>"); deskCfgLer(); });
   if(id==="sAutoIni") DESKTOP?.config.gravar({abrirComWindows:e.target.checked}).then(deskCfgLer);
   if(id==="sBandeja") DESKTOP?.config.gravar({fecharParaBandeja:e.target.checked}).then(deskCfgLer);
@@ -2415,8 +2419,8 @@ let musicaPausada=false;
 function renderMusica(h){
   const cor=COR_APP[h.app]||"#43d9ff";
   return `<div class="eyebrow">Tocando agora${h.nome?` · ${esc(h.nome)}`:""}</div>
-    <div class="musica${musicaPausada?" pausado":""}" style="--mc:${cor}"><div class="disco"></div>
-      <div><div class="app">${esc(h.nome||"Música")}</div><h3>${esc(h.busca||"")}</h3><div class="eq"><i></i><i></i><i></i><i></i><i></i><i></i></div>
+    <div class="musica${musicaPausada?" pausado":""}" style="--mc:${cor}"><div class="disco">${/^https:\/\/[a-z0-9.-]+\.scdn\.co\//.test(h.capa||"")?`<img class="capa" src="${esc(h.capa)}" alt="">`:""}</div>
+      <div><div class="app">${esc(h.nome||"Música")}</div><h3>${esc(h.busca||"")}</h3>${h.artista?`<div class="sub" style="margin:2px 0 0">${esc(h.artista)}</div>`:""}<div class="eq"><i></i><i></i><i></i><i></i><i></i><i></i></div>
       ${h.metodo==="busca"?`<p class="sub" style="margin:4px 0 0">Abri a busca no ${esc(h.nome||"app")}. Toque na música para começar.</p>`:""}</div></div>
     <div class="ctrl" style="--mc:${cor}"><button type="button" data-act="mus-anterior" aria-label="Anterior">⏮</button><button type="button" class="main" data-act="mus-alternar" aria-label="Pausar ou continuar">${musicaPausada?"▶":"⏸"}</button><button type="button" data-act="mus-proxima" aria-label="Próxima">⏭</button><button type="button" data-act="mus-diminuir_volume" aria-label="Diminuir volume">🔉</button><button type="button" data-act="mus-aumentar_volume" aria-label="Aumentar volume">🔊</button></div>`;
 }
@@ -2426,6 +2430,146 @@ async function controleMusica(acao){
   if(acao==="pausar") musicaPausada=true; else if(acao==="continuar"||acao==="proxima"||acao==="anterior") musicaPausada=false; else if(acao==="alternar") musicaPausada=!musicaPausada;
   if(highlight.tipo==="musica" && tab==="destaque") renderCard();
   return r;
+}
+
+/* ---------- Spotify: o Atlas dá o play sozinho (Web API; precisa de conta Premium) ----------
+   A pessoa conecta a conta uma vez (login do Spotify com PKCE, sem senha nem segredo no app).
+   Ao pedir uma música: busca a faixa, escolhe o aparelho e manda tocar. Se o Spotify estiver fechado,
+   abre o app, espera ele aparecer como aparelho e toca. Sem Premium, volta para o jeito antigo. */
+// Client ID do app "Atlas" no Spotify Developer (não é segredo). Dá para trocar em Ajustes › Música.
+const SPOTIFY_CLIENT_ID = "";
+const SP_REDIRECT = DESKTOP ? "http://127.0.0.1:8898/spotify" : "atlas://spotify";
+const SP_ESCOPOS = "user-read-private user-read-playback-state user-modify-playback-state";
+let spConta = store.get("spotify", null);   // {cid, access, refresh, exp, nome, premium}
+let spErro = "";
+const spCid = () => String(cfg?.spotifyCid||"").trim() || SPOTIFY_CLIENT_ID;
+const spPodeLogar = () => !!(SIS?.spotifyLogin && (NATIVE || DESKTOP));
+const spConectado = () => !!(spConta?.refresh && spConta.cid===spCid());
+const b64url = buf => btoa(String.fromCharCode(...new Uint8Array(buf))).replace(/\+/g,"-").replace(/\//g,"_").replace(/=+$/,"");
+// no Windows o pedido sai pelo app (sem travas de navegador); no Android, fetch comum (o Spotify libera CORS)
+async function spHttp(method, url, {headers={}, body}={}){
+  if (DESKTOP?.httpReq){ const r = await DESKTOP.httpReq({method, url, headers, body}); let j=null; try{ j=JSON.parse(r.data||"null"); }catch{} return {status:r.status, j}; }
+  const ctl = new AbortController(), tm = setTimeout(()=>ctl.abort(), 15000);
+  try{ const r = await fetch(url, {method, headers, body, signal:ctl.signal}); const t = await r.text(); let j=null; try{ j=JSON.parse(t||"null"); }catch{} return {status:r.status, j}; }
+  finally{ clearTimeout(tm); }
+}
+async function spToken(params){
+  const r = await spHttp("POST", "https://accounts.spotify.com/api/token", {headers:{"Content-Type":"application/x-www-form-urlencoded"}, body:new URLSearchParams(params).toString()});
+  if (r.status!==200 || !r.j?.access_token){ const e=new Error(r.j?.error_description||r.j?.error||`HTTP ${r.status}`); e.codigo=r.j?.error; throw e; }
+  return r.j;
+}
+function spGuardar(t){
+  spConta = Object.assign({}, spConta, {access:t.access_token, exp:Date.now()+(t.expires_in||3600)*1000, refresh:t.refresh_token||spConta?.refresh});
+  store.set("spotify", spConta);
+}
+async function spAcesso(forcar){
+  if (!spConectado()) throw Object.assign(new Error("Spotify não conectado"), {codigo:"desconectado"});
+  if (!forcar && spConta.access && Date.now() < spConta.exp-60000) return spConta.access;
+  try{ spGuardar(await spToken({grant_type:"refresh_token", refresh_token:spConta.refresh, client_id:spConta.cid})); }
+  catch(e){ if (e.codigo==="invalid_grant"){ spConta=null; store.set("spotify",null); spErro="A conexão com o Spotify expirou. Conecte de novo em Ajustes."; } throw e; }
+  return spConta.access;
+}
+async function spApi(method, caminho, body){
+  for (let k=0; k<2; k++){
+    const tok = await spAcesso(k>0);
+    const r = await spHttp(method, "https://api.spotify.com/v1"+caminho, {headers:Object.assign({Authorization:"Bearer "+tok}, body?{"Content-Type":"application/json"}:{}), body: body?JSON.stringify(body):undefined});
+    if (r.status===401 && k===0) continue;
+    diario(`Spotify ${method} ${caminho.split("?")[0]} → ${r.status}${r.j?.error?.reason?" "+r.j.error.reason:""}`);
+    return r;
+  }
+}
+async function spConectar(){
+  const cid = spCid();
+  if (!cid) throw new Error("Falta o Client ID do Spotify. Coloque em Ajustes › Música.");
+  if (!spPodeLogar()) throw new Error("Conectar o Spotify funciona no app do Atlas (Android ou Windows).");
+  const ver = b64url(crypto.getRandomValues(new Uint8Array(48)));
+  const chal = b64url(await crypto.subtle.digest("SHA-256", new TextEncoder().encode(ver)));
+  const state = b64url(crypto.getRandomValues(new Uint8Array(12)));
+  store.set("spPend", {ver, state, cid, t:Date.now()});
+  const url = "https://accounts.spotify.com/authorize?"+new URLSearchParams({client_id:cid, response_type:"code", redirect_uri:SP_REDIRECT, code_challenge_method:"S256", code_challenge:chal, scope:SP_ESCOPOS, state}).toString();
+  diario("Spotify: abrindo o login");
+  const r = await SIS.spotifyLogin({url});
+  return spConcluir(r?.url);
+}
+// recebe o endereço de volta (atlas://spotify?code=… ou http://127.0.0.1:8898/spotify?code=…)
+async function spConcluir(volta){
+  const p = store.get("spPend", null);
+  if (!volta || !p) throw new Error("O login do Spotify não terminou.");
+  const q = new URL(volta.replace(/^atlas:\/\//, "https://atlas/")).searchParams;
+  if (q.get("error")) { store.set("spPend", null); throw new Error(q.get("error")==="access_denied" ? "Você não autorizou o Atlas no Spotify." : "O Spotify recusou: "+q.get("error")); }
+  if (q.get("state")!==p.state) throw new Error("O login do Spotify não confere. Tente de novo.");
+  store.set("spPend", null);
+  const t = await spToken({grant_type:"authorization_code", code:q.get("code"), redirect_uri:SP_REDIRECT, client_id:p.cid, code_verifier:p.ver});
+  spConta = {cid:p.cid}; spGuardar(t);
+  const eu = await spApi("GET", "/me");
+  if (eu?.status===403) { spConta=null; store.set("spotify",null); throw new Error("Esta conta do Spotify ainda não foi liberada no app Atlas. Peça para adicionar o e-mail dela em User Management, no Spotify Developer."); }
+  spConta.nome = eu?.j?.display_name || eu?.j?.id || "";
+  spConta.premium = eu?.j?.product ? eu.j.product==="premium" : null;
+  store.set("spotify", spConta); spErro = "";
+  diario(`Spotify conectado (${spConta.premium===false?"sem Premium":"Premium"})`);
+  return spConta;
+}
+// se o Android fechou o Atlas durante o login, o endereço de volta chega quando ele abre de novo
+if (NATIVE) setTimeout(()=>{ if (!store.get("spPend",null)) return; SIS?.spotifyRetorno?.().then(r=>{ if (r?.url) return spConcluir(r.url).then(()=>{ caption("Spotify conectado. Agora eu dou o play sozinho."); if(ajOpen) renderAjustes(); }); }).catch(e=>{ spErro=e.message; diario("Spotify: "+e.message); }); }, 1200);
+
+const spNorm = s => String(s||"").toLowerCase().normalize("NFD").replace(/[̀-ͯ]/g,"").replace(/[^a-z0-9 ]/g," ").replace(/\s+/g," ").trim();
+async function spBuscar(busca, tipo){
+  const tipos = {musica:"track", artista:"artist", album:"album", playlist:"playlist"}[tipo] || "track,artist";
+  const r = await spApi("GET", `/search?${new URLSearchParams({q:busca, type:tipos, limit:"5", market:"from_token"})}`);
+  if (r?.status!==200) throw new Error("A busca do Spotify falhou (HTTP "+r?.status+").");
+  const pega = k => (r.j?.[k]?.items||[]).filter(Boolean)[0];
+  const capa = imgs => (imgs||[]).slice().sort((a,b)=>(a.width||0)-(b.width||0)).find(x=>(x.width||0)>=200)?.url || imgs?.[0]?.url || "";
+  let art = pega("artists"), fx = pega("tracks"), al = pega("albums"), pl = pega("playlists");
+  // "qualquer": se a busca é o nome de um artista, toca o artista; senão, a música
+  if (tipo==="artista" || (art && (!fx || spNorm(art.name)===spNorm(busca)))) return art && {uri:art.uri, contexto:true, nome:art.name, artista:"", capa:capa(art.images)};
+  if (tipo==="album" && al) return {uri:al.uri, contexto:true, nome:al.name, artista:(al.artists||[]).map(a=>a.name).join(", "), capa:capa(al.images)};
+  if (tipo==="playlist" && pl) return {uri:pl.uri, contexto:true, nome:pl.name, artista:pl.owner?.display_name||"", capa:capa(pl.images)};
+  if (fx) return {uri:fx.uri, contexto:false, nome:fx.name, artista:(fx.artists||[]).map(a=>a.name).join(", "), capa:capa(fx.album?.images)};
+  return null;
+}
+// prefere o aparelho que já está tocando; depois este celular/computador; depois qualquer um
+function spEscolher(lista){
+  const ok = (lista||[]).filter(d=>d?.id && !d.is_restricted);
+  const local = DESKTOP ? "computer" : "smartphone";
+  return ok.find(d=>d.is_active) || ok.find(d=>String(d.type).toLowerCase()===local) || ok[0] || null;
+}
+async function spTocar(busca, tipo){
+  if (spConta?.premium===false) throw Object.assign(new Error("Sem Premium"), {codigo:"premium"});
+  const item = await spBuscar(busca, tipo);
+  if (!item) throw Object.assign(new Error("Não achei no Spotify"), {codigo:"naoachou"});
+  const corpo = item.contexto ? {context_uri:item.uri} : {uris:[item.uri]};
+  const tocarEm = async id => {
+    const r = await spApi("PUT", "/me/player/play?device_id="+encodeURIComponent(id), corpo);
+    if (r?.status===403 && /PREMIUM/i.test(r.j?.error?.reason||r.j?.error?.message||"")){ spConta.premium=false; store.set("spotify",spConta); throw Object.assign(new Error("Sem Premium"), {codigo:"premium"}); }
+    return r && r.status>=200 && r.status<300;
+  };
+  const aparelhos = async () => (await spApi("GET", "/me/player/devices"))?.j?.devices || [];
+  let d = spEscolher(await aparelhos()), abriu = false;
+  if (d && await tocarEm(d.id)) return Object.assign(item, {aparelho:d.name, abriu});
+  // nenhum aparelho pronto: abre o Spotify, espera ele aparecer (até ~15 s) e manda tocar
+  if (!SIS?.abrirSpotify) throw Object.assign(new Error("Spotify fechado"), {codigo:"semaparelho"});
+  await SIS.abrirSpotify({uri:item.uri}); abriu = true;
+  const t0 = Date.now();
+  while (Date.now()-t0 < 15000){
+    await sleep(1200);
+    d = spEscolher(await aparelhos().catch(()=>[]));
+    if (d && await tocarEm(d.id).catch(e=>{ if (e.codigo==="premium") throw e; return false; })){
+      SIS.voltarAtlas?.().catch(()=>{});
+      return Object.assign(item, {aparelho:d.name, abriu});
+    }
+  }
+  throw Object.assign(new Error("O Spotify não respondeu a tempo"), {codigo:"semaparelho"});
+}
+function ajustesSpotify(){
+  if (!spPodeLogar()) return "";
+  const cidProprio = !!String(cfg?.spotifyCid||"").trim();
+  const status = spConectado()
+    ? `<div class="row"><span class="sub">Spotify: <b style="color:#1ed760">${esc(spConta.nome||"conectado")}</b>${spConta.premium===false?" · <em>sem Premium: eu abro a música, mas o play fica com você</em>":" · eu dou o play sozinho"}</span><button class="btn-line" data-act="sp-sair" type="button">Desconectar</button></div>`
+    : `<div class="row"><span class="sub">Spotify: dar o play sozinho (precisa de Premium)</span><button class="btn-line" data-act="sp-conectar" type="button" ${spCid()?"":"disabled"}>Conectar Spotify</button></div>`;
+  return `${status}${spErro?`<p class="note bad" style="margin:0">${esc(spErro)}</p>`:""}
+    <details class="diag" ${!spCid()?"open":""}><summary>Client ID do Spotify${cidProprio?" (próprio)":""}</summary>
+      <p class="note" style="margin:4px 0">Crie um app em developer.spotify.com/dashboard com o Redirect URI <b>${esc(SP_REDIRECT)}</b> e cole aqui o Client ID.${SPOTIFY_CLIENT_ID?" Deixe vazio para usar o do Atlas.":""}</p>
+      <input class="inp" id="sSpCid" placeholder="${SPOTIFY_CLIENT_ID?"Client ID do Atlas":"Client ID"}" autocomplete="off" spellcheck="false" value="${esc(cfg?.spotifyCid||"")}"></details>`;
 }
 
 /* ---------- gasto com a IA: estimativa por tokens e buscas, limite mensal ---------- */
@@ -2605,7 +2749,16 @@ const tools = [
    async execute(i){
      if(!SIS) throw new Error("Tocar música funciona no app do Atlas (Android ou Windows).");
      const busca=String(i.busca).slice(0,120);
-     let r; try{ r=await SIS.tocarMusica({busca, tipo:i.tipo||"qualquer", app:i.app||cfg.musicaApp||(DESKTOP?"youtube":"spotify")}); }
+     const app=i.app||cfg.musicaApp||(spConectado()?"spotify":DESKTOP?"youtube":"spotify");
+     // Spotify conectado: o próprio Atlas dá o play pela Web API; se falhar, abre do jeito antigo
+     if(app==="spotify" && spConectado() && spConta.premium!==false){
+       try{ const s=await spTocar(busca, i.tipo||"qualquer");
+         musicaPausada=false;
+         highlight={tipo:"musica", titulo:`Tocando: ${s.nome}`, busca:s.nome, artista:s.artista, capa:s.capa, app:"spotify", nome:"Spotify", metodo:"tocar"}; store.set("hl",highlight); tab="destaque"; renderCard(); renderTicker();
+         return {ok:true, app:"Spotify", metodo:"tocar", tocando:s.nome, artista:s.artista, aparelho:s.aparelho, nota:"já está tocando; responda em uma frase curta, sem repetir detalhes"}; }
+       catch(e){ diario(`Spotify: não deu o play sozinho (${e.codigo||e.message}); abrindo o app`); }
+     }
+     let r; try{ r=await SIS.tocarMusica({busca, tipo:i.tipo||"qualquer", app}); }
      catch{ throw new Error(DESKTOP ? "Não consegui abrir a música no computador." : "Não encontrei um app de música instalado. Instale o Spotify ou o YouTube Music."); }
      musicaPausada=false;
      highlight={tipo:"musica", titulo:`Tocando: ${busca}`, busca, app:r.app, nome:r.nome, metodo:r.metodo}; store.set("hl",highlight); tab="destaque"; renderCard(); renderTicker();

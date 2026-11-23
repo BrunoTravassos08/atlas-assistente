@@ -210,6 +210,40 @@ async function tocarMusica({ busca, app: qual }){
   await shell.openExternal(music ? `https://music.youtube.com/search?q=${encodeURIComponent(q)}` : `https://www.youtube.com/results?search_query=${encodeURIComponent(q)}`);
   return { app: music ? "ytmusic" : "youtube", nome: music ? "YouTube Music" : "YouTube", metodo: "busca" };
 }
+/* ---------- Spotify: login com volta em http://127.0.0.1:8898/spotify e pedidos à Web API ---------- */
+let spotifyServ = null;
+function spotifyLogin({ url }){
+  if (!/^https:\/\/accounts\.spotify\.com\//.test(String(url))) throw new Error("link inválido");
+  try { spotifyServ?.close(); } catch {}
+  return new Promise((res, rej) => {
+    const http = require("node:http");
+    let fim = null;
+    const acabar = (erro, volta) => { clearTimeout(fim); try { spotifyServ?.close(); } catch {} spotifyServ = null; erro ? rej(new Error(erro)) : res({ url: volta }); };
+    spotifyServ = http.createServer((req, resp) => {
+      if (!req.url.startsWith("/spotify")){ resp.writeHead(404); resp.end(); return; }
+      const ok = !/[?&]error=/.test(req.url);
+      resp.writeHead(200, { "Content-Type": "text/html; charset=utf-8" });
+      resp.end(`<!doctype html><meta charset="utf-8"><title>Atlas</title><body style="background:#040914;color:#e8f6ff;font:18px system-ui;display:grid;place-items:center;height:100vh;margin:0"><div style="text-align:center"><h2 style="color:${ok ? "#1ed760" : "#ff6b6b"}">${ok ? "Spotify conectado ao Atlas" : "O Spotify não foi conectado"}</h2><p>Pode fechar esta aba e voltar ao Atlas.</p></div>`);
+      win?.show(); win?.focus();
+      acabar(null, "http://127.0.0.1:8898" + req.url);
+    });
+    spotifyServ.on("error", e => acabar(e.code === "EADDRINUSE" ? "A porta 8898 está ocupada por outro programa." : e.message));
+    spotifyServ.listen(8898, "127.0.0.1", () => { shell.openExternal(String(url)); });
+    fim = setTimeout(() => acabar("O login do Spotify não terminou."), 5 * 60 * 1000);
+  });
+}
+async function httpReq({ method = "GET", url, headers = {}, body }){
+  if (!/^https:\/\/(api|accounts)\.spotify\.com\//.test(String(url))) throw new Error("endereço não permitido");
+  const r = await net.fetch(String(url), { method, headers, body: body == null ? undefined : String(body) });
+  return { status: r.status, data: await r.text() };
+}
+async function abrirSpotify({ uri }){
+  const u = /^spotify:[\w:]+$/.test(String(uri)) ? String(uri) : "spotify:";
+  // sem o app instalado, abre o Web Player no navegador (ele também vira um aparelho do Spotify)
+  if (temSpotify()) await shell.openExternal(u);
+  else await shell.openExternal("https://open.spotify.com/" + u.split(":").slice(1).join("/"));
+  return {};
+}
 // teclas de mídia (as mesmas do teclado): funcionam com Spotify, YouTube no navegador, Deezer etc.
 const TECLAS = { alternar: [0xB3], pausar: [0xB3], continuar: [0xB3], proxima: [0xB0], anterior: [0xB1], aumentar_volume: Array(5).fill(0xAF), diminuir_volume: Array(5).fill(0xAE) };
 function controleMidia({ acao }){
@@ -303,6 +337,10 @@ function ponte(){
   h("sis-apps-musica", () => ({ apps: appsMusica() }));
   h("sis-tocar", tocarMusica);
   h("sis-midia", controleMidia);
+  h("sis-spotify-login", spotifyLogin);
+  h("sis-spotify-abrir", abrirSpotify);
+  h("sis-voltar", () => { setTimeout(() => { win?.show(); win?.focus(); }, 400); return {}; });
+  h("http-req", httpReq);
   // voz
   h("voz-info", async () => {
     const m = await perguntarMotor({ t: "info" });

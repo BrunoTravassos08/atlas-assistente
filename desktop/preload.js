@@ -114,6 +114,9 @@ const sistema = {
   appsMusica: () => chamar("sis-apps-musica"),
   tocarMusica: o => chamar("sis-tocar", o),
   controleMidia: o => chamar("sis-midia", o),
+  spotifyLogin: o => chamar("sis-spotify-login", o),
+  abrirSpotify: o => chamar("sis-spotify-abrir", o),
+  voltarAtlas: () => chamar("sis-voltar"),
   abrirLoja: () => Promise.resolve()
 };
 
@@ -133,6 +136,7 @@ ipcRenderer.on("desk-log", (e, msg) => (evOuv.log || []).forEach(f => f(msg)));
 contextBridge.exposeInMainWorld("atlasDesktop", {
   plataforma: process.platform,
   http: o => chamar("http-get", o),
+  httpReq: o => chamar("http-req", o),
   voz, escuta, sistema, notificacoes,
   config: {
     ler: () => chamar("desk-config"),
