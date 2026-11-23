@@ -1,7 +1,7 @@
 // Atlas para Windows: a mesma interface do APK (app/index.html) numa janela do Electron,
 // com o que no Android vinha de plugins nativos refeito para o computador:
 // voz neural offline, palavra "Atlas", música, lembretes, atalho global, bandeja e atualização automática.
-const { app, BrowserWindow, Tray, Menu, globalShortcut, ipcMain, shell, session, Notification, nativeImage, utilityProcess, net, screen, systemPreferences } = require("electron");
+const { app, BrowserWindow, Tray, Menu, globalShortcut, ipcMain, shell, session, Notification, nativeImage, utilityProcess, net, screen, systemPreferences, desktopCapturer } = require("electron");
 const path = require("node:path");
 const fs = require("node:fs");
 const os = require("node:os");
@@ -119,9 +119,13 @@ function liberarCors(){
     cb(r);
   });
   // microfone e notificações liberados para o próprio Atlas; o resto, negado
-  const OK = new Set(["media", "audioCapture", "notifications", "clipboard-sanitized-write", "speaker-selection"]);
+  const OK = new Set(["media", "audioCapture", "notifications", "clipboard-sanitized-write", "speaker-selection", "display-capture"]);
   ses.setPermissionRequestHandler((wc, perm, cb) => cb(OK.has(perm)));
   ses.setPermissionCheckHandler((wc, perm) => OK.has(perm));
+  // visualizador da música: o som que sai do computador (loopback), sem microfone e sem mostrar a tela
+  ses.setDisplayMediaRequestHandler((req, cb) => {
+    desktopCapturer.getSources({ types: ["screen"] }).then(f => cb(f[0] ? { video: f[0], audio: "loopback" } : {})).catch(() => cb({}));
+  });
 }
 
 /* ---------- bandeja e atalho global (o "botão flutuante" do computador) ---------- */
