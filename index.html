@@ -84,6 +84,15 @@ button{cursor:pointer}
 .rows .t{font-weight:600;font-size:14px;min-width:0}
 .rows .t small{display:block;font-weight:400;color:var(--fg-faint);font-size:11px}
 .rows li.done .t{color:var(--fg-faint);text-decoration:line-through}
+.rows li.late{border-left:3px solid var(--red);padding-left:8px;background:linear-gradient(90deg,rgba(255,93,108,.12),transparent 70%)}
+.rows li.late .time,.rows li.late .t small.atraso{color:var(--red)}
+.rows .t small.atraso{font-weight:600;font-family:var(--f-hud);letter-spacing:.02em}
+.atrasoBox{display:flex;gap:10px;align-items:center;margin:6px 0 10px;padding:8px 10px;border:1px solid rgba(255,93,108,.45);border-radius:10px;background:rgba(255,93,108,.1);color:var(--red);font-family:var(--f-hud);font-size:13px;font-weight:600;animation:pulsoAtraso 2.4s ease-in-out infinite}
+.atrasoBox b{display:grid;place-items:center;min-width:24px;height:24px;border-radius:50%;background:var(--red);color:#fff;font-size:12px}
+@keyframes pulsoAtraso{50%{box-shadow:0 0 14px rgba(255,93,108,.35)}}
+@media (prefers-reduced-motion:reduce){.atrasoBox{animation:none}}
+.timeline li.atrasada::before{border-color:var(--red);background:var(--red);box-shadow:0 0 10px var(--red)}
+.timeline li.atrasada time,.timeline li.atrasada small{color:var(--red)}
 .chk{width:22px;height:22px;border:1px solid var(--line-hi);background:transparent;display:grid;place-items:center;color:var(--green);font-size:13px;padding:0}
 .empty{color:var(--fg-faint);font-size:13px}
 .tabs{display:flex;gap:4px;overflow-x:auto;scrollbar-width:none;flex:0 0 auto}
@@ -720,6 +729,9 @@ let cfg = store.get("cfg", null); // {provider, user, name, voice, speak}
 if (cfg && cfg.chamarNome===false && !cfg.chamarNomeEscolhido){ cfg.chamarNome = true; store.set("cfg", cfg); }
 let tasks = store.get("tasks", null);
 if (!tasks) tasks = [];
+// itens antigos sem data contavam como "hoje" para sempre: passam a ter a data de hoje,
+// e os já marcados como ok ganham a hora da marcação (somem 12h depois)
+tasks.forEach(t=>{ if(!t.data) t.data = hojeData(); if(t.feito && !t.feitoEm) t.feitoEm = Date.now(); });
 let highlight = store.get("hl", {categoria:"Sistema", titulo:"Pronto para começar", valor:"100%", legenda:"Todos os módulos online. Peça algo por voz ou texto."});
 let history = store.get("conversa", []); // conversa dedicada do agente, salva no aparelho
 const saveHist = () => { if (history.length>80) history.splice(0, history.length-80); store.set("conversa", history); };
@@ -1194,14 +1206,38 @@ function horaHHMM(v){
 }
 let tarefasCriadas = 0;
 function novaTarefa(i){
-  const data = /^\d{4}-\d{2}-\d{2}$/.test(String(i.data||"")) && i.data!==hojeData() ? i.data : "";
+  const data = /^\d{4}-\d{2}-\d{2}$/.test(String(i.data||"")) ? i.data : hojeData();
   const x={id:nextId++, titulo:String(i.titulo||"Lembrete").slice(0,80), hora:horaHHMM(i.hora), data, nota:i.nota?String(i.nota).slice(0,60):"", feito:false};
   tasks.push(x); saveTasks(); tarefasCriadas++; tab="agenda"; renderCard(); renderTicker();
   diario(`agenda: "${x.titulo}" ${x.data||"hoje"} ${x.hora||""}`);
   return x;
 }
 const rotuloData = d => { if(!d) return ""; const hj=hojeData(), am=hojeData(new Date(Date.now()+864e5)); if(d===hj) return ""; if(d===am) return "amanhã"; const [y,m,dd]=d.split("-"); return new Date(+y,+m-1,+dd).toLocaleDateString("pt-BR",{weekday:"short",day:"2-digit",month:"2-digit"}).replace(".",""); };
-const tarefasVisiveis = () => tasks.filter(t=>!t.data || t.data>=hojeData()).sort((a,b)=>((a.data||hojeData())+(a.hora||"99")).localeCompare((b.data||hojeData())+(b.hora||"99")));
+// itens marcados como ok somem 12 horas depois da marcação
+const LIMPA_FEITO_MS = 12*3600e3;
+function marcarFeito(x, feito=true){ x.feito=!!feito; if(x.feito) x.feitoEm=Date.now(); else delete x.feitoEm; saveTasks(); }
+function limparConcluidas(){
+  const n=tasks.length, agora=Date.now();
+  tasks=tasks.filter(t=>!(t.feito && agora-(t.feitoEm||agora)>=LIMPA_FEITO_MS));
+  if(tasks.length===n) return false;
+  saveTasks(); diario(`agenda: ${n-tasks.length} ${n-tasks.length>1?"itens concluídos apagados":"item concluído apagado"} (12h depois do ok)`); return true;
+}
+// tarefas de dias anteriores que não foram concluídas
+const ehAtrasada = t => !t.feito && !!t.data && t.data<hojeData();
+const tarefasAtrasadas = () => tasks.filter(ehAtrasada).sort((a,b)=>(a.data+(a.hora||"99")).localeCompare(b.data+(b.hora||"99")));
+const dataCurta = d => { const [,m,dd]=String(d).split("-"); return `${dd}/${m}`; };
+function desdeQuando(d){
+  const [y,m,dd]=d.split("-").map(Number), dt=new Date(y,m-1,dd);
+  const dia = dt.toLocaleDateString("pt-BR",{day:"numeric", month:"long"});
+  return d===hojeData(new Date(Date.now()-864e5)) ? `desde ontem, dia ${dia}` : `desde o dia ${dia}`;
+}
+function falaAtrasos(max=3){
+  const at=tarefasAtrasadas(); if(!at.length) return "";
+  const fr=at.slice(0,max).map(t=>`A tarefa ${t.titulo} está atrasada ${desdeQuando(t.data)}.`);
+  if(at.length>max) fr.push(`E há mais ${at.length-max} ${at.length-max>1?"tarefas atrasadas":"tarefa atrasada"} na agenda.`);
+  return fr.join(" ");
+}
+const tarefasVisiveis = () => tasks.slice().sort((a,b)=>((a.data||hojeData())+(a.hora||"99")).localeCompare((b.data||hojeData())+(b.hora||"99")));
 const PEDE_AGENDA = /\b(me lembr|lembr[ae] de|lembrete|anot[ae]|agend[ae]|marc[ae] (um|uma|na|o|a)|adicion[ae]|coloc[ae] na agenda|bot[ae] na agenda|p[õo]e na agenda|na agenda|compromisso|tarefa)/i;
 
 /* ---------- clock ---------- */
@@ -1685,8 +1721,9 @@ function renderCard(){
   el.classList.toggle("musico", tab==="destaque" && highlight?.tipo==="musica");
   document.querySelectorAll(".tabs button").forEach(b=>b.setAttribute("aria-selected", String(b.dataset.tab===tab)));
   if (tab==="agenda"){
-    const list=tarefasVisiveis();
-    el.innerHTML = `<div class="eyebrow">Agenda</div>` + (list.length ? `<ul class="rows">${list.map(x=>`<li class="${x.feito?"done":""}"><span class="time">${x.data?`<small style="display:block;color:var(--amber)">${esc(rotuloData(x.data))}</small>`:""}${esc(x.hora||"--:--")}</span><span class="t">${esc(x.titulo)}${x.nota?`<small>${esc(x.nota)}</small>`:""}</span><button class="chk" data-id="${x.id}" aria-label="Marcar ${esc(x.titulo)} como feito">${x.feito?"✓":""}</button></li>`).join("")}</ul>` : `<p class="empty">Nada na agenda. Diga "me lembra de ligar para o João às 15h".</p>`);
+    limparConcluidas();
+    const list=tarefasVisiveis(), nAt=list.filter(ehAtrasada).length;
+    el.innerHTML = `<div class="eyebrow">Agenda</div>` + (nAt?`<div class="atrasoBox" role="status"><b>${nAt}</b>${nAt>1?"tarefas atrasadas":"tarefa atrasada"} de dias anteriores</div>`:"") + (list.length ? `<ul class="rows">${list.map(x=>{ const at=ehAtrasada(x); return `<li class="${x.feito?"done":at?"late":""}"><span class="time">${rotuloData(x.data)?`<small style="display:block;color:${at?"var(--red)":"var(--amber)"}">${esc(rotuloData(x.data))}</small>`:""}${esc(x.hora||"--:--")}</span><span class="t">${esc(x.titulo)}${at?`<small class="atraso">⚠ Atrasada desde ${esc(dataCurta(x.data))}</small>`:""}${x.nota?`<small>${esc(x.nota)}</small>`:""}</span><button class="chk" data-id="${x.id}" aria-label="Marcar ${esc(x.titulo)} como feito">${x.feito?"✓":""}</button></li>`; }).join("")}</ul>` : `<p class="empty">Nada na agenda. Diga "me lembra de ligar para o João às 15h".</p>`);
   } else if (tab==="destaque"){
     const novo = shown.h!==highlight || shown.i!==highlight.i;
     const atual = el.querySelector(".slide:not(.out)");
@@ -1770,7 +1807,7 @@ $("#ajFechar").addEventListener("click", fecharAjustes);
 $("#ajModal").addEventListener("click", e=>{ if (e.target.id==="ajModal") fecharAjustes(); });
 addEventListener("keydown", e=>{ if (e.key==="Escape" && ajOpen) fecharAjustes(); });
 function cliqueCartao(e){
-  const c=e.target.closest(".chk"); if(c){ const x=tasks.find(t=>t.id==c.dataset.id); if(x){x.feito=!x.feito; saveTasks(); renderCard(); renderTicker();} }
+  const c=e.target.closest(".chk"); if(c){ const x=tasks.find(t=>t.id==c.dataset.id); if(x){marcarFeito(x, !x.feito); renderCard(); renderTicker();} }
   const act=e.target.closest("[data-act]")?.dataset.act;
   if(act==="anexar") $("#file").click();
   if(act==="padronizar") pdfStandardize({tamanho:"A4", orientacao:"auto"}).then(()=>caption("Todas as páginas agora estão em A4.")).catch(err=>caption(`<em>${esc(err.message)}</em>`));
@@ -1857,7 +1894,7 @@ function mudouAjuste(e){
 $("#card").addEventListener("change", mudouAjuste);
 $("#ajCard").addEventListener("change", mudouAjuste);
 function renderTicker(){
-  const pend=tarefasVisiveis().filter(t=>!t.feito).map(t=>`${rotuloData(t.data)} ${t.hora||""} ${t.titulo}`.trim());
+  const pend=tarefasVisiveis().filter(t=>!t.feito).map(t=>ehAtrasada(t) ? `⚠ ${t.titulo} atrasada desde ${dataCurta(t.data)}` : `${rotuloData(t.data)} ${t.hora||""} ${t.titulo}`.trim());
   const items=[`${PROV[cfg?.provider]||""} conectado`, highlight?.titulo, ...pend.map(p=>"Agenda: "+p)].filter(Boolean);
   $("#ticker").textContent = items.join("   ◆   ");
 }
@@ -1870,7 +1907,8 @@ function caption(html){ $("#caption").innerHTML=noAparelho(html); }
 function context(){
   const d=new Date();
   return `Data e hora agora: ${d.toLocaleString("pt-BR",{weekday:"long",day:"2-digit",month:"long",year:"numeric",hour:"2-digit",minute:"2-digit"})} (hoje é ${hojeData(d)}). Se for cumprimentar, a saudação certa AGORA é "${periodo(d)}" (nunca use outra, mesmo que a conversa anterior tenha usado).
-Agenda atual (JSON; "data" vazia = hoje): ${JSON.stringify(tasks)}
+Agenda atual (JSON; "data" é o dia do compromisso; feitoEm = quando foi marcado como ok, os itens ok somem 12h depois): ${JSON.stringify(tasks)}
+${tarefasAtrasadas().length?`Tarefas ATRASADAS (de dias anteriores e não concluídas): ${tarefasAtrasadas().map(t=>`"${t.titulo}" desde ${dataCurta(t.data)}`).join("; ")}. Ao falar da agenda ou do dia, avise cada uma assim: "a tarefa X está atrasada desde o dia D".`:""}
 Destaque exibido no painel: ${JSON.stringify(highlight.tipo==="pesquisa"?{tipo:"pesquisa",titulo:highlight.titulo,resumo:highlight.resumo}:highlight)}
 PDF aberto: ${pdf?JSON.stringify(pdfInfo()):"nenhum"}`;
 }
@@ -2127,9 +2165,9 @@ No máximo 3 manchetes por assunto. Use só informação presente nos resultados
     const next2=tasks.filter(t=>!t.feito && (!t.data||t.data===hojeData()));
     const slides=[];
     slides.push({tipo:"numeros", saudacao:true, categoria:new Date().toLocaleDateString("pt-BR",{weekday:"long", day:"2-digit", month:"long"}), titulo:`${per}, ${cfg.user||""}`.trim(), legenda:String(r.abertura||""), fala:String(r.abertura||""),
-      numeros:[{rotulo:"Compromissos", valor:next2.length}, ...(r.clima?.temperatura!=null?[{rotulo:r.clima.cidade||"Agora", valor:Math.round(num(r.clima.temperatura)), unidade:"°"}]:[]), ...(r.cot?[r.cot.numeros[0]]:[]), {rotulo:"Assuntos", valor:tops.length}]});
+      numeros:[{rotulo:"Compromissos", valor:next2.length}, ...(tarefasAtrasadas().length?[{rotulo:"Atrasadas", valor:tarefasAtrasadas().length}]:[]), ...(r.clima?.temperatura!=null?[{rotulo:r.clima.cidade||"Agora", valor:Math.round(num(r.clima.temperatura)), unidade:"°"}]:[]), ...(r.cot?[r.cot.numeros[0]]:[]), {rotulo:"Assuntos", valor:tops.length}]});
     if(r.clima && typeof r.clima==="object" && r.clima.temperatura!=null) slides.push(Object.assign({}, r.clima, {tipo:"clima", fala:String(r.clima.fala||"")}));
-    slides.push({tipo:"agenda", fala:String(r.agenda_fala||"")});
+    slides.push({tipo:"agenda", fala:[String(r.agenda_fala||""), falaAtrasos()].filter(Boolean).join(" ")});
     if(r.cot && !cotT) slides.push({tipo:"numeros", categoria:"Mercado", titulo:"Cotações agora", numeros:r.cot.numeros, fonte:"AwesomeAPI", fala:r.cot.fala});
     tops.forEach(t=>{
       if(t===cotT){ slides.push({tipo:"numeros", categoria:"Mercado", titulo:t.assunto, numeros:r.cot.numeros, legenda:t.resumo, fonte:"AwesomeAPI", fala:[t.abre, r.cot.fala].filter(Boolean).join(" ")}); slides.push({tipo:"noticias", categoria:"Mercado · manchetes", titulo:t.assunto, resumo:"", manchetes:t.manchetes, fala:t.falaPura??t.fala}); return; }
@@ -2335,9 +2373,11 @@ function agendaHoje(s){
 }
 function renderAgendaSlide(s){
   const lista=agendaHoje(s), pend=lista.filter(x=>!x.feito), agora=new Date().toTimeString().slice(0,5);
+  const atr = (Array.isArray(s.compromissos) && s.compromissos.length) ? [] : tarefasAtrasadas().slice(0,4);
   const prox=pend.find(x=>!x.hora || x.hora>=agora) || pend[0];
   return `<div class="eyebrow">${esc(s.categoria||"Agenda de hoje")}</div>
     <h3>${pend.length?`<span data-count="${pend.length}">${pend.length}</span> ${pend.length===1?"compromisso":"compromissos"} ${esc(s.titulo||"para hoje")}`:esc(s.titulo||"Agenda livre hoje")}</h3>
+    ${atr.length?`<div class="atrasoBox" role="status"><b>${tarefasAtrasadas().length}</b>${tarefasAtrasadas().length>1?"tarefas atrasadas":"tarefa atrasada"}</div><ul class="timeline">${atr.map((x,i)=>`<li class="atrasada" style="animation-delay:${.1+i*.1}s"><time>${esc(dataCurta(x.data))}</time><span>${esc(x.titulo)}<small>Atrasada desde esse dia</small></span></li>`).join("")}</ul>`:""}
     ${lista.length?`<ul class="timeline">${lista.map((x,i)=>`<li class="${x.feito?"feito":x===prox?"next":""}" style="animation-delay:${.15+i*.1}s"><time>${esc(x.hora||"--:--")}</time><span>${esc(x.titulo)}${x.nota?`<small>${esc(x.nota)}</small>`:""}</span></li>`).join("")}</ul>`:`<p class="sub">Nenhum compromisso marcado. Diga "me lembra de ligar para o João às 15h".</p>`}
     ${s.legenda?`<p class="sub" style="margin-top:8px">${esc(s.legenda)}</p>`:""}`;
 }
@@ -2991,12 +3031,12 @@ const tools = [
    execute(i){ const et=(Array.isArray(i.etapas)?i.etapas:[]).slice(0,8).map(e=>typeof e==="string"?{titulo:e}:e);
      highlight={categoria:("Tutor · "+String(i.materia||"Estudos")).slice(0,30), titulo:String(i.tema||"Plano de estudo").slice(0,90), valor:i.prazo?String(i.prazo).slice(0,16):"", legenda:i.resumo?String(i.resumo).slice(0,200):"", itens:et.map((e,k)=>`${k+1}. ${String(e.titulo).slice(0,70)}`)};
      store.set("hl",highlight); tab="destaque";
-     let salvos=0; if(i.salvar_na_agenda){ for(const e of et){ tasks.push({id:nextId++, titulo:`${String(i.materia||"Estudo").slice(0,20)}: ${String(e.titulo).slice(0,55)}`, hora:e.hora?String(e.hora).slice(0,5):"", nota:i.prazo?("prazo "+String(i.prazo).slice(0,20)):"", feito:false}); salvos++; } saveTasks(); }
+     let salvos=0; if(i.salvar_na_agenda){ for(const e of et){ tasks.push({id:nextId++, titulo:`${String(i.materia||"Estudo").slice(0,20)}: ${String(e.titulo).slice(0,55)}`, hora:e.hora?String(e.hora).slice(0,5):"", data:hojeData(), nota:i.prazo?("prazo "+String(i.prazo).slice(0,20)):"", feito:false}); salvos++; } saveTasks(); }
      renderCard(); renderTicker(); return {ok:true, etapas:et.length, salvos_na_agenda:salvos}; }},
   {name:"adicionar_tarefa", description:"Adiciona um compromisso, tarefa ou lembrete à agenda. SEMPRE chame esta ferramenta quando o usuário pedir para anotar, agendar, marcar, lembrar ou adicionar algo; nunca diga que anotou sem chamá-la.", inputSchema:{type:"object",properties:{titulo:{type:"string"},hora:{type:"string",description:"HH:MM, opcional"},data:{type:"string",description:"AAAA-MM-DD, opcional; omita para hoje. Use para amanhã ou outro dia."},nota:{type:"string"}},required:["titulo"]},
    execute(i){ const x=novaTarefa(i); return {ok:true, id:x.id, data:x.data||hojeData(), hora:x.hora}; }},
   {name:"concluir_tarefa", description:"Marca um item da agenda como feito, pelo id.", inputSchema:{type:"object",properties:{id:{type:"number"}},required:["id"]},
-   execute(i){ const x=tasks.find(t=>t.id==Number(i.id)); if(!x) throw new Error("id não encontrado"); x.feito=true; saveTasks(); tab="agenda"; renderCard(); renderTicker(); return {ok:true}; }},
+   execute(i){ const x=tasks.find(t=>t.id==Number(i.id)); if(!x) throw new Error("id não encontrado"); marcarFeito(x); tab="agenda"; renderCard(); renderTicker(); return {ok:true}; }},
   {name:"remover_tarefa", description:"Remove um item da agenda, pelo id.", inputSchema:{type:"object",properties:{id:{type:"number"}},required:["id"]},
    execute(i){ const n=tasks.length; tasks=tasks.filter(t=>t.id!=Number(i.id)); if(tasks.length===n) throw new Error("id não encontrado"); saveTasks(); tab="agenda"; renderCard(); renderTicker(); return {ok:true}; }},
   {name:"mostrar_destaque", description:"Mostra um cartão de destaque no painel.", inputSchema:{type:"object",properties:{categoria:{type:"string",description:"rótulo curto, ex.: Finanças, Lembrete, Resumo"},titulo:{type:"string"},valor:{type:"string",description:"dado grande, opcional, ex.: 42%, 18:30, R$ 1.200"},legenda:{type:"string"},itens:{type:"array",items:{type:"string"}}},required:["titulo"]},
@@ -3034,7 +3074,7 @@ async function ask(userText, {greeting=false}={}){
   if (tab==="historico") renderCard();
   if (!sample){ return offline(userText, greeting); }
   const turns = greeting
-    ? [{role:"user", content: rules()+"\n\nO usuário acabou de abrir o app. Cumprimente pelo período do dia e faça um briefing de no máximo 3 frases sobre a agenda de hoje (o que vem a seguir) e termine perguntando se pode ajudar com alguma coisa. Use apresentar com 2 cartões: um numeros com o resumo do dia (compromissos, próximo horário) e um agenda."}]
+    ? [{role:"user", content: rules()+"\n\nO usuário acabou de abrir o app. Cumprimente pelo período do dia e faça um briefing de no máximo 3 frases sobre a agenda de hoje (o que vem a seguir)"+(tarefasAtrasadas().length?`, avisando as tarefas atrasadas (diga exatamente: ${falaAtrasos()})`:"")+" e termine perguntando se pode ajudar com alguma coisa. Use apresentar com 2 cartões: um numeros com o resumo do dia (compromissos, próximo horário) e um agenda."}]
     : [{role:"user", content: rules()+"\n\nResponda à conversa a seguir."},{role:"assistant",content:"Entendido."}, ...history.slice(-12)];
   let shown = "";
   const criadasAntes = tarefasCriadas;
@@ -3085,7 +3125,7 @@ async function speak(text){
 async function offline(userText, greeting){
   const per=periodo();
   const next=tasks.filter(t=>!t.feito && (!t.data||t.data===hojeData())).sort((a,b)=>(a.hora||"").localeCompare(b.hora||""))[0];
-  const text = greeting ? `${per}, ${cfg.user||"senhor"}. Todos os sistemas online.${next?` Seu próximo compromisso é ${next.titulo}${next.hora?" às "+next.hora:""}.`:""} Posso ajudar com alguma coisa?`
+  const text = greeting ? `${per}, ${cfg.user||"senhor"}. Todos os sistemas online.${next?` Seu próximo compromisso é ${next.titulo}${next.hora?" às "+next.hora:""}.`:""}${falaAtrasos()?" "+falaAtrasos():""} Posso ajudar com alguma coisa?`
     : "Ainda não estou conectado a uma inteligência artificial. Vá em Ajustes, toque em Trocar IA e conecte sua chave do ChatGPT ou do Claude.";
   await new Promise(r=>setTimeout(r,700));
   caption(esc(text)); history.push({role:"assistant",content:text}); saveHist();
@@ -3383,6 +3423,9 @@ document.addEventListener("visibilitychange", ()=>{
   const longe = escondidoEm && Date.now()-escondidoEm > 2*3600e3; escondidoEm = 0;
   if (longe) setTimeout(()=>{ if (!abrirOuvindo && briefingSempre() && bootFeito && cfg?.onboarded && sample && !ocupado() && $("#loginView").hidden && $("#onbView").hidden && topics().length) runBriefing({abertura:true}); }, 900);
 });
+// a cada 10 min: apaga itens ok com mais de 12h e atualiza a agenda (na virada do dia, pendentes viram atrasadas)
+let diaAgenda = hojeData();
+setInterval(()=>{ const virou = diaAgenda!==hojeData(); diaAgenda = hojeData(); if ((limparConcluidas() || virou) && !document.hidden){ if (tab==="agenda") renderCard(); renderTicker(); } }, 10*60e3);
 setInterval(()=>{ if (!document.hidden && cfg?.onboarded && sample && !busy && !briefingBusy && mode==="idle" && $("#loginView").hidden && $("#onbView").hidden && briefingDevido()) runBriefing({abertura:true}); }, 60000);
 async function agendarLembrete(){
   const LN = plugin("LocalNotifications") || DESKTOP?.notificacoes; if (!LN) return;
@@ -3467,8 +3510,10 @@ function activate({primeira=false}={}){
   if (primeira || briefingAoAbrir()) return runBriefing({abertura:true});
   // nas outras aberturas do dia: só cumprimenta e aguarda (sem gastar a cota da IA)
   const per=periodo();
-  const prox=tasks.filter(t=>!t.feito).sort((a,b)=>(a.hora||"").localeCompare(b.hora||""))[0];
-  const txt=`${per}, ${cfg.user||"senhor"}. Estou pronto.${prox?` Seu próximo compromisso: ${prox.titulo}${prox.hora?` às ${prox.hora}`:""}.`:""} Como posso ajudar?`;
+  limparConcluidas();
+  const prox=tasks.filter(t=>!t.feito && t.data===hojeData()).sort((a,b)=>(a.hora||"").localeCompare(b.hora||""))[0];
+  const txt=`${per}, ${cfg.user||"senhor"}. Estou pronto.${prox?` Seu próximo compromisso: ${prox.titulo}${prox.hora?` às ${prox.hora}`:""}.`:""}${falaAtrasos()?" "+falaAtrasos():""} Como posso ajudar?`;
+  if (tarefasAtrasadas().length){ tab="agenda"; renderCard(); }
   caption(esc(txt)); showChips(); speak(txt);
 }
 
