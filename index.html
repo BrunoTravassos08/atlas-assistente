@@ -372,6 +372,8 @@ textarea.inp{height:auto;padding:8px 12px;resize:vertical;font:inherit}
 .sc small.live{color:var(--red)}.sc small.live::before{content:"";display:inline-block;width:7px;height:7px;border-radius:50%;background:var(--red);margin-right:6px;animation:pulse 1s infinite}
 .goals{list-style:none;margin:8px 0 0;padding:0;display:grid;grid-template-columns:1fr 1fr;grid-auto-flow:row dense;gap:3px 12px;font-size:12px;color:var(--fg-dim)}
 a.lnk{color:var(--cyan,#43d9ff);text-decoration:none;border-bottom:1px solid rgba(67,217,255,.35);cursor:pointer}a.lnk:hover{border-bottom-color:currentColor}
+.ptit{margin-top:10px;padding-top:7px;border-top:1px solid rgba(90,180,255,.16);font-family:var(--f-hud);font-size:9.5px;letter-spacing:.2em;text-transform:uppercase;color:var(--fg-faint)}
+.ptit+.goals{margin-top:4px}
 .goals li{animation:rise .5s both}.goals li.v{text-align:right;grid-column:2}.goals li.m{grid-column:1}.goals li.faint{color:var(--fg-faint);font-style:italic}
 .stats{margin-top:12px;display:flex;flex-direction:column;gap:9px}
 .goals.cards{margin-top:4px}.goals.cards li i{display:inline-block;width:8px;height:11px;border-radius:2px;margin-right:4px;vertical-align:-1px;background:#ffd23f;box-shadow:0 0 6px #ffd23f88}.goals.cards li i.verm{background:#ff3b4e;box-shadow:0 0 6px #ff3b4e88}
@@ -2398,25 +2400,61 @@ async function placaresEspn(ligas, dias, ms=12000){
 // "qual foi o placar do Al-Nassr?": acha o jogo direto no placar da ESPN, sem passar pela IA
 const PEDE_PLACAR = /\b(placar|resultado|quanto (foi|ficou|t[aá]|est[aá])|como (foi|ficou|t[aá]|est[aá]) o jogo|ganhou|perdeu|venceu|empatou|fez gol|marcou|jogo d[oa])\b/i;
 const LIGAS_RAPIDAS = ["all","bra.1","bra.2","conmebol.libertadores","bra.copa_do_brazil","afc.champions","ksa.1"];
-async function acharJogoEspn(texto){
-  const q=nomeTime(texto); if(!q) return null;
-  const extra=ESPN_LIGAS.filter(([re])=>re.test(texto)).map(([,l])=>l);
-  const respostas=await placaresEspn([...new Set([...extra, ...LIGAS_RAPIDAS])], [0,1,2].map(diaEspn), 8000);
-  const naPergunta = t => [t?.displayName, t?.shortDisplayName, t?.name].some(n=>{ const b=nomeTime(n); return b.length>=4 && (` ${q} `).includes(` ${b} `); });
-  let achado=null;
-  for(const j of respostas) for(const ev of (j?.events||[])){
-    const c=ev.competitions?.[0], cs=c?.competitors||[]; if(cs.length!==2) continue;
-    const st=ev.status?.type||{}; if(st.state==="pre") continue;
-    const n=cs.filter(x=>naPergunta(x.team)).length; if(!n) continue;
-    const t=new Date(ev.date).getTime()||0, nota=n*1e13+t;
-    if(!achado || nota>achado.nota) achado={nota, ev, c, cs, liga:j._liga, nomeLiga:j._liga!=="all" ? (j.leagues?.[0]?.name||"") : ""};
-  }
-  if(!achado) return null;
-  const {ev, cs, liga, nomeLiga}=achado, casa=cs.find(x=>x.homeAway==="home")||cs[0], fora=cs.find(x=>x!==casa);
-  const time = x => ({nome:x.team?.shortDisplayName||x.team?.displayName||"", sigla:String(x.team?.abbreviation||"").slice(0,3), gols:num(x.score)});
+// times de cada liga da ESPN (id e nomes), guardados por 1 dia: acha a liga do time da pergunta
+const LIGAS_TIMES = ["bra.1","bra.2","bra.3","bra.copa_do_brazil","bra.copa_do_nordeste","conmebol.libertadores","conmebol.sudamericana","afc.champions","ksa.1","uefa.champions","eng.1","esp.1","ita.1","ger.1","fra.1","por.1"];
+let timesEspnMem=null;
+async function timesEspn(){
+  if(timesEspnMem) return timesEspnMem;
+  const salvo=store.get("espnTimes", null);
+  if(salvo?.em && Date.now()-salvo.em<864e5 && salvo.ligas) return (timesEspnMem=salvo.ligas);
+  const ligas={};
+  await Promise.all(LIGAS_TIMES.map(async l=>{
+    try{
+      const j=JSON.parse(await httpTexto(`https://site.api.espn.com/apis/site/v2/sports/soccer/${l}/teams`, 8000));
+      const ts=(j?.sports?.[0]?.leagues?.[0]?.teams||[]).map(x=>x.team||x).filter(t=>t?.id);
+      if(ts.length) ligas[l]={nome:String(j?.sports?.[0]?.leagues?.[0]?.name||""), times:ts.map(t=>({id:String(t.id), n:[t.displayName,t.shortDisplayName,t.name,t.location].filter(Boolean)}))};
+    }catch{}
+  }));
+  if(Object.keys(ligas).length){ timesEspnMem=ligas; store.set("espnTimes",{em:Date.now(), ligas}); }
+  return ligas;
+}
+function jogoParaPlacar(ev, liga, nomeLiga){
+  const cs=ev.competitions?.[0]?.competitors||[], casa=cs.find(x=>x.homeAway==="home")||cs[0], fora=cs.find(x=>x!==casa);
+  const gols = x => num(typeof x.score==="object" ? (x.score?.displayValue ?? x.score?.value) : x.score);
+  const time = x => ({nome:x.team?.shortDisplayName||x.team?.displayName||"", sigla:String(x.team?.abbreviation||"").slice(0,3), gols:gols(x)});
   const d=new Date(ev.date), st=ev.status?.type||{};
   return {tipo:"placar", competicao:nomeLiga||"Futebol", data:isNaN(d)?"":d.toLocaleDateString("pt-BR"), status:st.completed?"encerrado":/half/i.test(st.name||"")?"intervalo":"ao vivo",
     mandante:time(casa), visitante:time(fora), _liga:liga};
+}
+async function acharJogoEspn(texto){
+  const q=nomeTime(texto); if(!q) return null;
+  const temNome = n => { const b=nomeTime(n); return b.length>=4 && (` ${q} `).includes(` ${b} `); };
+  const naPergunta = t => [t?.displayName, t?.shortDisplayName, t?.name].some(temNome);
+  const melhor = (respostas, ok) => { let achado=null;
+    for(const j of respostas) for(const ev of (j?.events||[])){
+      const cs=ev.competitions?.[0]?.competitors||[]; if(cs.length!==2) continue;
+      if((ev.status?.type||{}).state==="pre") continue;
+      const n=cs.filter(x=>ok(x.team)).length; if(!n) continue;
+      const nota=n*1e13+(new Date(ev.date).getTime()||0);
+      if(!achado || nota>achado.nota) achado={nota, ev, liga:j._liga, nomeLiga:j._liga!=="all" ? (j.leagues?.[0]?.name||"") : ""};
+    }
+    return achado; };
+  // 1) jogos de hoje e dos 2 dias anteriores nas ligas mais comuns (rápido)
+  const extra=ESPN_LIGAS.filter(([re])=>re.test(texto)).map(([,l])=>l);
+  let achado=melhor(await placaresEspn([...new Set([...extra, ...LIGAS_RAPIDAS])], [0,1,2].map(diaEspn), 8000), naPergunta);
+  // 2) jogo mais antigo: descobre a liga do time e olha as últimas 3 semanas dessa liga
+  if(!achado){
+    const ligas=await timesEspn(), alvo=[];
+    for(const [l,info] of Object.entries(ligas)) for(const t of info.times) if(t.n.some(temNome)) alvo.push({l, id:t.id, nome:info.nome});
+    const ids=new Set(alvo.map(x=>x.id)), ligasAlvo=[...new Set(alvo.map(x=>x.l))].slice(0,3);
+    if(ligasAlvo.length){
+      const resp=await placaresEspn(ligasAlvo, Array.from({length:22},(_,k)=>diaEspn(k)), 8000);
+      resp.forEach(j=>{ if(j && !j.leagues?.[0]?.name && ligas[j._liga]) j.leagues=[{name:ligas[j._liga].nome}]; });
+      achado=melhor(resp, t=>ids.has(String(t?.id)));
+    }
+  }
+  if(!achado) return null;
+  return jogoParaPlacar(achado.ev, achado.liga, achado.nomeLiga);
 }
 async function fichaEspn(p){
   const gm=num(p.mandante.gols), gv=num(p.visitante.gols);
@@ -2555,12 +2593,21 @@ function renderPlacar(h){
     <div class="score"><div class="team">${crest(m)}<b>${esc(m.nome||"Mandante")}</b></div>
       <div class="sc"><div class="nums">${enc?`<span class="${gm>gv?"win":""}" data-count="${gm}">${gm}</span><i>×</i><span class="${gv>gm?"win":""}" data-count="${gv}">${gv}</span>`:`<i>×</i>`}</div>${statusTag(h.status)}</div>
       <div class="team">${crest(v)}<b>${esc(v.nome||"Visitante")}</b></div></div>
-    ${(h.gols||[]).length||semAutor?`<ul class="goals">${(h.gols||[]).slice(0,12).map((g,i)=>`<li class="${g.time==="visitante"?"v":"m"}" style="animation-delay:${.5+i*.08}s">⚽ ${esc(minutoTxt(g.minuto))} ${esc(g.jogador||"")}${/p[eê]n/i.test(g.tipo||"")?" (pên.)":/contra/i.test(g.tipo||"")?" (contra)":""}</li>`).join("")}${semAutor}</ul>`:""}
-    ${(h.cartoes||[]).length?`<ul class="goals cards">${h.cartoes.slice(0,12).map((c,i)=>`<li class="${c.time==="visitante"?"v":"m"}" style="animation-delay:${.6+i*.06}s"><i class="${/verm/i.test(c.cor||"")?"verm":""}"></i>${esc(minutoTxt(c.minuto))} ${esc(c.jogador||"")}</li>`).join("")}</ul>`:""}
+    ${(h.gols||[]).length||semAutor?`<div class="ptit">Gols</div><ul class="goals">${(h.gols||[]).slice(0,12).map((g,i)=>`<li class="${g.time==="visitante"?"v":"m"}" style="animation-delay:${.5+i*.08}s">⚽ ${esc(minutoTxt(g.minuto))} ${esc(g.jogador||"")}${/p[eê]n/i.test(g.tipo||"")?" (pên.)":/contra/i.test(g.tipo||"")?" (contra)":""}</li>`).join("")}${semAutor}</ul>`:""}
+    ${(h.cartoes||[]).length?`<div class="ptit">Cartões</div><ul class="goals cards">${h.cartoes.slice(0,12).map((c,i)=>`<li class="${c.time==="visitante"?"v":"m"}" style="animation-delay:${.6+i*.06}s"><i class="${/verm/i.test(c.cor||"")?"verm":""}"></i>${esc(minutoTxt(c.minuto))} ${esc(c.jogador||"")}</li>`).join("")}</ul>`:""}
     ${linhaTabela(h)}
     ${stats.length?`<div class="stats" style="--c1:${c1};--c2:${c2}">${stats.map((st,i)=>{ const a=num(st.mandante), b=num(st.visitante), t=(a+b)||1, u=esc(st.unidade||"");
       return `<div class="stat" style="animation-delay:${.3+i*.1}s"><span>${esc(String(st.mandante??""))}${u}</span><em>${esc(st.nome||"")}</em><span>${esc(String(st.visitante??""))}${u}</span><div class="bar2"><span><i style="--w:${(a/t*100).toFixed(1)}%"></i></span><span><i style="--w:${(b/t*100).toFixed(1)}%"></i></span></div></div>`; }).join("")}</div>`:""}
-    ${h.legenda?`<p class="sub" style="margin-top:10px">${esc(h.legenda)}</p>`:""}${h.fonte?`<p class="src">Fonte: ${esc(h.fonte)}</p>`:""}`;
+    ${h.legenda?`<p class="sub" style="margin-top:10px">${esc(h.legenda)}</p>`:""}${h.fonte?`<p class="src">Fonte: ${fonteLinks(h.fonte)}</p>`:""}`;
+}
+// fontes: endereço vira link curto com o nome do site (ge.globo.com) em vez da URL inteira
+function fonteLinks(f){
+  return String(f).split(/\s*[|,;]\s*|\s+·\s+/).filter(Boolean).slice(0,5).map(x=>{
+    const u=/^https:\/\/[^\s]+$/.test(x.trim()) ? x.trim() : "";
+    if(!u) return esc(x);
+    let host=""; try{ host=new URL(u).hostname.replace(/^www\./,""); }catch{}
+    return `<a class="lnk" data-act="abrir-noticia" data-url="${esc(u)}" role="link" tabindex="0">${esc(host||"link")}</a>`;
+  }).join(" · ");
 }
 function renderGrafico(h){
   const dados=(h.dados||[]).slice(0,12).map((d,i)=>({r:String(d.rotulo??""), v:num(d.valor), c:PALETA[i%PALETA.length]}));
@@ -3337,7 +3384,7 @@ let aoResponder = null; // painel do botão flutuante esperando a resposta
 // pergunta de placar: responde em 1 ou 2 segundos com o placar da ESPN; se não achar o jogo, segue para a IA
 async function placarRapido(userText, ctl){
   let p=null;
-  try{ p = await Promise.race([acharJogoEspn(userText), sleep(6000).then(()=>null)]); }catch(e){ diario(`placar rápido: ${e?.message||e}`); }
+  try{ p = await Promise.race([acharJogoEspn(userText), sleep(10000).then(()=>null)]); }catch(e){ diario(`placar rápido: ${e?.message||e}`); }
   if(ctl!==busy || !p) { if(!p) diario("placar rápido: jogo não encontrado, segue para a IA"); return false; }
   const titulo=`${p.mandante.nome} ${p.mandante.gols} × ${p.visitante.gols} ${p.visitante.nome}`;
   const mostra = x => { highlight=Object.assign({}, x, {tipo:"placar", titulo, fichaEm:Date.now()}); store.set("hl",highlight); tab="destaque"; renderCard(); renderTicker(); };
