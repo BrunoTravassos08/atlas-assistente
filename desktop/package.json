@@ -38,6 +38,7 @@
     "files": [
       "main.js",
       "motor.js",
+      "codex.js",
       "preload.js",
       "icone.png",
       "app/**/*",

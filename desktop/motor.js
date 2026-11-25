@@ -160,5 +160,12 @@ porta.on("message", ({ data: m }) => {
     else if (m.t === "kws-iniciar"){ try { kwsIniciar(); enviar({ t: "kws-ok" }); } catch (e){ enviar({ t: "kws-erro", erro: String(e?.message || e) }); } }
     else if (m.t === "kws-audio") kwsAudio(m.amostras);
     else if (m.t === "kws-parar") kwsStream = null;
+    else if (m.t === "transcrever"){
+      try {
+        if (!whisper){ const ativo = kwsStream; kwsIniciar(); kwsStream = ativo; }
+        if (!whisper) throw new Error("o Whisper não está instalado");
+        enviar({ t: "texto", id: m.id, texto: transcrever(Float32Array.from(m.amostras)) });
+      } catch (e){ enviar({ t: "texto", id: m.id, erro: String(e?.message || e) }); }
+    }
   } catch (e){ enviar({ t: "log", msg: "motor: " + (e?.message || e) }); }
 });

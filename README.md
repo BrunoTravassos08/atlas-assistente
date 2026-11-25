@@ -72,6 +72,19 @@ O que muda em relação ao Android:
 - **Bandeja**: fechar a janela deixa o Atlas perto do relógio. Ele abre junto com o Windows (dá para desligar em Ajustes) e avisa na hora do briefing.
 - **Música**: toca direto no YouTube ou YouTube Music (abre no navegador); com o Spotify instalado, abre a busca no Spotify (ou dá o play sozinho, com o Spotify conectado: veja abaixo). Pausar, pular e volume usam as teclas de mídia do Windows.
 
+### ChatGPT pela assinatura (só no Windows)
+
+No Windows, ao escolher ChatGPT, a aba **Conta do ChatGPT** deixa entrar com o plano Plus/Pro, sem chave de API. É o mesmo jeito do HUBIA: o Atlas não chama a API da OpenAI, ele roda o **Codex CLI oficial** (`codex.exe`) logado na conta da pessoa.
+
+1. Na primeira vez, o Atlas baixa `codex.exe` e `codex-code-mode-host.exe` do GitHub da OpenAI (cerca de 170 MB) para `%APPDATA%\Atlas\codex\bin`.
+2. `codex login` abre o navegador na página da OpenAI; o Atlas confere `codex login status` a cada 3 s (até 10 min) e recusa login feito por chave de API.
+3. Cada pergunta roda `codex exec --json --ephemeral --ignore-user-config --sandbox read-only` com o texto pelo stdin. O processo usa uma pasta própria (`CODEX_HOME`) e roda sem `OPENAI_API_KEY`, para a cobrança sair do plano e não da API.
+4. O Codex não conhece as ferramentas do Atlas (agenda, música, PDF…); elas viram blocos `<ferramenta>{json}</ferramenta>` no texto, que o app executa e devolve.
+
+Limites: funciona só no computador (no Android não há como rodar o Codex); cada resposta leva alguns segundos a mais que a API; o uso conta no limite do plano do ChatGPT (quando acaba, o Atlas avisa). Sem chave, a fala é transcrita pelo Whisper tiny do próprio Atlas, sem internet (menos preciso). A chave de API continua disponível na aba **Chave de API**. Testes do módulo: `node --test desktop/test/*.test.js`.
+
+O login com a conta Google (Antigravity/Gemini CLI) **não** foi feito: o Google não permite que outros apps usem a assinatura Google AI Pro/Ultra e já baniu contas que fizeram isso. O Gemini segue pela chave grátis do AI Studio.
+
 ## Spotify: o Atlas dá o play sozinho
 
 Com a conta do Spotify conectada (Ajustes › Atalhos e música › Conectar Spotify), o Atlas procura a música pela Web API do Spotify e manda tocar, no celular e no Windows. Se o Spotify estiver fechado, ele abre o app, espera o aparelho aparecer e toca. Sem Premium, ou se algo falhar, continua o jeito antigo (abre a música no app).
