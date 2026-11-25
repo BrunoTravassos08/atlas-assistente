@@ -128,6 +128,34 @@ const notificacoes = {
   cancel: o => chamar("lembretes-cancelar", o)
 };
 
+/* ---------- ChatGPT pela assinatura (Codex CLI oficial, logado na conta do ChatGPT) ---------- */
+const cxOuv = {};
+ipcRenderer.on("codex-evento", (e, d) => (cxOuv[d?.id] || []).forEach(f => f(d)));
+let cxSeq = 0;
+const codex = {
+  status: () => chamar("codex-status"),
+  instalar: () => chamar("codex-instalar"),
+  login: () => chamar("codex-login"),
+  cancelarLogin: () => chamar("codex-login-cancelar"),
+  abrirLogin: url => chamar("codex-abrir-login", { url }),
+  sair: () => chamar("codex-sair"),
+  transcrever: amostras => chamar("stt-local", { amostras }),
+  // devolve {texto, buscas}; aoEvento recebe cada passo (busca na web, texto, aviso)
+  async chat({ prompt, web = false, esforco = "low", modelo = "", signal } = {}, aoEvento){
+    const id = "cx" + (++cxSeq) + "-" + Date.now();
+    if (aoEvento) cxOuv[id] = [aoEvento];
+    const parar = () => ipcRenderer.invoke("codex-cancelar", { id }).catch(() => {});
+    signal?.addEventListener?.("abort", parar, { once: true });
+    try {
+      if (signal?.aborted) throw { code: "cancelled", message: "cancelado" };
+      return await ipcRenderer.invoke("codex-chat", { id, prompt: String(prompt), web: !!web, esforco, modelo });
+    } catch (e){
+      const m = String(e?.message || e).replace(/^Error invoking remote method '[^']+': (Error: )?/, "");
+      throw { message: m, code: e?.code || (/cancelado/.test(m) ? "cancelled" : /tempo esgotado/.test(m) ? "timeout" : /usage limit|rate limit|429|limit/i.test(m) ? "limite" : /logged in|unauthorized|401|login|token/i.test(m) ? "auth" : /proxy|network|connect|stream disconnected/i.test(m) ? "network" : "api") };
+    } finally { delete cxOuv[id]; signal?.removeEventListener?.("abort", parar); }
+  }
+};
+
 /* ---------- eventos do Windows: atalho global, bandeja, notificação, atualização ---------- */
 const evOuv = {};
 ipcRenderer.on("desk-evento", (e, d) => (evOuv[d?.ev] || []).forEach(f => f(d)));
@@ -137,7 +165,7 @@ contextBridge.exposeInMainWorld("atlasDesktop", {
   plataforma: process.platform,
   http: o => chamar("http-get", o),
   httpReq: o => chamar("http-req", o),
-  voz, escuta, sistema, notificacoes,
+  voz, escuta, sistema, notificacoes, codex,
   config: {
     ler: () => chamar("desk-config"),
     gravar: o => chamar("desk-config-gravar", o),
