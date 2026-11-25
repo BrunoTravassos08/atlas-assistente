@@ -314,6 +314,7 @@ textarea.inp{height:auto;padding:8px 12px;resize:vertical;font:inherit}
 .team b{font-family:var(--f-hud);font-size:14px;line-height:1.15;overflow-wrap:anywhere}
 .crest{width:64px;height:72px;filter:drop-shadow(0 0 10px rgba(67,217,255,.25));animation:pop .6s cubic-bezier(.2,1.6,.4,1) both}
 .team:last-child .crest{animation-delay:.12s}
+.crest-img{object-fit:contain;padding:2px;filter:drop-shadow(0 0 10px rgba(67,217,255,.35)) drop-shadow(0 2px 4px rgba(0,0,0,.6))}
 .sc{display:flex;flex-direction:column;align-items:center}
 .sc .nums{display:flex;align-items:center;gap:10px;font-family:var(--f-hud);font-weight:700;font-size:52px;line-height:1;font-variant-numeric:tabular-nums;color:var(--fg);text-shadow:0 0 22px rgba(67,217,255,.45)}
 .sc .nums i{font-style:normal;font-size:24px;color:var(--fg-faint)}
@@ -2227,8 +2228,13 @@ function renderBriefing(h){
 const PALETA = ["#43d9ff","#9a6bff","#3dff8a","#ffb547","#2f6bff","#ff5d6c","#e6f3ff","#56d6b0"];
 const hexOk = (c, d) => /^#[0-9a-f]{3,8}$/i.test(String(c||"").trim()) ? String(c).trim() : d;
 const num = v => { const n = typeof v==="number" ? v : parseFloat(String(v??"").replace(/\./g,"").replace(",",".")); return isFinite(n) ? n : 0; };
+const escudoOk = u => /^https:\/\/a\.espncdn\.com\/[\w\/.-]+\.png$/i.test(String(u||""));
 function crest(t={}){
-  // escudo desenhado pelo app com as cores e a sigla do time (sem usar imagens de terceiros)
+  // escudo real do time (logo da ESPN); sem imagem ou sem internet, o app desenha um com as cores e a sigla
+  if (escudoOk(t.escudo)) return `<img class="crest crest-img" src="${esc(t.escudo)}" alt="Escudo ${esc(t.nome||"")}" loading="eager" decoding="async" referrerpolicy="no-referrer" onerror="this.nextElementSibling.style.display='';this.remove()">${crestSvg(t).replace('<svg class="crest"','<svg class="crest" style="display:none"')}`;
+  return crestSvg(t);
+}
+function crestSvg(t={}){
   const c1 = hexOk(t.cor_primaria, "#2f6bff"), c2 = hexOk(t.cor_secundaria, "#0b1530");
   const sig = esc(String(t.sigla || (t.nome||"?").replace(/[^A-Za-zÀ-ú ]/g,"").split(/\s+/).filter(Boolean).map(w=>w[0]).join("").slice(0,3) || "?").toUpperCase().slice(0,3));
   const id = "cr"+Math.random().toString(36).slice(2,8);
@@ -2319,7 +2325,8 @@ async function fichaEspn(p){
     estatisticas.push({nome:"Cartões vermelhos", mandante:cnt("mandante","vermelho"), visitante:cnt("visitante","vermelho")});
   }
   const cor = t => /^[0-9a-f]{6}$/i.test(String(t?.color||"")) ? "#"+t.color : null, cor2 = t => /^[0-9a-f]{6}$/i.test(String(t?.alternateColor||"")) ? "#"+t.alternateColor : null;
-  return {oficial:true, gols, cartoes, estatisticas, fonte:"ESPN", placar:[rm, rv], status: st.completed ? "encerrado" : st.state==="in" ? (/half/i.test(st.name||"")?"intervalo":"ao vivo") : "",
+  const logo = t => { const u = t?.logo || (t?.id ? `https://a.espncdn.com/i/teamlogos/soccer/500/${t.id}.png` : ""); return escudoOk(u) ? u : null; };
+  return {oficial:true, gols, cartoes, estatisticas, fonte:"ESPN", escudos:{mandante:logo(mand.team), visitante:logo(vis.team)}, placar:[rm, rv], status: st.completed ? "encerrado" : st.state==="in" ? (/half/i.test(st.name||"")?"intervalo":"ao vivo") : "",
     cores:{mandante:[cor(mand.team),cor2(mand.team)], visitante:[cor(vis.team),cor2(vis.team)]}};
 }
 function mesclarPlacar(p, r){
@@ -2346,6 +2353,7 @@ function mesclarPlacar(p, r){
   if(r.oficial){
     o.fonte = [...new Set(["ESPN", ...String(o.fonte||"").split(/\s*,\s*/).filter(Boolean)])].slice(0,4).join(", ");
     if(r.status && !/agend/i.test(o.status||"")) o.status = r.status;
+    for(const l of ["mandante","visitante"]){ const e=r.escudos?.[l]; if(e) o[l]=Object.assign({}, o[l], {escudo:e}); }
     for(const l of ["mandante","visitante"]){ const [c1,c2]=r.cores?.[l]||[]; if(c1 && !hexOk(o[l]?.cor_primaria,null)) o[l]=Object.assign({}, o[l], {cor_primaria:c1}, c2&&!hexOk(o[l]?.cor_secundaria,null)?{cor_secundaria:c2}:{}); }
   } else if(!o.fonte && r.fonte) o.fonte = String(r.fonte).slice(0,120);
   return o;
