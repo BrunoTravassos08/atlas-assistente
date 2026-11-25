@@ -363,7 +363,7 @@ textarea.inp{height:auto;padding:8px 12px;resize:vertical;font:inherit}
 .team b{font-family:var(--f-hud);font-size:14px;line-height:1.15;overflow-wrap:anywhere}
 .crest{width:64px;height:72px;filter:drop-shadow(0 0 10px rgba(67,217,255,.25));animation:pop .6s cubic-bezier(.2,1.6,.4,1) both}
 .team:last-child .crest{animation-delay:.12s}
-.crest-img{object-fit:contain;padding:2px;filter:drop-shadow(0 0 10px rgba(67,217,255,.35)) drop-shadow(0 2px 4px rgba(0,0,0,.6))}
+.crest-img{object-fit:contain;padding:4px;border-radius:50%;background:radial-gradient(circle,rgba(200,230,255,.16) 0,rgba(200,230,255,.06) 55%,transparent 72%);filter:drop-shadow(0 0 1px rgba(255,255,255,.95)) drop-shadow(0 0 1px rgba(255,255,255,.6)) drop-shadow(0 0 9px rgba(120,210,255,.55))}
 .sc{display:flex;flex-direction:column;align-items:center}
 .sc .nums{display:flex;align-items:center;gap:10px;font-family:var(--f-hud);font-weight:700;font-size:52px;line-height:1;font-variant-numeric:tabular-nums;color:var(--fg);text-shadow:0 0 22px rgba(67,217,255,.45)}
 .sc .nums i{font-style:normal;font-size:24px;color:var(--fg-faint)}
@@ -2485,7 +2485,10 @@ function mesclarPlacar(p, r){
   const st = Array.isArray(r.estatisticas) ? r.estatisticas.filter(x=>x&&x.nome&&x.mandante!=null&&x.visitante!=null&&String(x.mandante).trim()!==""&&String(x.visitante).trim()!=="") : [];
   if(st.length){
     const base = r.oficial ? st : (o.estatisticas||[]), extra = r.oficial ? (o.estatisticas||[]) : st;
-    const tem=new Set(base.map(x=>String(x.nome).toLowerCase())); o.estatisticas=[...base, ...extra.filter(x=>!tem.has(String(x.nome).toLowerCase()))].slice(0,8);
+    // "Faltas cometidas" e "Faltas" são a mesma estatística: fica só a primeira
+    const chave=x=>nomeTime(x?.nome), igual=(a,b)=>a&&b&&(a===b||a.startsWith(b+" ")||b.startsWith(a+" "));
+    const lista=[]; for(const x of [...base, ...extra]){ const k=chave(x); if(k && !lista.some(y=>igual(chave(y),k))) lista.push(x); }
+    o.estatisticas=lista.slice(0,8);
   }
   if(!o.classificacao && r.classificacao && typeof r.classificacao==="object") o.classificacao = r.classificacao;
   if(r.oficial){
@@ -2545,12 +2548,12 @@ function falaPlacar(p){
 function renderPlacar(h){
   const m=h.mandante||{}, v=h.visitante||{}, gm=num(m.gols), gv=num(v.gols), enc=!String(h.status||"").toLowerCase().includes("agend");
   const c1=hexOk(m.cor_primaria,"#43d9ff"), c2=hexOk(v.cor_primaria,"#9a6bff");
-  const stats=(h.estatisticas||[]).slice(0,8);
+  const stats=(h.estatisticas||[]).filter(st=>String(st?.nome||"").trim()).slice(0,8);
   // time que marcou sem autor encontrado: avisa em vez de deixar o lado vazio
   const semAutor=["mandante","visitante"].map(l=>{ const falta=(l==="mandante"?gm:gv)-(h.gols||[]).filter(g=>g.time===l).length; return enc&&falta>0?`<li class="${l==="visitante"?"v":"m"} faint">⚽ ${falta} ${falta>1?"gols":"gol"} · autor não encontrado</li>`:""; }).join("");
   return `<div class="eyebrow">${esc(h.competicao||"Futebol")}${h.data?` · ${esc(h.data)}`:""}</div>
     <div class="score"><div class="team">${crest(m)}<b>${esc(m.nome||"Mandante")}</b></div>
-      <div class="sc"><div class="nums">${enc?`<span class="${gm>gv?"win":""}" data-count="${gm}">0</span><i>×</i><span class="${gv>gm?"win":""}" data-count="${gv}">0</span>`:`<i>×</i>`}</div>${statusTag(h.status)}</div>
+      <div class="sc"><div class="nums">${enc?`<span class="${gm>gv?"win":""}" data-count="${gm}">${gm}</span><i>×</i><span class="${gv>gm?"win":""}" data-count="${gv}">${gv}</span>`:`<i>×</i>`}</div>${statusTag(h.status)}</div>
       <div class="team">${crest(v)}<b>${esc(v.nome||"Visitante")}</b></div></div>
     ${(h.gols||[]).length||semAutor?`<ul class="goals">${(h.gols||[]).slice(0,12).map((g,i)=>`<li class="${g.time==="visitante"?"v":"m"}" style="animation-delay:${.5+i*.08}s">⚽ ${esc(minutoTxt(g.minuto))} ${esc(g.jogador||"")}${/p[eê]n/i.test(g.tipo||"")?" (pên.)":/contra/i.test(g.tipo||"")?" (contra)":""}</li>`).join("")}${semAutor}</ul>`:""}
     ${(h.cartoes||[]).length?`<ul class="goals cards">${h.cartoes.slice(0,12).map((c,i)=>`<li class="${c.time==="visitante"?"v":"m"}" style="animation-delay:${.6+i*.06}s"><i class="${/verm/i.test(c.cor||"")?"verm":""}"></i>${esc(minutoTxt(c.minuto))} ${esc(c.jogador||"")}</li>`).join("")}</ul>`:""}
