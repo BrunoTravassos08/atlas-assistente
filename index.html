@@ -363,14 +363,15 @@ textarea.inp{height:auto;padding:8px 12px;resize:vertical;font:inherit}
 .team b{font-family:var(--f-hud);font-size:14px;line-height:1.15;overflow-wrap:anywhere}
 .crest{width:64px;height:72px;filter:drop-shadow(0 0 10px rgba(67,217,255,.25));animation:pop .6s cubic-bezier(.2,1.6,.4,1) both}
 .team:last-child .crest{animation-delay:.12s}
+.crest-img{object-fit:contain;padding:2px;filter:drop-shadow(0 0 10px rgba(67,217,255,.35)) drop-shadow(0 2px 4px rgba(0,0,0,.6))}
 .sc{display:flex;flex-direction:column;align-items:center}
 .sc .nums{display:flex;align-items:center;gap:10px;font-family:var(--f-hud);font-weight:700;font-size:52px;line-height:1;font-variant-numeric:tabular-nums;color:var(--fg);text-shadow:0 0 22px rgba(67,217,255,.45)}
 .sc .nums i{font-style:normal;font-size:24px;color:var(--fg-faint)}
 .sc .nums .win{color:var(--green);text-shadow:0 0 22px rgba(61,255,138,.45)}
 .sc small{font-family:var(--f-hud);font-size:10px;letter-spacing:.2em;text-transform:uppercase;color:var(--fg-dim);margin-top:6px}
 .sc small.live{color:var(--red)}.sc small.live::before{content:"";display:inline-block;width:7px;height:7px;border-radius:50%;background:var(--red);margin-right:6px;animation:pulse 1s infinite}
-.goals{list-style:none;margin:8px 0 0;padding:0;display:grid;grid-template-columns:1fr 1fr;gap:3px 12px;font-size:12px;color:var(--fg-dim)}
-.goals li{animation:rise .5s both}.goals li.v{text-align:right;grid-column:2}.goals li.m{grid-column:1}
+.goals{list-style:none;margin:8px 0 0;padding:0;display:grid;grid-template-columns:1fr 1fr;grid-auto-flow:row dense;gap:3px 12px;font-size:12px;color:var(--fg-dim)}
+.goals li{animation:rise .5s both}.goals li.v{text-align:right;grid-column:2}.goals li.m{grid-column:1}.goals li.faint{color:var(--fg-faint);font-style:italic}
 .stats{margin-top:12px;display:flex;flex-direction:column;gap:9px}
 .goals.cards{margin-top:4px}.goals.cards li i{display:inline-block;width:8px;height:11px;border-radius:2px;margin-right:4px;vertical-align:-1px;background:#ffd23f;box-shadow:0 0 6px #ffd23f88}.goals.cards li i.verm{background:#ff3b4e;box-shadow:0 0 6px #ff3b4e88}
 .tabela{margin-top:12px;padding:8px 10px;border:1px solid rgba(90,180,255,.18);background:rgba(67,217,255,.04);animation:rise .5s both;animation-delay:.6s}
@@ -2336,8 +2337,13 @@ function renderBriefing(h){
 const PALETA = ["#43d9ff","#9a6bff","#3dff8a","#ffb547","#2f6bff","#ff5d6c","#e6f3ff","#56d6b0"];
 const hexOk = (c, d) => /^#[0-9a-f]{3,8}$/i.test(String(c||"").trim()) ? String(c).trim() : d;
 const num = v => { const n = typeof v==="number" ? v : parseFloat(String(v??"").replace(/\./g,"").replace(",",".")); return isFinite(n) ? n : 0; };
+const escudoOk = u => /^https:\/\/a\.espncdn\.com\/[\w\/.-]+\.png$/i.test(String(u||""));
 function crest(t={}){
-  // escudo desenhado pelo app com as cores e a sigla do time (sem usar imagens de terceiros)
+  // escudo real do time (logo da ESPN); sem imagem ou sem internet, o app desenha um com as cores e a sigla
+  if (escudoOk(t.escudo)) return `<img class="crest crest-img" src="${esc(t.escudo)}" alt="Escudo ${esc(t.nome||"")}" loading="eager" decoding="async" referrerpolicy="no-referrer" onerror="this.nextElementSibling.style.display='';this.remove()">${crestSvg(t).replace('<svg class="crest"','<svg class="crest" style="display:none"')}`;
+  return crestSvg(t);
+}
+function crestSvg(t={}){
   const c1 = hexOk(t.cor_primaria, "#2f6bff"), c2 = hexOk(t.cor_secundaria, "#0b1530");
   const sig = esc(String(t.sigla || (t.nome||"?").replace(/[^A-Za-zÀ-ú ]/g,"").split(/\s+/).filter(Boolean).map(w=>w[0]).join("").slice(0,3) || "?").toUpperCase().slice(0,3));
   const id = "cr"+Math.random().toString(36).slice(2,8);
@@ -2359,41 +2365,140 @@ function linhaTabela(h){
 }
 // completa o placar com a ficha do jogo: quem fez os gols, cartões, faltas e a posição na tabela depois do jogo
 const placarCache = {};
+// ficha oficial pelo placar público da ESPN (sem chave): gols com minuto e autor, cartões e estatísticas do jogo
+const ESPN_LIGAS = [[/s[ée]rie b/i,"bra.2"],[/s[ée]rie c/i,"bra.3"],[/copa do brasil/i,"bra.copa_do_brazil"],[/nordeste/i,"bra.copa_do_nordeste"],[/libertadores/i,"conmebol.libertadores"],[/sul-?americana|sudamericana/i,"conmebol.sudamericana"],
+  [/\bafc\b|asi[áa]tic/i,"afc.champions"],[/saudi|saudita|roshn/i,"ksa.1"],[/europa league|liga europa/i,"uefa.europa"],[/conference/i,"uefa.europa.conf"],[/champions|liga dos campe/i,"uefa.champions"],
+  [/premier league|ingl[eê]s/i,"eng.1"],[/la ?liga|espanhol/i,"esp.1"],[/italian|s[ée]rie a.*it/i,"ita.1"],[/bundesliga|alem[ãa]o/i,"ger.1"],[/ligue 1|franc[eê]s/i,"fra.1"],[/portugu|liga portugal|primeira liga/i,"por.1"],
+  [/\bmls\b/i,"usa.1"],[/mundial de clubes|club world/i,"fifa.cwc"],[/brasileir|s[ée]rie a/i,"bra.1"]];
+const ESPN_STATS = [["possessionPct","Posse de bola","%"],["totalShots","Finalizações"],["shotsOnTarget","Chutes no gol"],["wonCorners","Escanteios"],["foulsCommitted","Faltas"],["offsides","Impedimentos"]];
+const nomeTime = s => String(s||"").normalize("NFD").replace(/[̀-ͯ]/g,"").toLowerCase().replace(/[^a-z0-9]+/g," ").replace(/\b(fc|ec|sc|cf|afc|club|clube|de|da|do|futebol|calcio)\b/g," ").replace(/\s+/g," ").trim();
+function mesmoTime(nosso, t={}){
+  const a=nomeTime(nosso); if(!a) return 0;
+  let melhor=0;
+  for(const n of [t.displayName,t.shortDisplayName,t.name,t.location,t.abbreviation]){
+    const b=nomeTime(n); if(!b) continue;
+    if(a===b) return 3;
+    if(b.length>=4 && (a.includes(b)||b.includes(a))) melhor=Math.max(melhor,2);
+    const ta=a.split(" ").filter(w=>w.length>=3 && w!=="al"), tb=new Set(b.split(" "));
+    if(ta.some(w=>tb.has(w))) melhor=Math.max(melhor,1);
+  }
+  return melhor;
+}
+const espnCache = {};
+async function fichaEspn(p){
+  const gm=num(p.mandante.gols), gv=num(p.visitante.gols);
+  const ligas=[...new Set([...ESPN_LIGAS.filter(([re])=>re.test(p.competicao||"")).slice(0,2).map(([,l])=>l), "all"])];
+  const dias=[0,1,2].map(k=>{ const d=new Date(Date.now()-k*864e5); return `${d.getFullYear()}${String(d.getMonth()+1).padStart(2,"0")}${String(d.getDate()).padStart(2,"0")}`; });
+  const m=/(\d{1,2})\/(\d{1,2})(?:\/(\d{2,4}))?/.exec(String(p.data||p.competicao||""));
+  if(m){ const y=m[3]?(m[3].length===2?"20"+m[3]:m[3]):String(new Date().getFullYear()); const d=`${y}${m[2].padStart(2,"0")}${m[1].padStart(2,"0")}`; if(!dias.includes(d)) dias.unshift(d); }
+  const pedidos=[]; for(const l of ligas) for(const d of dias) pedidos.push({l,d});
+  const respostas = await Promise.all(pedidos.map(async ({l,d})=>{
+    const url=`https://site.api.espn.com/apis/site/v2/sports/soccer/${l}/scoreboard?dates=${d}`;
+    if(espnCache[url] && Date.now()-espnCache[url].em<120000) return espnCache[url].j;
+    try{ const j=JSON.parse(await httpTexto(url, 12000)); espnCache[url]={j, em:Date.now()}; return j; }catch{ return null; }
+  }));
+  let achado=null, nota=-1;
+  for(const j of respostas) for(const ev of (j?.events||[])){
+    const c=ev.competitions?.[0], cs=c?.competitors||[]; if(cs.length!==2) continue;
+    const casa=cs.find(x=>x.homeAway==="home")||cs[0], fora=cs.find(x=>x!==casa);
+    for(const [mand, vis] of [[casa,fora],[fora,casa]]){
+      const a=mesmoTime(p.mandante.nome, mand.team), b=mesmoTime(p.visitante.nome, vis.team); if(!a||!b) continue;
+      const st=ev.status?.type||{}, placarIgual = num(mand.score)===gm && num(vis.score)===gv;
+      const n=a+b+(placarIgual?4:0)+(st.completed?1:0)+(st.state==="in"?1:0);
+      if(n>nota){ nota=n; achado={ev, c, mand, vis}; }
+    }
+  }
+  if(!achado) return null;
+  const {ev, c, mand, vis}=achado, idM=String(mand.team?.id||mand.id||"");
+  const lado = d => String(d.team?.id||"")===idM ? "mandante" : "visitante";
+  const det=(c.details||[]).filter(d=>!d.shootout);
+  const quem = d => String(d.athletesInvolved?.[0]?.displayName||d.athletesInvolved?.[0]?.shortName||"").trim();
+  let gols=det.filter(d=>d.scoringPlay && quem(d)).map(d=>({time:lado(d), jogador:quem(d), minuto:String(d.clock?.displayValue||""), tipo:d.ownGoal?"contra":d.penaltyKick?"pênalti":"", _og:!!d.ownGoal}));
+  // gol contra: se a conta não fechar, o time do lance é o de quem errou
+  const conta = g => [g.filter(x=>x.time==="mandante").length, g.filter(x=>x.time==="visitante").length];
+  const [rm, rv]=[num(mand.score), num(vis.score)];
+  if(gols.some(g=>g._og)){ const [a,b]=conta(gols); if(a!==rm||b!==rv){ const troca=gols.map(g=>g._og?Object.assign({},g,{time:g.time==="mandante"?"visitante":"mandante"}):g); const [a2,b2]=conta(troca); if(a2===rm&&b2===rv) gols=troca; } }
+  gols=gols.map(({_og,...g})=>g);
+  const cartoes=det.filter(d=>(d.yellowCard||d.redCard) && quem(d)).map(d=>({time:lado(d), jogador:quem(d), minuto:String(d.clock?.displayValue||""), cor:d.redCard?"vermelho":"amarelo"}));
+  const val = (cp, nome) => { const s=(cp.statistics||[]).find(x=>x.name===nome); if(!s) return null; const v=parseFloat(String(s.displayValue??s.value??"").replace(",",".")); return isFinite(v)?v:null; };
+  const estatisticas=[];
+  for(const [k, nome, unidade] of ESPN_STATS){
+    let a=val(mand,k), b=val(vis,k); if(a==null||b==null) continue;
+    if(unidade==="%"){ if(a+b<=0) continue; a=Math.round(a); b=100-a; }
+    estatisticas.push(Object.assign({nome, mandante:a, visitante:b}, unidade?{unidade}:{}));
+  }
+  const st=ev.status?.type||{};
+  if(st.state!=="pre"){
+    const cnt=(lad,cor)=>cartoes.filter(x=>x.time===lad&&x.cor===cor).length;
+    estatisticas.push({nome:"Cartões amarelos", mandante:cnt("mandante","amarelo"), visitante:cnt("visitante","amarelo")});
+    estatisticas.push({nome:"Cartões vermelhos", mandante:cnt("mandante","vermelho"), visitante:cnt("visitante","vermelho")});
+  }
+  const cor = t => /^[0-9a-f]{6}$/i.test(String(t?.color||"")) ? "#"+t.color : null, cor2 = t => /^[0-9a-f]{6}$/i.test(String(t?.alternateColor||"")) ? "#"+t.alternateColor : null;
+  const logo = t => { const u = t?.logo || (t?.id ? `https://a.espncdn.com/i/teamlogos/soccer/500/${t.id}.png` : ""); return escudoOk(u) ? u : null; };
+  return {oficial:true, gols, cartoes, estatisticas, fonte:"ESPN", escudos:{mandante:logo(mand.team), visitante:logo(vis.team)}, placar:[rm, rv], status: st.completed ? "encerrado" : st.state==="in" ? (/half/i.test(st.name||"")?"intervalo":"ao vivo") : "",
+    cores:{mandante:[cor(mand.team),cor2(mand.team)], visitante:[cor(vis.team),cor2(vis.team)]}};
+}
 function mesclarPlacar(p, r){
   if(!r || typeof r!=="object") return p;
   const lado = x => String(x||"").toLowerCase().startsWith("v") ? "visitante" : "mandante";
   const o = Object.assign({}, p);
-  if(!(o.gols||[]).length && Array.isArray(r.gols)) o.gols = r.gols.filter(g=>g&&g.jogador).slice(0,12).map(g=>({time:lado(g.time), jogador:String(g.jogador), minuto:String(g.minuto??""), tipo:String(g.tipo??"")}));
-  if(!(o.cartoes||[]).length && Array.isArray(r.cartoes)) o.cartoes = r.cartoes.filter(c=>c&&c.jogador).slice(0,14).map(c=>({time:lado(c.time), jogador:String(c.jogador), minuto:String(c.minuto??""), cor:/verm/i.test(c.cor||"")?"vermelho":"amarelo"}));
+  const gm=num(p.mandante?.gols), gv=num(p.visitante?.gols);
+  const novos = Array.isArray(r.gols) ? r.gols.filter(g=>g&&g.jogador).slice(0,12).map(g=>({time:lado(g.time), jogador:String(g.jogador), minuto:String(g.minuto??""), tipo:String(g.tipo??"")})) : [];
+  const doLado = (lista, l) => (lista||[]).filter(g=>g.time===l);
+  if(r.oficial && novos.length===gm+gv && doLado(novos,"mandante").length===gm) o.gols = novos;
+  else if(novos.length){
+    // completa lado a lado: o time que marcou e ainda não tem autor recebe os nomes da ficha
+    const junta = ["mandante","visitante"].flatMap(l=>{ const tem=doLado(o.gols,l), alvo=l==="mandante"?gm:gv, fic=doLado(novos,l); return (tem.length<alvo && fic.length>tem.length) ? fic.slice(0,Math.max(alvo,1)) : tem; });
+    o.gols = junta;
+  }
+  const cards = Array.isArray(r.cartoes) ? r.cartoes.filter(c=>c&&c.jogador).slice(0,14).map(c=>({time:lado(c.time), jogador:String(c.jogador), minuto:String(c.minuto??""), cor:/verm/i.test(c.cor||"")?"vermelho":"amarelo"})) : [];
+  if(cards.length && (r.oficial || !(o.cartoes||[]).length)) o.cartoes = cards;
   const st = Array.isArray(r.estatisticas) ? r.estatisticas.filter(x=>x&&x.nome&&x.mandante!=null&&x.visitante!=null&&String(x.mandante).trim()!==""&&String(x.visitante).trim()!=="") : [];
-  if(st.length){ const tem=new Set((o.estatisticas||[]).map(x=>String(x.nome).toLowerCase())); o.estatisticas=[...(o.estatisticas||[]), ...st.filter(x=>!tem.has(String(x.nome).toLowerCase()))].slice(0,8); }
+  if(st.length){
+    const base = r.oficial ? st : (o.estatisticas||[]), extra = r.oficial ? (o.estatisticas||[]) : st;
+    const tem=new Set(base.map(x=>String(x.nome).toLowerCase())); o.estatisticas=[...base, ...extra.filter(x=>!tem.has(String(x.nome).toLowerCase()))].slice(0,8);
+  }
   if(!o.classificacao && r.classificacao && typeof r.classificacao==="object") o.classificacao = r.classificacao;
-  if(!o.fonte && r.fonte) o.fonte = String(r.fonte).slice(0,120);
+  if(r.oficial){
+    o.fonte = [...new Set(["ESPN", ...String(o.fonte||"").split(/\s*,\s*/).filter(Boolean)])].slice(0,4).join(", ");
+    if(r.status && !/agend/i.test(o.status||"")) o.status = r.status;
+    for(const l of ["mandante","visitante"]){ const e=r.escudos?.[l]; if(e) o[l]=Object.assign({}, o[l], {escudo:e}); }
+    for(const l of ["mandante","visitante"]){ const [c1,c2]=r.cores?.[l]||[]; if(c1 && !hexOk(o[l]?.cor_primaria,null)) o[l]=Object.assign({}, o[l], {cor_primaria:c1}, c2&&!hexOk(o[l]?.cor_secundaria,null)?{cor_secundaria:c2}:{}); }
+  } else if(!o.fonte && r.fonte) o.fonte = String(r.fonte).slice(0,120);
   return o;
 }
-async function detalharPlacar(p, {timeout=20000}={}){
-  if(!sample?.web || !p?.mandante?.nome || !p?.visitante?.nome) return p;
+const placarCompleto = p => { const gm=num(p.mandante?.gols), gv=num(p.visitante?.gols); return (p.gols||[]).length>=gm+gv && (p.estatisticas||[]).length>=3 && !!p.classificacao; };
+async function detalharPlacar(p, {timeout=20000, onParcial}={}){
+  if(!p?.mandante?.nome || !p?.visitante?.nome) return p;
   const gm=num(p.mandante.gols), gv=num(p.visitante.gols), agendado=/agend/i.test(p.status||"");
-  if(agendado) return p;
-  const completo = ((p.gols||[]).length || gm+gv===0) && (p.cartoes||[]).length && (p.estatisticas||[]).length>=3 && p.classificacao;
-  if(completo) return p;
+  if(agendado || placarCompleto(p)) return p;
+  let o = p;
+  // 1º a ficha oficial (rápida e sem custo); depois a IA só para o que faltar, como a tabela
+  if(!(p.fonte||"").includes("ESPN")){
+    try{ const f = await fichaEspn(p);
+      if(f){ o = mesclarPlacar(o, f); diario(`placar ESPN: ${f.gols.length} gols, ${f.cartoes.length} cartões, ${f.estatisticas.length} estatísticas`); onParcial?.(o); }
+      else diario("placar ESPN: jogo não encontrado");
+    }catch(e){ diario(`placar ESPN: ${e?.message||e}`); }
+  }
+  if(placarCompleto(o) || !sample?.web) return o;
+  const temFicha = (o.fonte||"").includes("ESPN");
   const chave = `${p.mandante.nome}|${p.visitante.nome}|${gm}-${gv}|${hojeISO()}`;
-  if(placarCache[chave]) return mesclarPlacar(p, placarCache[chave]);
-  const prompt = `Hoje é ${new Date().toLocaleDateString("pt-BR")}. Use a busca na web para achar a ficha técnica do jogo mais recente ${p.mandante.nome} x ${p.visitante.nome}${p.competicao?` (${p.competicao})`:""}, que terminou ${gm} x ${gv}, e a classificação do campeonato atualizada depois dele.
+  if(placarCache[chave]) return mesclarPlacar(o, placarCache[chave]);
+  const prompt = `Hoje é ${new Date().toLocaleDateString("pt-BR")}. Use a busca na web para achar ${temFicha?"":"a ficha técnica do jogo mais recente "}${p.mandante.nome} x ${p.visitante.nome}${p.competicao?` (${p.competicao})`:""}, que terminou ${gm} x ${gv}, e a classificação do campeonato atualizada depois dele.
 Responda SOMENTE com JSON:
 {"gols": [{"time": "mandante ou visitante", "jogador": "nome", "minuto": "23'", "tipo": "pênalti, contra ou vazio"}],
  "cartoes": [{"time": "mandante ou visitante", "jogador": "nome", "minuto": "40'", "cor": "amarelo ou vermelho"}],
  "estatisticas": [{"nome": "Faltas", "mandante": 14, "visitante": 11}, {"nome": "Cartões amarelos", "mandante": 2, "visitante": 3}, {"nome": "Cartões vermelhos", "mandante": 0, "visitante": 1}, {"nome": "Posse de bola", "mandante": 55, "visitante": 45, "unidade": "%"}, {"nome": "Finalizações", "mandante": 12, "visitante": 8}, {"nome": "Escanteios", "mandante": 6, "visitante": 3}],
  "classificacao": {"mandante": {"posicao": 5, "pontos": 52, "antes": 7}, "visitante": {"posicao": 12, "pontos": 40, "antes": 11}},
  "fonte": "sites usados"}
-"mandante" é ${p.mandante.nome} e "visitante" é ${p.visitante.nome}. "antes" é a posição antes desta rodada. Use só dados encontrados na busca e omita o que não encontrar. Nunca invente.`;
+"mandante" é ${p.mandante.nome} e "visitante" é ${p.visitante.nome}. Liste os gols dos DOIS times (${p.mandante.nome} fez ${gm}, ${p.visitante.nome} fez ${gv}). "antes" é a posição antes desta rodada. Use só dados encontrados na busca e omita o que não encontrar. Nunca invente.`;
   const ctl = new AbortController(), tm = setTimeout(()=>ctl.abort(), timeout);
   try{
     const r = await Promise.race([sample.json(prompt, {modelTier:"quick", web:true, signal:ctl.signal}), new Promise((_,rej)=>setTimeout(()=>rej(new Error("demorou")), timeout+500))]);
-    placarCache[chave] = r; const o = mesclarPlacar(p, r);
+    placarCache[chave] = r; o = mesclarPlacar(o, r);
     diario(`placar: ficha ${(o.gols||[]).length} gols, ${(o.cartoes||[]).length} cartões, ${(o.estatisticas||[]).length} estatísticas, tabela ${o.classificacao?"sim":"não"}`);
     return o;
-  }catch(e){ diario(`placar: ficha do jogo não veio (${e?.code||e?.message||e})`); return p; }
+  }catch(e){ diario(`placar: ficha do jogo não veio (${e?.code||e?.message||e})`); return o; }
   finally{ clearTimeout(tm); }
 }
 // frase extra para o briefing: quem marcou e como fica na tabela
@@ -2411,12 +2516,14 @@ function falaPlacar(p){
 function renderPlacar(h){
   const m=h.mandante||{}, v=h.visitante||{}, gm=num(m.gols), gv=num(v.gols), enc=!String(h.status||"").toLowerCase().includes("agend");
   const c1=hexOk(m.cor_primaria,"#43d9ff"), c2=hexOk(v.cor_primaria,"#9a6bff");
-  const stats=(h.estatisticas||[]).slice(0,7);
+  const stats=(h.estatisticas||[]).slice(0,8);
+  // time que marcou sem autor encontrado: avisa em vez de deixar o lado vazio
+  const semAutor=["mandante","visitante"].map(l=>{ const falta=(l==="mandante"?gm:gv)-(h.gols||[]).filter(g=>g.time===l).length; return enc&&falta>0?`<li class="${l==="visitante"?"v":"m"} faint">⚽ ${falta} ${falta>1?"gols":"gol"} · autor não encontrado</li>`:""; }).join("");
   return `<div class="eyebrow">${esc(h.competicao||"Futebol")}${h.data?` · ${esc(h.data)}`:""}</div>
     <div class="score"><div class="team">${crest(m)}<b>${esc(m.nome||"Mandante")}</b></div>
       <div class="sc"><div class="nums">${enc?`<span class="${gm>gv?"win":""}" data-count="${gm}">0</span><i>×</i><span class="${gv>gm?"win":""}" data-count="${gv}">0</span>`:`<i>×</i>`}</div>${statusTag(h.status)}</div>
       <div class="team">${crest(v)}<b>${esc(v.nome||"Visitante")}</b></div></div>
-    ${(h.gols||[]).length?`<ul class="goals">${h.gols.slice(0,10).map((g,i)=>`<li class="${g.time==="visitante"?"v":"m"}" style="animation-delay:${.5+i*.08}s">⚽ ${esc(minutoTxt(g.minuto))} ${esc(g.jogador||"")}${/p[eê]n/i.test(g.tipo||"")?" (pên.)":/contra/i.test(g.tipo||"")?" (contra)":""}</li>`).join("")}</ul>`:""}
+    ${(h.gols||[]).length||semAutor?`<ul class="goals">${(h.gols||[]).slice(0,12).map((g,i)=>`<li class="${g.time==="visitante"?"v":"m"}" style="animation-delay:${.5+i*.08}s">⚽ ${esc(minutoTxt(g.minuto))} ${esc(g.jogador||"")}${/p[eê]n/i.test(g.tipo||"")?" (pên.)":/contra/i.test(g.tipo||"")?" (contra)":""}</li>`).join("")}${semAutor}</ul>`:""}
     ${(h.cartoes||[]).length?`<ul class="goals cards">${h.cartoes.slice(0,12).map((c,i)=>`<li class="${c.time==="visitante"?"v":"m"}" style="animation-delay:${.6+i*.06}s"><i class="${/verm/i.test(c.cor||"")?"verm":""}"></i>${esc(minutoTxt(c.minuto))} ${esc(c.jogador||"")}</li>`).join("")}</ul>`:""}
     ${linhaTabela(h)}
     ${stats.length?`<div class="stats" style="--c1:${c1};--c2:${c2}">${stats.map((st,i)=>{ const a=num(st.mandante), b=num(st.visitante), t=(a+b)||1, u=esc(st.unidade||"");
@@ -3128,8 +3235,10 @@ const tools = [
      const mostra=p=>{ highlight=Object.assign({tipo:"placar"}, p, {titulo}); store.set("hl",highlight); tab="destaque"; renderCard(); renderTicker(); };
      mostra(i);
      // sem a ficha completa: o app busca gols, cartões, faltas e a tabela e atualiza o cartão
-     const antes=highlight, p=await detalharPlacar(i);
-     if(p!==i && highlight===antes) mostra(p);
+     let atual=highlight;
+     const troca=p=>{ if(highlight!==atual) return; mostra(p); atual=highlight; };
+     const p=await detalharPlacar(i, {onParcial:troca});
+     if(p!==i) troca(p);
      return {ok:true, gols:p.gols||[], cartoes:p.cartoes||[], estatisticas:p.estatisticas||[], classificacao:p.classificacao||null, nota:"o cartão já mostra tudo isso; na fala, cite quem marcou e a posição na tabela em 1 ou 2 frases"}; }},
   {name:"mostrar_grafico", description:"Mostra no painel um gráfico animado. tipo barras: comparar valores (rankings, preços, tabelas); linha: evolução no tempo (cotação, temperatura da semana); pizza: partes de um todo (percentuais). Use sempre que a resposta tiver 3 ou mais números comparáveis.", inputSchema:{type:"object",properties:{
       titulo:{type:"string"}, categoria:{type:"string",description:"rótulo curto, ex.: Economia, Clima, Futebol"}, tipo:{type:"string",enum:["barras","linha","pizza"]}, unidade:{type:"string",description:"ex.: %, °C, R$ (vai depois do número)"},
@@ -4498,6 +4607,11 @@ async function setupNativeVoice(){
 
 /* ---------- start ---------- */
 applyName(); renderCard(); renderTicker();
+// placar salvo sem a ficha (gols dos dois times, estatísticas): completa ao abrir o app
+if (highlight?.tipo==="placar" && highlight.mandante && !placarCompleto(highlight) && !highlight.fichaEm){
+  const salvo=highlight;
+  setTimeout(()=>detalharPlacar(salvo, {timeout:15000}).then(p=>{ if(p!==salvo && highlight===salvo){ highlight=Object.assign({}, p, {tipo:"placar", titulo:salvo.titulo, fichaEm:Date.now()}); store.set("hl",highlight); renderCard(); renderTicker(); } }).catch(()=>{}), 2500);
+}
 if (!cfg?.provider || (!window.claude?.use && !cfg?.keys?.[cfg.provider] && !(cfg.provider==="gpt" && contaGpt()))) showLogin();
 else if (!cfg.onboarded) { connectAI(); onboarding().then(()=>activate({primeira:true})); }
 else showBoot();
