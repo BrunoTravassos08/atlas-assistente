@@ -84,6 +84,22 @@ button{cursor:pointer}
 .rows .t{font-weight:600;font-size:14px;min-width:0}
 .rows .t small{display:block;font-weight:400;color:var(--fg-faint);font-size:11px}
 .rows li.done .t{color:var(--fg-faint);text-decoration:line-through}
+.rows li.tarefa{grid-template-columns:auto 1fr auto auto}
+.del{width:30px;height:30px;border:1px solid transparent;background:transparent;display:grid;place-items:center;color:var(--fg-faint);padding:0;border-radius:8px;transition:color .2s,border-color .2s,background .2s}
+.del svg{width:16px;height:16px}
+.del:hover{color:var(--red)}
+.del.confirma{color:#fff;background:var(--red);border-color:var(--red);width:auto;padding:0 8px;font-family:var(--f-hud);font-size:11px;font-weight:700;letter-spacing:.08em;box-shadow:0 0 12px rgba(255,93,108,.5)}
+.rows .t small.vida{color:var(--violet)}
+.agHead{display:flex;align-items:center;justify-content:space-between;gap:8px}
+.agHead .eyebrow{margin:0}
+.agAdd{border:1px solid var(--line-hi);background:rgba(67,217,255,.08);color:var(--cyan);font-family:var(--f-hud);font-size:11px;font-weight:600;letter-spacing:.14em;text-transform:uppercase;padding:6px 10px;border-radius:8px}
+.agForm{display:grid;grid-template-columns:1fr 1fr;gap:8px;margin:10px 0;padding:10px;border:1px solid var(--line-hi);border-radius:12px;background:rgba(8,20,40,.75);animation:rise .3s both}
+.agForm label{display:flex;flex-direction:column;gap:4px;font-family:var(--f-hud);font-size:10px;letter-spacing:.14em;text-transform:uppercase;color:var(--fg-dim);min-width:0}
+.agForm .full{grid-column:1/-1}
+.agForm input,.agForm select{width:100%;min-width:0;height:38px;background:rgba(4,9,20,.8);border:1px solid var(--line);border-radius:8px;color:var(--fg);padding:0 10px;font:15px var(--f-body);color-scheme:dark}
+.agForm input:focus,.agForm select:focus{outline:none;border-color:var(--cyan);box-shadow:0 0 0 2px rgba(67,217,255,.2)}
+.agForm .acoes{grid-column:1/-1;display:flex;gap:8px;justify-content:flex-end}
+.agForm .acoes .btn-solid{padding:9px 18px}
 .rows li.late{border-left:3px solid var(--red);padding-left:8px;background:linear-gradient(90deg,rgba(255,93,108,.12),transparent 70%)}
 .rows li.late .time,.rows li.late .t small.atraso{color:var(--red)}
 .rows .t small.atraso{font-weight:600;font-family:var(--f-hud);letter-spacing:.02em}
@@ -731,7 +747,12 @@ let tasks = store.get("tasks", null);
 if (!tasks) tasks = [];
 // itens antigos sem data contavam como "hoje" para sempre: passam a ter a data de hoje,
 // e os já marcados como ok ganham a hora da marcação (somem 12h depois)
-tasks.forEach(t=>{ if(!t.data) t.data = hojeData(); if(t.feito && !t.feitoEm) t.feitoEm = Date.now(); });
+// (a versão anterior não salvava essa migração, então o relógio de 12h recomeçava a cada abertura e nada sumia)
+// itens ok sem hora da marcação foram marcados antes dessa regra existir, há mais de 12h: saem já
+{ const n=tasks.length, semData=tasks.some(t=>!t.data);
+  tasks = tasks.filter(t=>!(t.feito && !t.feitoEm));
+  tasks.forEach(t=>{ if(!t.data) t.data = hojeData(); });
+  if (tasks.length!==n || semData) store.set("tasks", tasks); }
 let highlight = store.get("hl", {categoria:"Sistema", titulo:"Pronto para começar", valor:"100%", legenda:"Todos os módulos online. Peça algo por voz ou texto."});
 let history = store.get("conversa", []); // conversa dedicada do agente, salva no aparelho
 const saveHist = () => { if (history.length>80) history.splice(0, history.length-80); store.set("conversa", history); };
@@ -1208,19 +1229,34 @@ let tarefasCriadas = 0;
 function novaTarefa(i){
   const data = /^\d{4}-\d{2}-\d{2}$/.test(String(i.data||"")) ? i.data : hojeData();
   const x={id:nextId++, titulo:String(i.titulo||"Lembrete").slice(0,80), hora:horaHHMM(i.hora), data, nota:i.nota?String(i.nota).slice(0,60):"", feito:false};
+  const dur=DURACOES.find(d=>d.id===i.duracao);
+  if (dur?.ms){ x.duracao=dur.id; x.expiraEm=Date.now()+dur.ms; }
   tasks.push(x); saveTasks(); tarefasCriadas++; tab="agenda"; renderCard(); renderTicker();
   diario(`agenda: "${x.titulo}" ${x.data||"hoje"} ${x.hora||""}`);
   return x;
 }
 const rotuloData = d => { if(!d) return ""; const hj=hojeData(), am=hojeData(new Date(Date.now()+864e5)); if(d===hj) return ""; if(d===am) return "amanhã"; const [y,m,dd]=d.split("-"); return new Date(+y,+m-1,+dd).toLocaleDateString("pt-BR",{weekday:"short",day:"2-digit",month:"2-digit"}).replace(".",""); };
+// quanto tempo a tarefa fica na agenda (escolhido ao criar); "ate_concluir" = até marcar ok (e some 12h depois)
+const DURACOES = [
+  {id:"ate_concluir", nome:"Até eu concluir", ms:0},
+  {id:"1d", nome:"1 dia", ms:864e5},
+  {id:"3d", nome:"3 dias", ms:3*864e5},
+  {id:"7d", nome:"1 semana", ms:7*864e5},
+  {id:"30d", nome:"1 mês", ms:30*864e5},
+];
+function faltaExpirar(t){
+  const ms=t.expiraEm-Date.now(); if(!(ms>0)) return "";
+  const h=Math.ceil(ms/3600e3); if(h<24) return `${h} ${h>1?"horas":"hora"}`;
+  const d=Math.ceil(ms/864e5); return `${d} ${d>1?"dias":"dia"}`;
+}
 // itens marcados como ok somem 12 horas depois da marcação
 const LIMPA_FEITO_MS = 12*3600e3;
 function marcarFeito(x, feito=true){ x.feito=!!feito; if(x.feito) x.feitoEm=Date.now(); else delete x.feitoEm; saveTasks(); }
 function limparConcluidas(){
   const n=tasks.length, agora=Date.now();
-  tasks=tasks.filter(t=>!(t.feito && agora-(t.feitoEm||agora)>=LIMPA_FEITO_MS));
+  tasks=tasks.filter(t=>!(t.feito && agora-(t.feitoEm||agora)>=LIMPA_FEITO_MS) && !(t.expiraEm && agora>=t.expiraEm));
   if(tasks.length===n) return false;
-  saveTasks(); diario(`agenda: ${n-tasks.length} ${n-tasks.length>1?"itens concluídos apagados":"item concluído apagado"} (12h depois do ok)`); return true;
+  saveTasks(); diario(`agenda: ${n-tasks.length} ${n-tasks.length>1?"itens apagados":"item apagado"} (12h depois do ok ou fim da duração)`); return true;
 }
 // tarefas de dias anteriores que não foram concluídas
 const ehAtrasada = t => !t.feito && !!t.data && t.data<hojeData();
@@ -1714,8 +1750,27 @@ function ajustesPiper(){
       : (sel && !sel.embutida ? `<div class="row"><span class="sub">Voz baixada no aparelho</span><button class="btn-line" data-act="piper-remover" type="button">Apagar</button></div>` : "")}
     <p class="note" style="margin:0">Voz neural que roda no próprio ${APARELHO}, sem internet e sem gastar cota.${sel?.licenca && !/CC0/.test(sel.licenca)?` Licença da voz ${esc(sel.nome)}: ${esc(sel.licenca)}.`:""}${piperInfo?.erro?` <span style="color:var(--amber)">Não consegui iniciar a voz neural (${esc(String(piperInfo.erro).slice(0,90))}); usando a do aparelho.</span>`:""}</p>`;
 }
+// formulário de nova tarefa e botão de apagar (toque duas vezes para confirmar, sem janela de confirmação)
+let agForm=null, apagarId=null, apagarT=null;
+function lerFormTarefa(){
+  if(!agForm) return;
+  const v=id=>document.getElementById(id)?.value;
+  if(v("agTitulo")!=null) Object.assign(agForm, {titulo:v("agTitulo"), data:v("agData")||hojeData(), hora:v("agHora")||"", duracao:v("agDur")||"ate_concluir"});
+}
+function formTarefa(){
+  if(!agForm) return "";
+  const f=agForm;
+  return `<form class="agForm" onsubmit="return false">
+    <label class="full">Tarefa<input id="agTitulo" maxlength="80" placeholder="Ex.: ligar para o João" value="${esc(f.titulo)}" autocomplete="off"></label>
+    <label>Dia<input id="agData" type="date" value="${esc(f.data)}" min="${hojeData()}"></label>
+    <label>Hora<input id="agHora" type="time" value="${esc(f.hora)}"></label>
+    <label class="full">Fica na agenda por<select id="agDur">${DURACOES.map(d=>`<option value="${d.id}"${d.id===f.duracao?" selected":""}>${d.nome}</option>`).join("")}</select></label>
+    <div class="acoes"><button type="button" class="btn-line" data-act="agCancelar">Cancelar</button><button type="submit" class="btn-solid" data-act="agSalvar">Salvar</button></div>
+  </form>`;
+}
 let shown={h:null,i:null}, swapT=null;
 function renderCard(){
+  lerFormTarefa();
   const el=$("#card");
   el.classList.toggle("rich", tab==="destaque" && ["placar","grafico","briefing","apresentacao","gasto","musica"].includes(highlight?.tipo));
   el.classList.toggle("musico", tab==="destaque" && highlight?.tipo==="musica");
@@ -1723,7 +1778,7 @@ function renderCard(){
   if (tab==="agenda"){
     limparConcluidas();
     const list=tarefasVisiveis(), nAt=list.filter(ehAtrasada).length;
-    el.innerHTML = `<div class="eyebrow">Agenda</div>` + (nAt?`<div class="atrasoBox" role="status"><b>${nAt}</b>${nAt>1?"tarefas atrasadas":"tarefa atrasada"} de dias anteriores</div>`:"") + (list.length ? `<ul class="rows">${list.map(x=>{ const at=ehAtrasada(x); return `<li class="${x.feito?"done":at?"late":""}"><span class="time">${rotuloData(x.data)?`<small style="display:block;color:${at?"var(--red)":"var(--amber)"}">${esc(rotuloData(x.data))}</small>`:""}${esc(x.hora||"--:--")}</span><span class="t">${esc(x.titulo)}${at?`<small class="atraso">⚠ Atrasada desde ${esc(dataCurta(x.data))}</small>`:""}${x.nota?`<small>${esc(x.nota)}</small>`:""}</span><button class="chk" data-id="${x.id}" aria-label="Marcar ${esc(x.titulo)} como feito">${x.feito?"✓":""}</button></li>`; }).join("")}</ul>` : `<p class="empty">Nada na agenda. Diga "me lembra de ligar para o João às 15h".</p>`);
+    el.innerHTML = `<div class="agHead"><div class="eyebrow">Agenda</div>${agForm?"":`<button class="agAdd" data-act="agNova" aria-label="Nova tarefa">+ Nova</button>`}</div>` + formTarefa() + (nAt?`<div class="atrasoBox" role="status"><b>${nAt}</b>${nAt>1?"tarefas atrasadas":"tarefa atrasada"} de dias anteriores</div>`:"") + (list.length ? `<ul class="rows">${list.map(x=>{ const at=ehAtrasada(x); return `<li class="tarefa ${x.feito?"done":at?"late":""}"><span class="time">${rotuloData(x.data)?`<small style="display:block;color:${at?"var(--red)":"var(--amber)"}">${esc(rotuloData(x.data))}</small>`:""}${esc(x.hora||"--:--")}</span><span class="t">${esc(x.titulo)}${at?`<small class="atraso">⚠ Atrasada desde ${esc(dataCurta(x.data))}</small>`:""}${x.expiraEm&&!x.feito&&faltaExpirar(x)?`<small class="vida">⏳ Sai da agenda em ${esc(faltaExpirar(x))}</small>`:""}${x.nota?`<small>${esc(x.nota)}</small>`:""}</span><button class="chk" data-id="${x.id}" aria-label="Marcar ${esc(x.titulo)} como feito">${x.feito?"✓":""}</button><button class="del${apagarId==x.id?" confirma":""}" data-del="${x.id}" aria-label="${apagarId==x.id?`Toque de novo para apagar ${esc(x.titulo)}`:`Apagar ${esc(x.titulo)}`}">${apagarId==x.id?"Apagar?":`<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M3 6h18M8 6V4h8v2M6 6l1 14h10l1-14M10 11v6M14 11v6"/></svg>`}</button></li>`; }).join("")}</ul>` : `<p class="empty">Nada na agenda. Diga "me lembra de ligar para o João às 15h".</p>`);
   } else if (tab==="destaque"){
     const novo = shown.h!==highlight || shown.i!==highlight.i;
     const atual = el.querySelector(".slide:not(.out)");
@@ -1807,6 +1862,16 @@ $("#ajFechar").addEventListener("click", fecharAjustes);
 $("#ajModal").addEventListener("click", e=>{ if (e.target.id==="ajModal") fecharAjustes(); });
 addEventListener("keydown", e=>{ if (e.key==="Escape" && ajOpen) fecharAjustes(); });
 function cliqueCartao(e){
+  const dl=e.target.closest("[data-del]");
+  if(dl){ const id=Number(dl.dataset.del); clearTimeout(apagarT);
+    if(apagarId===id){ const x=tasks.find(t=>t.id===id); tasks=tasks.filter(t=>t.id!==id); apagarId=null; saveTasks(); if(x) diario(`agenda: "${x.titulo}" apagada pelo botão`); }
+    else { apagarId=id; apagarT=setTimeout(()=>{ apagarId=null; if(tab==="agenda") renderCard(); }, 3500); }
+    renderCard(); renderTicker(); return; }
+  const ag=e.target.closest("[data-act^='ag']")?.dataset.act;
+  if(ag==="agNova"){ agForm={titulo:"", data:hojeData(), hora:"", duracao:"ate_concluir"}; renderCard(); setTimeout(()=>$("#agTitulo")?.focus(),50); return; }
+  if(ag==="agCancelar"){ agForm=null; renderCard(); return; }
+  if(ag==="agSalvar"){ lerFormTarefa(); if(!agForm.titulo.trim()){ $("#agTitulo")?.focus(); return; }
+    const f=agForm; agForm=null; const x=novaTarefa(f); caption(esc(`Anotado: ${x.titulo}${rotuloData(x.data)?`, ${rotuloData(x.data)}`:""}${x.hora?` às ${x.hora}`:""}.`)); return; }
   const c=e.target.closest(".chk"); if(c){ const x=tasks.find(t=>t.id==c.dataset.id); if(x){marcarFeito(x, !x.feito); renderCard(); renderTicker();} }
   const act=e.target.closest("[data-act]")?.dataset.act;
   if(act==="anexar") $("#file").click();
@@ -3033,8 +3098,8 @@ const tools = [
      store.set("hl",highlight); tab="destaque";
      let salvos=0; if(i.salvar_na_agenda){ for(const e of et){ tasks.push({id:nextId++, titulo:`${String(i.materia||"Estudo").slice(0,20)}: ${String(e.titulo).slice(0,55)}`, hora:e.hora?String(e.hora).slice(0,5):"", data:hojeData(), nota:i.prazo?("prazo "+String(i.prazo).slice(0,20)):"", feito:false}); salvos++; } saveTasks(); }
      renderCard(); renderTicker(); return {ok:true, etapas:et.length, salvos_na_agenda:salvos}; }},
-  {name:"adicionar_tarefa", description:"Adiciona um compromisso, tarefa ou lembrete à agenda. SEMPRE chame esta ferramenta quando o usuário pedir para anotar, agendar, marcar, lembrar ou adicionar algo; nunca diga que anotou sem chamá-la.", inputSchema:{type:"object",properties:{titulo:{type:"string"},hora:{type:"string",description:"HH:MM, opcional"},data:{type:"string",description:"AAAA-MM-DD, opcional; omita para hoje. Use para amanhã ou outro dia."},nota:{type:"string"}},required:["titulo"]},
-   execute(i){ const x=novaTarefa(i); return {ok:true, id:x.id, data:x.data||hojeData(), hora:x.hora}; }},
+  {name:"adicionar_tarefa", description:"Adiciona um compromisso, tarefa ou lembrete à agenda. SEMPRE chame esta ferramenta quando o usuário pedir para anotar, agendar, marcar, lembrar ou adicionar algo; nunca diga que anotou sem chamá-la.", inputSchema:{type:"object",properties:{titulo:{type:"string"},hora:{type:"string",description:"HH:MM, opcional"},data:{type:"string",description:"AAAA-MM-DD, opcional; omita para hoje. Use para amanhã ou outro dia."},nota:{type:"string"},duracao:{type:"string",enum:DURACOES.map(d=>d.id),description:"Quanto tempo a tarefa fica na agenda antes de sair sozinha: 1d, 3d, 7d ou 30d. Use só se o usuário disser (ex.: 'por 3 dias', 'durante a semana'); senão omita (fica até ser concluída)."}},required:["titulo"]},
+   execute(i){ const x=novaTarefa(i); return {ok:true, id:x.id, data:x.data||hojeData(), hora:x.hora, sai_da_agenda_em:x.expiraEm?faltaExpirar(x):"quando for concluída (12h depois do ok)"}; }},
   {name:"concluir_tarefa", description:"Marca um item da agenda como feito, pelo id.", inputSchema:{type:"object",properties:{id:{type:"number"}},required:["id"]},
    execute(i){ const x=tasks.find(t=>t.id==Number(i.id)); if(!x) throw new Error("id não encontrado"); marcarFeito(x); tab="agenda"; renderCard(); renderTicker(); return {ok:true}; }},
   {name:"remover_tarefa", description:"Remove um item da agenda, pelo id.", inputSchema:{type:"object",properties:{id:{type:"number"}},required:["id"]},
@@ -3425,7 +3490,7 @@ document.addEventListener("visibilitychange", ()=>{
 });
 // a cada 10 min: apaga itens ok com mais de 12h e atualiza a agenda (na virada do dia, pendentes viram atrasadas)
 let diaAgenda = hojeData();
-setInterval(()=>{ const virou = diaAgenda!==hojeData(); diaAgenda = hojeData(); if ((limparConcluidas() || virou) && !document.hidden){ if (tab==="agenda") renderCard(); renderTicker(); } }, 10*60e3);
+setInterval(()=>{ const virou = diaAgenda!==hojeData(); diaAgenda = hojeData(); if ((limparConcluidas() || virou) && !document.hidden){ if (tab==="agenda" && !agForm) renderCard(); renderTicker(); } }, 10*60e3);
 setInterval(()=>{ if (!document.hidden && cfg?.onboarded && sample && !busy && !briefingBusy && mode==="idle" && $("#loginView").hidden && $("#onbView").hidden && briefingDevido()) runBriefing({abertura:true}); }, 60000);
 async function agendarLembrete(){
   const LN = plugin("LocalNotifications") || DESKTOP?.notificacoes; if (!LN) return;
