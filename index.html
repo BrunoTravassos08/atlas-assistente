@@ -47,7 +47,12 @@ button{cursor:pointer}
 .brand span{font-family:var(--f-hud);font-size:10px;letter-spacing:.28em;text-transform:uppercase;color:var(--fg-faint);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
 .status{display:flex;align-items:center;gap:12px;font-family:var(--f-hud);font-size:11px;letter-spacing:.14em;text-transform:uppercase;color:var(--fg-dim);font-variant-numeric:tabular-nums;white-space:nowrap}
 .dot{width:7px;height:7px;border-radius:50%;background:var(--green);box-shadow:0 0 10px var(--green);display:inline-block;margin-right:6px;animation:pulse 2s infinite}
-.engine{border:1px solid var(--line-hi);padding:3px 8px;color:var(--cyan)}
+.engine{border:1px solid var(--line-hi);padding:3px 8px;color:var(--cyan);transition:color .3s,border-color .3s,box-shadow .3s}
+.engine[data-nivel="leve"]{color:var(--green);border-color:color-mix(in srgb,var(--green) 55%,transparent);box-shadow:0 0 10px color-mix(in srgb,var(--green) 25%,transparent)}
+.engine[data-nivel="forte"]{color:var(--violet);border-color:color-mix(in srgb,var(--violet) 60%,transparent);box-shadow:0 0 12px color-mix(in srgb,var(--violet) 30%,transparent)}
+.engine.troca{animation:engTroca .6s ease}
+@keyframes engTroca{0%{transform:scale(.92);filter:brightness(2)}100%{transform:none;filter:none}}
+@media (prefers-reduced-motion:reduce){.engine.troca{animation:none}}
 .hide-sm{display:none}
 @keyframes pulse{50%{opacity:.35}}
 
@@ -578,6 +583,34 @@ a.lnk{color:var(--cyan,#43d9ff);text-decoration:none;border-bottom:1px solid rgb
 #ajModal .set{grid-template-columns:minmax(0,1fr)}
 #ajModal .set .row>.lbl,#ajModal .set .row>.sub{flex:1 1 auto;min-width:0}
 #ajModal .set .row>select.inp{flex:0 1 auto;max-width:62%;min-width:0;text-overflow:ellipsis}
+.dupla-box{position:relative;overflow:hidden;background:linear-gradient(135deg,color-mix(in srgb,var(--green) 6%,transparent),transparent 45%,color-mix(in srgb,var(--violet) 8%,transparent))}
+.ia-linha{display:flex;align-items:center;gap:10px;padding:8px 10px;border:1px solid var(--line);opacity:.8;flex-wrap:wrap}
+.ia-linha.on{opacity:1}
+.ia-linha.ativa.ia-gemini{border-color:color-mix(in srgb,var(--green) 55%,transparent);box-shadow:inset 3px 0 0 var(--green)}
+.ia-linha.ativa.ia-gpt,.ia-linha.ativa.ia-claude{border-color:color-mix(in srgb,var(--violet) 60%,transparent);box-shadow:inset 3px 0 0 var(--violet)}
+.ia-ic{width:30px;height:30px;display:grid;place-items:center;font-size:15px;border:1px solid var(--line-hi);flex:none}
+.ia-gemini .ia-ic{color:var(--green)} .ia-gpt .ia-ic{color:var(--violet)}
+.ia-txt{flex:1;min-width:150px;display:flex;flex-direction:column;gap:1px}
+.ia-txt small{color:var(--fg-dim);font-size:11.5px;line-height:1.3}
+.ia-linha.on .ia-st{color:var(--cyan)}
+.ia-bts{display:flex;gap:6px}
+.dupla{display:flex;flex-direction:column;gap:12px;padding:12px;background:color-mix(in srgb,var(--deep) 88%,transparent);border:1px solid var(--line)}
+.dupla-cards{display:grid;grid-template-columns:1fr auto 1fr;align-items:stretch;gap:8px}
+.dc{border:1px solid var(--line);background:color-mix(in srgb,var(--void) 82%,transparent);padding:12px;display:flex;flex-direction:column;gap:3px;position:relative;overflow:hidden}
+.dc b{font-family:var(--f-hud);letter-spacing:.08em}
+.dc small{color:var(--fg-dim);font-size:12px;line-height:1.35}
+.dc .dc-st{margin-top:6px;font-size:11px;letter-spacing:.14em;text-transform:uppercase}
+.dc.leve b,.dc.leve .dc-st{color:var(--green)} .dc.forte b,.dc.forte .dc-st{color:var(--violet)}
+.dc.ok{border-color:currentColor} .dc.leve.ok{border-color:color-mix(in srgb,var(--green) 60%,transparent);box-shadow:0 0 18px color-mix(in srgb,var(--green) 18%,transparent)}
+.dc.forte.ok{border-color:color-mix(in srgb,var(--violet) 60%,transparent);box-shadow:0 0 18px color-mix(in srgb,var(--violet) 20%,transparent)}
+.dc::after{content:"";position:absolute;inset:0;background:linear-gradient(90deg,transparent,rgba(255,255,255,.07),transparent);transform:translateX(-100%);animation:dcScan 3.2s ease-in-out infinite}
+.dc.ok::after{display:none}
+@keyframes dcScan{60%,100%{transform:translateX(100%)}}
+.dc-mid{display:grid;place-items:center;color:var(--cyan);font-family:var(--f-hud);font-size:11px;letter-spacing:.2em;writing-mode:vertical-rl;text-orientation:mixed;opacity:.85}
+@media (max-width:420px){.dupla-cards{grid-template-columns:1fr}.dc-mid{writing-mode:horizontal-tb}}
+@media (prefers-reduced-motion:reduce){.dc::after{animation:none;display:none}}
+.prov-dica{font-size:12.5px;color:var(--fg-dim);margin:-4px 0 0;line-height:1.45}
+.prov-dica b{color:var(--green)} .prov-dica i{font-style:normal;color:var(--violet);font-weight:600}
 .aj-sec{font-family:var(--f-hud);font-size:10px;font-weight:600;letter-spacing:.26em;text-transform:uppercase;color:var(--cyan);margin-top:6px;padding-bottom:4px;border-bottom:1px solid var(--line)}
 .aj-passos{margin:6px 0 0;padding-left:20px;font-size:13px;line-height:1.5;color:var(--fg-dim)}.aj-passos li{margin-bottom:6px}.aj-passos b{color:var(--fg)}
 .aj-passos a{color:var(--cyan);text-decoration:underline;cursor:pointer}
@@ -676,11 +709,17 @@ a.lnk{color:var(--cyan,#43d9ff);text-decoration:none;border-bottom:1px solid rgb
       <div><label class="lbl" for="uName">Como devo te chamar?</label><input class="inp" id="uName" placeholder="Seu nome"></div>
       <div><label class="lbl" for="aName">Nome do agente</label><input class="inp" id="aName" placeholder="ATLAS"></div>
     </div>
-    <p id="provTitle">Escolha com qual inteligência artificial o seu agente vai ser criado.</p>
+    <p id="provTitle">Escolha com qual inteligência artificial o seu agente vai ser criado.<br><span class="prov-dica">Dica: conecte as duas. O <b>Gemini</b> (grátis) cuida do que é rápido e o <i>ChatGPT</i> do que é avançado. O Atlas escolhe sozinho.</span></p>
     <div class="prov" id="prov">
       <button type="button" data-p="gpt" aria-pressed="false"><span class="logo">GPT</span><span><strong>ChatGPT</strong><small>OpenAI</small></span><span class="arrow">›</span></button>
       <button type="button" data-p="gemini" aria-pressed="false"><span class="logo">G</span><span><strong>Gemini</strong><small>Google · tem plano grátis</small></span><span class="arrow">›</span></button>
       <button type="button" data-p="claude" aria-pressed="false"><span class="logo">C</span><span><strong>Claude</strong><small>Anthropic</small></span><span class="arrow">›</span></button>
+    </div>
+    <div id="dupla" class="dupla" hidden>
+      <div class="eyebrow">Dupla de IAs</div>
+      <div class="dupla-cards"><div class="dc leve" id="dcG"><b>⚡ GEMINI</b><small>Grátis e rápido: conversa, agenda, música, clima, briefing.</small><span class="dc-st" id="dcGst"></span></div><div class="dc-mid" aria-hidden="true">AUTO</div><div class="dc forte" id="dcP"><b>◆ CHATGPT</b><small>Avançado: explicações, textos, análises e pesquisa avançada.</small><span class="dc-st" id="dcPst"></span></div></div>
+      <p class="sub" id="dlTxt" style="margin:0"></p>
+      <div class="row2"><button type="button" class="btn-line" id="dlPular">Agora não</button><button type="button" class="btn-solid" id="dlGo">Conectar</button></div>
     </div>
     <div id="connect" hidden><form class="connect" id="cnForm" autocomplete="off">
       <div class="eyebrow" id="cnTitle">Conectar</div>
@@ -1853,6 +1892,20 @@ function fecharAjustes(){
   document.activeElement?.blur?.();
   store.set("cfg",cfg); ajOpen = false; $("#ajModal").hidden = true; $("#ajBtn").setAttribute("aria-expanded","false"); $("#ajCard").innerHTML = "";
 }
+// painel "Dupla de IAs": Gemini para o rápido, ChatGPT para o avançado
+function ajustesDupla(){
+  const ok = iasConectadas(), duplo = modoDuplo();
+  const linha = (p, ic, nome, papel) => {
+    const on = !!ok[p], det = !on ? "não conectado" : p==="gpt" && contaGpt() ? "conta do ChatGPT" : esc(cfg.model?.[p]||MODELO_PADRAO[p]);
+    const ativa = duplo ? (p==="gemini" || iaPara("forte")===p) : cfg.provider===p;
+    return `<div class="ia-linha ${on?"on":""} ${ativa?"ativa":""} ia-${p}"><span class="ia-ic" aria-hidden="true">${ic}</span><span class="ia-txt"><b>${nome}</b><small>${papel}</small><small class="ia-st">${on?"● ":"○ "}${det}</small></span><span class="ia-bts"><button class="btn-line" data-act="ia-conectar" data-p="${p}" type="button">${on?"Trocar":"Conectar"}</button>${on && Object.keys(ok).length>1?`<button class="btn-line warn" data-act="ia-tirar" data-p="${p}" type="button">Tirar</button>`:""}</span></div>`;
+  };
+  return `<div class="gbox dupla-box"><div class="row"><span class="sub"><b style="color:var(--fg)">Dupla de IAs</b>${duplo?' · <b style="color:var(--green)">escolha automática ligada</b>':""}</span></div>
+    ${linha("gemini","⚡","Gemini","Rápido e grátis: conversa, agenda, música, clima e briefing")}
+    ${linha("gpt","◆","ChatGPT","Avançado: explicações, textos, análises, PDF e pesquisa avançada")}
+    <div class="row"><label class="lbl" for="sAutoIA" style="margin:0">O Atlas escolhe a IA sozinho</label><input type="checkbox" id="sAutoIA" ${autoIA()?"checked":""}></div>
+    <p class="note" style="margin:0">${ok.gemini && (ok.gpt||ok.claude) ? (autoIA() ? "Pedidos simples vão para o Gemini, que é grátis e responde rápido. Pedidos que pedem raciocínio vão para a IA avançada. Se uma falhar ou bater o limite, a outra responde." : "Escolha automática desligada: tudo vai para a IA principal.") : "Conecte as duas para o Atlas escolher sozinho. Com uma só, ela responde tudo."}</p></div>`;
+}
 function renderAjustes(){
   if (!ajOpen) return;
   const el=$("#ajCard");
@@ -1882,7 +1935,7 @@ function renderAjustes(){
       ${ajustesInsta()}
       <div class="aj-sec">Inteligência artificial</div>
       <div><span class="lbl">Skills instaladas</span><div class="chips">${(cfg.agent?.skills||["Agenda","Destaques","Tradução PT/EN/ES","PDF: ler e padronizar","Pesquisa avançada","Briefing de notícias","Tutor de estudos"]).map(x=>`<span>✓ ${x}</span>`).join("")}</div></div>
-      <div class="gbox"><div class="row"><span class="sub">Gasto com a IA neste mês: <b style="color:var(--green)">${esc(brl(gastoAtual().usd))}</b>${cfg.provider==="gemini"&&geminiGratis()?" · Gemini grátis":""}</span><button class="btn-line" data-act="gasto-ver" type="button">Ver gasto</button></div>
+      <div class="gbox"><div class="row"><span class="sub">Gasto com a IA neste mês: <b style="color:var(--green)">${esc(brl(gastoAtual().usd))}</b>${cfg.keys?.gemini&&geminiGratis()?" · Gemini grátis":""}</span><button class="btn-line" data-act="gasto-ver" type="button">Ver gasto</button></div>
         <div class="row"><label class="lbl" for="sLim" style="margin:0">Limite por mês (R$)</label><input class="inp" id="sLim" inputmode="decimal" placeholder="sem limite" style="width:120px" value="${num(cfg.limite?.usd)>0?(num(cfg.limite.usd)*cotacao()).toFixed(2).replace(".",","):""}"></div>
         <div class="row"><label class="lbl" for="sLimAcao" style="margin:0">No limite</label><select class="inp" id="sLimAcao" style="width:auto"><option value="confirmar" ${cfg.limite?.acao!=="bloquear"?"selected":""}>Perguntar antes de continuar</option><option value="bloquear" ${cfg.limite?.acao==="bloquear"?"selected":""}>Pausar a IA</option></select></div>
         <div class="row"><label class="lbl" for="sCot" style="margin:0">Dólar (R$)</label><input class="inp" id="sCot" inputmode="decimal" style="width:90px" value="${cotacao().toFixed(2).replace(".",",")}"></div>
@@ -1897,7 +1950,8 @@ function renderAjustes(){
       <div class="aj-sec">Sistema</div>
       <div class="row"><label class="lbl" for="sFx" style="margin:0">Efeitos visuais</label><select class="inp" id="sFx" style="width:auto"><option value="leve" ${FX.lite?"selected":""}>Leve (recomendado)</option><option value="completo" ${FX.lite?"":"selected"}>Completo</option></select></div>
       ${cfg.agent?`<div class="sub">Modelo: <b style="color:var(--fg)">${esc(cfg.model?.[cfg.provider]||cfg.agent.id)}</b><br>Conectado em ${new Date(cfg.agent.criadoEm).toLocaleString("pt-BR")}</div>`:""}
-      <div class="row"><span class="sub">Conectado: <b style="color:var(--cyan)">${sample?PROV[cfg.provider]+(cfg.provider==="gpt"&&contaGpt()?" · conta do ChatGPT":""):"nenhuma IA"}</b></span><button class="btn-line warn" id="logout" type="button">Trocar IA</button></div>
+      ${ajustesDupla()}
+      <div class="row"><span class="sub">Principal: <b style="color:var(--cyan)">${sample?PROV[cfg.provider]+(cfg.provider==="gpt"&&contaGpt()?" · conta do ChatGPT":""):"nenhuma IA"}</b></span><button class="btn-line warn" id="logout" type="button">Trocar IA</button></div>
       <div class="gbox"><div class="row"><span class="sub">Diagnóstico: o que o app fez por último (${DIAG.length} linhas)</span><button class="btn-line" data-act="diag-copiar" type="button">Copiar diagnóstico</button></div>
         <details class="diag"><summary>Ver as últimas linhas</summary><pre>${esc(DIAG.slice(-40).join("\n"))}</pre></details></div>
       <p class="note" style="margin:0;text-align:center">Atlas versão ${VERSAO_APP}</p>
@@ -1935,6 +1989,8 @@ function cliqueCartao(e){
   if(act==="abrir-noticia"){ const u=e.target.closest("[data-url]")?.dataset.url; if(u && /^https:\/\//.test(u)){ if(story){ storyStop(); try{ tts?.stop(); }catch{} } openExternal(u); } }
   if(act==="voz-testar"){ store.set("cfg",cfg); vozGeminiPausaAte=0; vozCloudPausaAte=0; vozCloudErro=""; const t=`Olá, ${cfg.user||"senhor"}. Eu sou o ${cfg.name.charAt(0)+cfg.name.slice(1).toLowerCase()}. É assim que eu vou falar com você.`; caption(esc(t)); if(tts){ tts.stop(); setMode("speaking"); tts.speak(t,{language:"pt-BR"}).catch(()=>{}).finally(()=>{ setMode("idle"); if(ajOpen) renderAjustes(); }); } }
   if(act==="diag-copiar"){ const txt=`Atlas ${VERSAO_APP} · ${new Date().toLocaleString("pt-BR")} · ${cfg.provider} ${cfg.model?.[cfg.provider]||""}\n`+DIAG.join("\n"); (navigator.clipboard?.writeText(txt)||Promise.reject()).then(()=>caption("Diagnóstico copiado. Cole no WhatsApp e mande para quem está te ajudando.")).catch(()=>caption("<em>Não consegui copiar. Abra 'Ver as últimas linhas' e tire um print.</em>")); }
+  if(act==="ia-conectar"){ const p=e.target.closest("[data-p]").dataset.p; fecharAjustes(); conectarExtra(p, "ajustes"); }
+  if(act==="ia-tirar"){ const p=e.target.closest("[data-p]").dataset.p; if(Object.keys(iasConectadas()).length<2) return; if(cfg.keys) delete cfg.keys[p]; if(p==="gpt") cfg.gptConta=false; if(cfg.provider===p) cfg.provider=Object.keys(iasConectadas())[0]; store.set("cfg",cfg); connectAI(); renderAjustes(); caption(`${p==="gpt"?"ChatGPT":p==="gemini"?"Gemini":"Claude"} desconectado. ${PROV[cfg.provider]} responde tudo agora.`); }
   if(act==="gasto-ver"){ fecharAjustes(); highlight={tipo:"gasto", titulo:"Gasto com a IA", deAjustes:true}; tab="destaque"; renderCard(); }
   if(act==="voltar-ajustes") abrirAjustes();
   if(act==="gasto-ajustes") abrirAjustes("#sLim");
@@ -1955,7 +2011,7 @@ function cliqueCartao(e){
   if(act==="resumir") ask("Leia o PDF aberto e me faça um resumo.");
   if(act==="ouvir" && highlight.tipo==="traducao") speakIn(highlight.traducao, highlight.para);
   if(act==="copiar" && highlight.tipo==="traducao"){ navigator.clipboard?.writeText(highlight.traducao).then(()=>{ e.target.textContent="Copiado"; }).catch(()=>{}); }
-  if (e.target.id==="logout"){ fecharAjustes(); cfg.provider=null; store.set("cfg",cfg); sample=null; showLogin(); }
+  if (e.target.id==="logout"){ fecharAjustes(); loginExtra=null; cfg.provider=null; store.set("cfg",cfg); sample=null; showLogin(); }
   if(act==="insta-conectar"){ const tk=($("#sInstaTok")?.value||"").trim(); if(!tk){ instaErro="Cole o token antes de tocar em Conectar."; renderAjustes(); return; }
     e.target.disabled=true; e.target.textContent="Conectando…";
     instaConectar(tk).then(()=>{ instaErro=""; caption(`Instagram conectado como <b>@${esc(cfg.insta.conta)}</b>. Agora escreva os perfis que quer acompanhar.`); renderAjustes(); setTimeout(()=>$("#sInstaPerfis")?.focus(),60); })
@@ -1999,6 +2055,7 @@ function mudouAjuste(e){
   if(id==="sCot"){ const v=num(e.target.value); if(v>0){ const lim=num(cfg.limite?.usd)*cotacao(); cfg.cotacao=v; if(lim>0) cfg.limite.usd=lim/v; } store.set("cfg",cfg); renderAjustes(); }
   if(id==="sLim"){ const v=num(e.target.value); cfg.limite=Object.assign({acao:"confirmar"}, cfg.limite, {usd: v>0 ? v/cotacao() : 0}); const g=gastoAtual(); g.aviso80=false; g.liberado=false; store.set("gasto",g); store.set("cfg",cfg); renderAjustes(); }
   if(id==="sLimAcao"){ cfg.limite=Object.assign({usd:0}, cfg.limite, {acao:e.target.value}); store.set("cfg",cfg); }
+  if(id==="sAutoIA"){ cfg.autoIA=e.target.checked; store.set("cfg",cfg); connectAI(); renderAjustes(); }
   if(id==="sGemPlano"){ cfg.geminiPlano=e.target.value; store.set("cfg",cfg); connectAI(); renderAjustes(); }
   if(id==="sTopics"){ setTimeout(agendarLembrete,0); const old=topics(); cfg.interesses=e.target.value.split("\n").map(x=>x.trim()).filter(Boolean).slice(0,8).map(n=>old.find(o=>o.nome===n)||{nome:n,q:n}); }
   if(id==="sInstaPerfis"){ cfg.insta = Object.assign({}, cfg.insta, {perfis: e.target.value.split(/[\n,;]+/).map(nomePerfil).filter(u=>/^[a-z0-9._]{1,30}$/.test(u)).filter((u,k,a)=>a.indexOf(u)===k).slice(0,10)}); }
@@ -2008,10 +2065,10 @@ $("#card").addEventListener("change", mudouAjuste);
 $("#ajCard").addEventListener("change", mudouAjuste);
 function renderTicker(){
   const pend=tarefasVisiveis().filter(t=>!t.feito).map(t=>ehAtrasada(t) ? `⚠ ${t.titulo} atrasada desde ${dataCurta(t.data)}` : `${rotuloData(t.data)} ${t.hora||""} ${t.titulo}`.trim());
-  const items=[`${PROV[cfg?.provider]||""} conectado`, highlight?.titulo, ...pend.map(p=>"Agenda: "+p)].filter(Boolean);
+  const items=[modoDuplo() ? `Dupla de IAs: ${PROV.gemini} + ${PROV[iaPara("forte")]}` : `${PROV[cfg?.provider]||""} conectado`, highlight?.titulo, ...pend.map(p=>"Agenda: "+p)].filter(Boolean);
   $("#ticker").textContent = items.join("   ◆   ");
 }
-function applyName(){ const n=cfg?.name||"ATLAS"; $("#bName").textContent=n; $("#bootName").textContent=n; document.title=n.charAt(0)+n.slice(1).toLowerCase()+" Central de Inteligência"; $("#engine").textContent = cfg?.provider ? PROV[cfg.provider] : "—"; }
+function applyName(){ const n=cfg?.name||"ATLAS"; $("#bName").textContent=n; $("#bootName").textContent=n; document.title=n.charAt(0)+n.slice(1).toLowerCase()+" Central de Inteligência"; const eng=$("#engine"); eng.removeAttribute("data-nivel"); eng.title=""; if (cfg?.provider && modoDuplo()){ eng.innerHTML = `⚡<span class="hide-sm"> GEMINI + ${PROV[iaPara("forte")]} ·</span> AUTO ◆`; eng.title = "Dupla de IAs: o Atlas escolhe sozinho"; } else eng.textContent = cfg?.provider ? PROV[cfg.provider] : "—"; }
 
 /* ---------- caption ---------- */
 function caption(html){ $("#caption").innerHTML=noAparelho(html); }
@@ -3207,7 +3264,7 @@ Responda SOMENTE com JSON neste formato:
 {"titulo": "título curto", "resumo": "2 a 3 frases com a resposta direta", "pontos": ["3 a 6 pontos-chave objetivos"], "secoes": [{"titulo": "...", "texto": "1 parágrafo"}], "fontes": ["tipos de fontes ou referências conhecidas onde isso pode ser conferido"], "verificar": ["o que conferir em fonte atualizada"], "confianca": "alta | média | baixa"}`;
   try{
     // no Gemini o modo "rápido" com busca responde bem mais depressa (o grátis pensa devagar no modo completo)
-    const r = await sample.json(prompt, {modelTier: cfg.provider==="gemini" ? "quick" : "default", signal, web:!web && !!sample?.web});
+    const r = await sample.json(prompt, {modelTier: iaPara("forte")==="gemini" ? "quick" : "default", nivel:"forte", signal, web:!web && !!sample?.web});
     highlight = {tipo:"pesquisa", web:!!web || !!sample?.web, titulo:String(r.titulo||pergunta).slice(0,120), pergunta, resumo:String(r.resumo||""), pontos:(r.pontos||[]).slice(0,6).map(String), secoes:(r.secoes||[]).slice(0,5), fontes:(r.fontes||[]).slice(0,6).map(String), verificar:(r.verificar||[]).slice(0,4).map(String), confianca:String(r.confianca||""), em:new Date().toISOString()};
     store.set("hl",highlight); tab="destaque"; renderCard(); renderTicker();
     return {resumo:highlight.resumo, pontos:highlight.pontos, confianca:highlight.confianca};
@@ -3421,7 +3478,7 @@ async function ask(userText, {greeting=false}={}){
   let shown = "";
   const criadasAntes = tarefasCriadas;
   try{
-    const {text} = await sample(turns, {signal:ctl.signal, tools, modelTier:"quick", web:!!sample.web,
+    const {text} = await sample(turns, {signal:ctl.signal, tools, modelTier:"quick", nivel: greeting ? "leve" : nivelDoPedido(userText), web:!!sample.web,
       onText:({text})=>{ shown=text; if(mode==="thinking" && !(cfg.speak&&tts)) setMode("speaking"); caption(esc(corrigeSaudacao(text))); }});
     if (ctl!==busy) return;
     let resposta = text;
@@ -3594,7 +3651,7 @@ document.addEventListener("drop", e=>{ const f=[...(e.dataTransfer?.files||[])].
 $("#orb").addEventListener("click", toggleMic);
 
 /* ---------- login / boot ---------- */
-function showLogin(){ document.querySelectorAll("#loginView .steps li").forEach((li,i)=>li.className=i===0?"on":""); $("#onbView").hidden=true; $("#loginView").hidden=false; $("#bootView").hidden=true; $("#connect").hidden=true; $("#prov").hidden=false; $("#provTitle").hidden=false; $("#uName").value=cfg?.user||""; $("#aName").value=cfg?.name&&cfg.name!=="ATLAS"?cfg.name:""; }
+function showLogin(){ document.querySelectorAll("#loginView .steps li").forEach((li,i)=>li.className=i===0?"on":""); $("#onbView").hidden=true; $("#loginView").hidden=false; $("#bootView").hidden=true; $("#connect").hidden=true; $("#dupla").hidden=true; $("#prov").hidden=false; $("#provTitle").hidden=false; $("#uName").value=cfg?.user||""; $("#aName").value=cfg?.name&&cfg.name!=="ATLAS"?cfg.name:""; }
 $("#prov").addEventListener("click", e=>{
   const b=e.target.closest("button"); if(!b) return;
   const p=b.dataset.p, info=AI.INFO[p];
@@ -3684,17 +3741,14 @@ $("#ccGo").addEventListener("click", async ()=>{
     finally { AI.hooks.trace = antes; }
     if (!vivo()) return;
     ccEtapa(4); box.classList.add("ok"); ccMsg("Tudo certo! O Atlas vai usar o seu plano do ChatGPT.", "good");
-    cfg = Object.assign({voice:"buttery", speak:true}, cfg||{}, {provider:"gpt", user:$("#uName").value.trim(), name:($("#aName").value.trim()||"ATLAS").toUpperCase()});
+    cfg = Object.assign({voice:"buttery", speak:true}, cfg||{}, {provider: loginExtra && cfg?.provider ? cfg.provider : "gpt", user:$("#uName").value.trim(), name:($("#aName").value.trim()||"ATLAS").toUpperCase()});
     cfg.gptConta = true;
     cfg.model = Object.assign({}, cfg.model, {codex:"codex"});
-    delete cfg.agent;
+    if (!loginExtra) delete cfg.agent;
     store.set("cfg", cfg); applyName(); renderTicker(); connectAI();
     await sleep(900);
     box.classList.remove("ativa"); go.disabled = false;
-    $("#loginView").hidden = true;
-    await onboarding();
-    await createAgent({model:"ChatGPT · sua assinatura", total:"—", web:true});
-    activate({primeira:true});
+    await concluirConexao({model:"ChatGPT · sua assinatura", total:"—", web:true});
   } catch (e){
     if (!vivo()) return;
     const run = [...document.querySelectorAll("#ccEtapas li")].find(li=>li.className==="run"); if (run) run.className = "erro";
@@ -3706,6 +3760,11 @@ $("#ccGo").addEventListener("click", async ()=>{
   }
 });
 $("#cnBack").addEventListener("click", ()=>{ $("#connect").hidden=true; $("#prov").hidden=false; $("#provTitle").hidden=false; });
+$("#cnBack").addEventListener("click", ()=>{
+  if (!loginExtra) return;
+  if (loginExtra.origem==="ajustes"){ loginExtra = null; $("#connect").hidden = true; $("#loginView").hidden = true; abrirAjustes(); return; }
+  mostrarDupla(faltaParaDupla() || "gpt");
+});
 async function avisosConexao(p){
   const box=$("#cnAvisos"), info=AI.INFO[p]; box.innerHTML="";
   const inf = await infoSistema(); if(!inf || $("#connect").dataset.p!==p) return;
@@ -3737,6 +3796,50 @@ document.addEventListener("visibilitychange", async ()=>{
   try{ const t=(await navigator.clipboard.readText()||"").trim(); if((info.prefixos||[info.prefixo]).some(x=>t.startsWith(x)) && t.length>20 && !/\s/.test(t)){ $("#cnKey").value=t; const m=$("#cnMsg"); m.hidden=false; m.className="note"; m.textContent="Chave colada automaticamente. Toque em Conectar."; } }catch{}
 });
 $("#cnPaste").addEventListener("click", async ()=>{ try{ const t=await navigator.clipboard.readText(); if(t) $("#cnKey").value=t.trim(); }catch{ $("#cnKey").focus(); } });
+/* ---------- dupla de IAs no login: depois da 1ª IA, oferece conectar a outra ---------- */
+let loginExtra = null;   // {origem:"login"|"ajustes", check}: conectando a segunda IA
+function faltaParaDupla(){
+  const ok = iasConectadas();
+  if (ok.gemini && !ok.gpt && !ok.claude) return "gpt";
+  if (!ok.gemini && (ok.gpt || ok.claude)) return "gemini";
+  return null;
+}
+function mostrarDupla(falta){
+  const ok = iasConectadas();
+  $("#prov").hidden = true; $("#provTitle").hidden = true; $("#connect").hidden = true; $("#dupla").hidden = false;
+  $("#dcG").classList.toggle("ok", !!ok.gemini); $("#dcP").classList.toggle("ok", !!ok.gpt);
+  $("#dcGst").textContent = ok.gemini ? "✓ conectado" : "aguardando";
+  $("#dcPst").textContent = ok.gpt ? "✓ conectado" : "aguardando";
+  const nome = falta==="gpt" ? "ChatGPT" : "Gemini";
+  $("#dlTxt").textContent = falta==="gpt"
+    ? "O Gemini já está pronto. Quer conectar também o ChatGPT? Aí o Atlas usa o Gemini no dia a dia, que é grátis, e chama o ChatGPT só para as coisas mais avançadas."
+    : "O ChatGPT já está pronto. Quer conectar também o Gemini, que é grátis? Aí as coisas rápidas do dia a dia não gastam o ChatGPT.";
+  $("#dlGo").textContent = `Conectar o ${nome}`; $("#dlGo").dataset.p = falta;
+}
+function conectarExtra(p, origem){
+  loginExtra = Object.assign({}, loginExtra, {origem});
+  if (origem==="ajustes") showLogin();
+  $("#dupla").hidden = true;
+  $(`#prov button[data-p="${p}"]`).click();
+}
+async function concluirConexao(check){
+  if (loginExtra?.origem==="ajustes"){
+    loginExtra = null; $("#loginView").hidden = true; $("#connect").hidden = true;
+    connectAI(); renderTicker();
+    caption(modoDuplo() ? `Dupla de IAs ativa: ${PROV.gemini} para o rápido, ${PROV[iaPara("forte")]} para o avançado.` : `${PROV[cfg.provider]} conectado.`);
+    return;
+  }
+  const falta = faltaParaDupla();
+  if (!loginExtra && falta){ loginExtra = {origem:"login", check}; mostrarDupla(falta); return; }
+  const primeiro = loginExtra?.check || check; loginExtra = null;
+  connectAI();
+  $("#dupla").hidden = true; $("#loginView").hidden = true;
+  await onboarding();
+  await createAgent(primeiro);
+  activate({primeira:true});
+}
+$("#dlGo").addEventListener("click", e=>conectarExtra(e.currentTarget.dataset.p, "login"));
+$("#dlPular").addEventListener("click", ()=>{ if (!loginExtra) loginExtra = {origem:"login"}; concluirConexao(loginExtra.check||{}); });
 $("#cnForm").addEventListener("submit", async e=>{
   e.preventDefault();
   const p=$("#connect").dataset.p, key=$("#cnKey").value.trim().replace(/\s+/g,"");
@@ -3755,21 +3858,18 @@ $("#cnForm").addEventListener("submit", async e=>{
   catch(err){ clearInterval(relogio); AI.hooks.trace?.(`FALHOU: ${err?.code||"?"} · ${err?.detalhe||err?.message||err}`); AI.hooks.trace=diario; diag.open=true; fail(err?.userMsg || "Não consegui verificar a chave. Confira a internet e tente de novo."); if(err?.detalhe){ const d=document.createElement("small"); d.style.cssText="display:block;margin-top:6px;opacity:.85;word-break:break-word"; d.textContent="Resposta de "+AI.INFO[p].empresa.replace(/^(a|o) /,"")+": "+err.detalhe; msgEl.appendChild(d); } return; }
   clearInterval(relogio); AI.hooks.trace(`OK: modelo ${check.model}${check.auth?" · chave via "+(check.auth==="query"?"endereço":"cabeçalho"):""}`); AI.hooks.trace=diario;
   try {
-  cfg = Object.assign({voice:"buttery", speak:true}, cfg||{}, {provider:p, user:$("#uName").value.trim(), name:($("#aName").value.trim()||"ATLAS").toUpperCase()});
+  cfg = Object.assign({voice:"buttery", speak:true}, cfg||{}, {provider: loginExtra && cfg?.provider ? cfg.provider : p, user:$("#uName").value.trim(), name:($("#aName").value.trim()||"ATLAS").toUpperCase()});
   cfg.keys = Object.assign({}, cfg.keys, {[p]:key});
   cfg.model = Object.assign({}, cfg.model, {[p]:check.model});
   if (p==="gpt") cfg.gptConta = false;   // conectou pela chave: deixa de usar a conta do ChatGPT
   if (check.auth) cfg.gemAuth = check.auth;
-  delete cfg.agent;
+  if (!loginExtra) delete cfg.agent;
   store.set("cfg", cfg); applyName(); renderTicker();
   go.disabled=false; go.textContent="Conectar";
   connectAI();
   } catch (err) { console.error(err); diag.open=true; logEl.textContent += `ERRO DEPOIS DA VERIFICAÇÃO: ${err?.message||err}\n`; return fail("A chave funciona, mas algo falhou ao salvar a conexão. Toque em Conectar de novo."); }
   diag.hidden=true;
-  $("#loginView").hidden=true;
-  await onboarding();
-  await createAgent(check);
-  activate({primeira:true});
+  await concluirConexao(check);
 });
 
 
@@ -4435,21 +4535,99 @@ AI.hooks.trace = diario;
 AI.hooks.espera = s => { if (mode==="thinking") $("#state").textContent = `Aguardando o limite do Gemini (${s} s)…`; };
 AI.hooks.guard = checarLimite;
 // ChatGPT pela conta (assinatura) só existe no Atlas para Windows
-const contaGpt = () => !!(cfg?.gptConta && DESKTOP?.codex);
+function contaGpt(){ return !!(cfg?.gptConta && DESKTOP?.codex); }
+/* ---------- dupla de IAs: Gemini (grátis, rápido) + ChatGPT (avançado), o Atlas escolhe sozinho ---------- */
+const MODELO_PADRAO = {claude:"claude-opus-5-5", gemini:"gemini-flash-lite-latest", gpt:"gpt-4o"};
+// quais IAs estão prontas para uso (chave salva, ou a conta do ChatGPT no Windows)
+function iasConectadas(){
+  const k = cfg?.keys || {}, ok = {};
+  if (k.gemini) ok.gemini = true;
+  if (k.gpt || contaGpt()) ok.gpt = true;
+  if (k.claude) ok.claude = true;
+  return ok;
+}
+function autoIA(){ return cfg?.autoIA !== false; }
+function modoDuplo(){ const ok = iasConectadas(); return autoIA() && !!ok.gemini && !!(ok.gpt || ok.claude); }
+function clienteDe(p){
+  if (p==="gpt" && contaGpt() && (cfg.gptConta || !cfg?.keys?.gpt)) return AI.client("codex", null, cfg.model?.codex || "codex");
+  const key = cfg?.keys?.[p]; if (!key) return null;
+  const modelo = cfg?.model?.[p] || MODELO_PADRAO[p];
+  const gGratis = p==="gemini" && geminiGratis();
+  return AI.client(p, key, modelo, {auth: p==="gemini" ? (cfg.gemAuth||"header") : undefined, buscaLocal: gGratis ? buscaLocal : null, rpm: gGratis ? (/lite/.test(modelo) ? 14 : 4) : 0});
+}
+// pedidos que pedem raciocínio, texto longo ou análise vão para a IA avançada
+const PEDE_AVANCADO = /pesquisa\s+avan[çc]ada|\b(expli(que|ca|car)|analis|an[áa]lise|compar[ae]|diferen[çc]a entre|por ?qu[eê]\b|como funciona|vale a pena|devo\b|me aconselh|conselho|estrat[ée]gi|planej|plano de|passo a passo|escrev|redij|redigir|reda[çc][ãa]o|carta|e-?mail|discurso|poema|hist[óo]ria d[eo]|resum[ao] d[eo] (livro|texto|documento|pdf)|pdf|document|contrat|calcul|f[óo]rmula|equa[çc]|matem[áa]tic|c[óo]digo|program[ae]|planilha|traduz.{40,}|revis[ae]|corrig|detalhad|aprofund|avan[çc]ad|tese|argument|opini[ãa]o|debate|ensin|estud|aula|exerc[íi]cio|prova\b|diagn[óo]stic|sintoma|investim|financ)/i;
+const PEDE_ACAO = /\b(que horas|toca|tocar|toque|m[úu]sica|pausa|pausar|pr[óo]xima m[úu]sica|volume|abr[ae]|abrir|liga|desliga|anot[ae]|anotar|lembr[ae]|lembrete|agenda|agendar|compromisso|tarefa|clima|previs[ãa]o do tempo|vai chover|temperatura|placar|briefing|instagram)\b/i;
+const PEDE_CONVERSA = /^(oi|ol[áa]|e a[íi]|bom dia|boa tarde|boa noite|obrigad|valeu|tchau|ok|beleza|t[áa] bom|tudo bem)\b/i;
+function nivelDoPedido(texto){
+  const t = String(texto||"").trim();
+  if (/pesquisa\s+avan[çc]ada/i.test(t)) return "forte";
+  if (/\bpdf\b|document[oa]/i.test(t)) return "forte";            // ler e mexer em PDF pede a IA mais forte
+  if (PEDE_ACAO.test(t) && t.length < 160) return "leve";      // comandos do dia a dia: rápido
+  if (PEDE_AVANCADO.test(t)) return "forte";                    // raciocínio, textos, análises
+  if (PEDE_CONVERSA.test(t) && t.length < 160) return "leve";
+  return t.length > 220 ? "forte" : "leve";
+}
+// qual IA atende cada nível (só uma conectada: ela atende tudo)
+function iaPara(nivel){
+  const ok = iasConectadas(), forte = ok.gpt ? "gpt" : ok.claude ? "claude" : null;
+  if (!modoDuplo()) return ok[cfg?.provider] ? cfg.provider : (Object.keys(ok)[0] || null);
+  return nivel==="forte" ? forte : "gemini";
+}
+let iaAtual = null;   // a IA que respondeu por último (aparece no topo)
+function mostrarIA(p, nivel){
+  iaAtual = p;
+  const el = $("#engine"); if (!el) return;
+  if (!modoDuplo()){ el.textContent = PROV[p]||"—"; el.removeAttribute("data-nivel"); return; }
+  el.textContent = `${nivel==="forte"?"◆":"⚡"} ${PROV[p]}`;
+  el.dataset.nivel = nivel; el.title = nivel==="forte" ? "Pedido avançado: usando a IA mais forte" : "Pedido rápido: usando o Gemini (grátis)";
+  el.classList.remove("troca"); void el.offsetWidth; el.classList.add("troca");
+}
+// cliente único que escolhe a IA a cada pedido e, se uma falhar antes de responder, tenta a outra
+function roteador(clientes){
+  const ordem = nivel => { const a = iaPara(nivel), b = Object.keys(clientes).find(x=>x!==a && clientes[x]); return [a, b].filter(x=>x && clientes[x]); };
+  const ajusta = (p, opts) => (p==="gemini" && geminiGratis()) ? Object.assign({}, opts, {modelTier:"quick"}) : opts;
+  async function tentar(nivel, opts, chamar){
+    const fila = ordem(nivel); let ultimo;
+    for (let i=0; i<fila.length; i++){
+      const p = fila[i]; let saiu = false;
+      const o = Object.assign({}, opts);
+      if (o.onText){ const f = o.onText; o.onText = x => { if (x?.text) saiu = true; f(x); }; }
+      if (o.tools?.length) o.tools = o.tools.map(t => Object.assign({}, t, {execute: (...a) => { saiu = true; return t.execute(...a); }}));
+      mostrarIA(p, nivel);
+      diario(`IA escolhida: ${p} (${nivel==="forte"?"pedido avançado":"pedido rápido"})${i?" · plano B":""}`);
+      try { return await chamar(clientes[p], ajusta(p, o)); }
+      catch (e){
+        ultimo = e;
+        if (e?.code==="cancelled" || e?.code==="limite" || saiu || i===fila.length-1) throw e;
+        diario(`IA: ${p} falhou (${e?.code||e?.message||e}); tentando ${fila[i+1]}`);
+      }
+    }
+    throw ultimo;
+  }
+  const fn = (turns, opts={}) => tentar(opts.nivel || (opts.modelTier==="default" ? "forte" : "leve"), opts, (c,o) => c(turns, o));
+  fn.json = (prompt, opts={}) => tentar(opts.nivel || (opts.modelTier==="default" ? "forte" : "leve"), opts, (c,o) => c.json(prompt, o));
+  fn.web = true; fn.duplo = true;
+  return fn;
+}
 function connectAI(){
   if (window.claude?.use) return;
-  const p = cfg?.provider, key = cfg?.keys?.[p];
-  const modelo = cfg?.model?.[p] || (p==="claude"?"claude-opus-5-5":p==="gemini"?"gemini-flash-lite-latest":"gpt-4o");
-  const gGratis = p==="gemini" && geminiGratis();
-  if (p==="gpt" && contaGpt()){
-    sample = AI.client("codex", null, cfg.model?.codex || "codex");
-    diario("IA: ChatGPT pela assinatura (Codex oficial, conta do ChatGPT)");
-    applyName(); return;
+  const ok = iasConectadas();
+  // a IA principal saiu (ex.: trocou de IA): usa a que sobrou
+  if (cfg && !ok[cfg.provider] && Object.keys(ok).length && cfg.provider) cfg.provider = Object.keys(ok)[0];
+  const p = cfg?.provider;
+  if (modoDuplo()){
+    const clientes = {};
+    for (const x of Object.keys(ok)) clientes[x] = clienteDe(x);
+    sample = roteador(clientes);
+    diario(`IA: dupla automática · rápido: gemini ${cfg.model?.gemini||""} · avançado: ${iaPara("forte")}${iaPara("forte")==="gpt"&&contaGpt()&&(cfg.gptConta||!cfg.keys?.gpt)?" (conta do ChatGPT)":" "+(cfg.model?.[iaPara("forte")]||"")}`);
+  } else {
+    sample = p ? clienteDe(p) : null;
+    if (p) diario(p==="gpt" && contaGpt() && (cfg.gptConta || !cfg.keys?.gpt) ? "IA: ChatGPT pela assinatura (Codex oficial, conta do ChatGPT)" : `IA: ${p} · modelo ${cfg.model?.[p]||MODELO_PADRAO[p]}${p==="gemini"&&geminiGratis()?" · plano grátis (busca pelo Google Notícias)":""}`);
   }
-  sample = (p && key) ? AI.client(p, key, modelo, {auth: p==="gemini" ? (cfg.gemAuth||"header") : undefined, buscaLocal: gGratis ? buscaLocal : null, rpm: gGratis ? (/lite/.test(modelo) ? 14 : 4) : 0}) : null;
-  if (p) diario(`IA: ${p} · modelo ${modelo}${gGratis?" · plano grátis (busca pelo Google Notícias)":""}`);
   // plano grátis num modelo Flash comum (20 pedidos por dia): troca uma vez para o Flash-Lite
-  if (gGratis && key && !/lite/.test(modelo) && !cfg.liteMigrado){
+  const key = cfg?.keys?.gemini, modelo = cfg?.model?.gemini || MODELO_PADRAO.gemini;
+  if (key && geminiGratis() && !/lite/.test(modelo) && !cfg.liteMigrado){
     cfg.liteMigrado = true; store.set("cfg", cfg);
     AI.modeloLeve(key, cfg.gemAuth||"header").then(m=>{ if(!m) return; diario(`IA: trocando ${modelo} → ${m} (cota grátis maior)`); cfg.model = Object.assign({}, cfg.model, {gemini:m}); store.set("cfg", cfg); connectAI(); }).catch(e=>diario(`IA: não consegui listar modelos (${e?.code||e?.message})`));
   }
@@ -4507,7 +4685,7 @@ function wavBase64(partes, taxa=16000){
 }
 async function transcreverFala(wav, idioma){
   const k = cfg?.keys || {};
-  const usarGemini = k.gemini && (cfg.provider==="gemini" || !k.gpt);
+  const usarGemini = k.gemini && (cfg.provider==="gemini" || !k.gpt || modoDuplo());   // na dupla, o Gemini grátis transcreve
   if (usarGemini){
     const m = cfg.model?.gemini || "gemini-flash-lite-latest", gratis = geminiGratis();
     return AI.transcrever("gemini", k.gemini, {wav, idioma, auth:cfg.gemAuth||"header", modelo:m, rpm: gratis ? (/lite/.test(m) ? 14 : 4) : 0});

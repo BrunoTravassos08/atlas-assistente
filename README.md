@@ -37,6 +37,7 @@ Na primeira abertura, escolha ChatGPT ou Claude e cole uma **chave de API** (o a
 - A chave é validada na hora (lista de modelos + uma resposta de teste) e fica salva só no aparelho.
 - O app escolhe o modelo mais recente que a chave enxerga.
 - Pesquisa e briefing de notícias usam a busca na web do próprio provedor.
+- **Dupla de IAs**: dá para conectar o Gemini (chave grátis do AI Studio) e o ChatGPT ao mesmo tempo. O Atlas escolhe sozinho a cada pedido: comandos e conversa do dia a dia (agenda, música, clima, placar, briefing, perguntas curtas) vão para o Gemini; explicações, textos, análises, PDF e "pesquisa avançada" vão para o ChatGPT. Se a IA escolhida falhar ou bater o limite antes de responder, a outra responde. O topo mostra ⚡ GEMINI ou ◆ GPT em cada resposta. Com uma IA só, ela responde tudo. Liga/desliga e conexão de cada uma em Ajustes › Dupla de IAs.
 - No Android, a voz usa o reconhecimento de fala e o leitor de texto do sistema. A escuta contínua ("Atlas, ...") ainda não existe no app.
 
 ### Agente e skills
