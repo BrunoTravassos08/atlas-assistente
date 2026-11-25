@@ -363,7 +363,7 @@ textarea.inp{height:auto;padding:8px 12px;resize:vertical;font:inherit}
 .team b{font-family:var(--f-hud);font-size:14px;line-height:1.15;overflow-wrap:anywhere}
 .crest{width:64px;height:72px;filter:drop-shadow(0 0 10px rgba(67,217,255,.25));animation:pop .6s cubic-bezier(.2,1.6,.4,1) both}
 .team:last-child .crest{animation-delay:.12s}
-.crest-img{object-fit:contain;padding:2px;filter:drop-shadow(0 0 10px rgba(67,217,255,.35)) drop-shadow(0 2px 4px rgba(0,0,0,.6))}
+.crest-img{object-fit:contain;padding:4px;border-radius:50%;background:radial-gradient(circle,rgba(200,230,255,.16) 0,rgba(200,230,255,.06) 55%,transparent 72%);filter:drop-shadow(0 0 1px rgba(255,255,255,.95)) drop-shadow(0 0 1px rgba(255,255,255,.6)) drop-shadow(0 0 9px rgba(120,210,255,.55))}
 .sc{display:flex;flex-direction:column;align-items:center}
 .sc .nums{display:flex;align-items:center;gap:10px;font-family:var(--f-hud);font-weight:700;font-size:52px;line-height:1;font-variant-numeric:tabular-nums;color:var(--fg);text-shadow:0 0 22px rgba(67,217,255,.45)}
 .sc .nums i{font-style:normal;font-size:24px;color:var(--fg-faint)}
@@ -371,6 +371,7 @@ textarea.inp{height:auto;padding:8px 12px;resize:vertical;font:inherit}
 .sc small{font-family:var(--f-hud);font-size:10px;letter-spacing:.2em;text-transform:uppercase;color:var(--fg-dim);margin-top:6px}
 .sc small.live{color:var(--red)}.sc small.live::before{content:"";display:inline-block;width:7px;height:7px;border-radius:50%;background:var(--red);margin-right:6px;animation:pulse 1s infinite}
 .goals{list-style:none;margin:8px 0 0;padding:0;display:grid;grid-template-columns:1fr 1fr;grid-auto-flow:row dense;gap:3px 12px;font-size:12px;color:var(--fg-dim)}
+a.lnk{color:var(--cyan,#43d9ff);text-decoration:none;border-bottom:1px solid rgba(67,217,255,.35);cursor:pointer}a.lnk:hover{border-bottom-color:currentColor}
 .goals li{animation:rise .5s both}.goals li.v{text-align:right;grid-column:2}.goals li.m{grid-column:1}.goals li.faint{color:var(--fg-faint);font-style:italic}
 .stats{margin-top:12px;display:flex;flex-direction:column;gap:9px}
 .goals.cards{margin-top:4px}.goals.cards li i{display:inline-block;width:8px;height:11px;border-radius:2px;margin-right:4px;vertical-align:-1px;background:#ffd23f;box-shadow:0 0 6px #ffd23f88}.goals.cards li i.verm{background:#ff3b4e;box-shadow:0 0 6px #ff3b4e88}
@@ -2030,12 +2031,12 @@ Você controla um painel (HUD). Use as ferramentas quando fizer sentido:
 - mostrar_destaque para exibir um cartão com título, um valor grande (número, porcentagem, horário) e itens curtos. Use sempre que a resposta tiver um número ou dado-chave, um resumo, ou uma lista.
 INSTAGRAM: para saber se alguém postou algo, use ver_instagram (só lê perfis que o usuário escolheu ou o @ que ele disser).
 MÚSICA: para tocar algo use tocar_musica (responda curto, a música já vai começar); para pausar, pular ou mudar o volume use controlar_musica.
-O USUÁRIO É MUITO VISUAL, EM QUALQUER ASSUNTO (não só esporte): quase toda resposta deve aparecer no painel além de ser falada, da mais simples à mais complexa. Resposta com mais de uma parte (o dia de hoje, resumo, comparação, passo a passo, notícias, finanças, saúde, viagem) → apresentar, com 2 a 6 cartões variados (numeros, grafico, agenda, clima, noticias, placar, destaque). "O que temos para hoje?", "bom dia" ou "novidades" → briefing_noticias. Placar ou resultado de jogo → mostrar_placar com a ficha completa que encontrar: cores dos uniformes, quem fez cada gol e o minuto, cartões amarelos e vermelhos, faltas e outras estatísticas, e a posição de cada time na tabela depois do jogo. Na fala, diga quem marcou e como os times ficaram na tabela. Três ou mais números comparáveis ou uma evolução no tempo → mostrar_grafico. Um único dado-chave → mostrar_destaque. Para fatos atuais (placares, tabela, cotações, clima, resultados) use a busca na web antes, quando disponível. Nunca invente placar, estatística ou número: se não encontrar, diga que não achou.
+O USUÁRIO É MUITO VISUAL, EM QUALQUER ASSUNTO (não só esporte): quase toda resposta deve aparecer no painel além de ser falada, da mais simples à mais complexa. Resposta com mais de uma parte (o dia de hoje, resumo, comparação, passo a passo, notícias, finanças, saúde, viagem) → apresentar, com 2 a 6 cartões variados (numeros, grafico, agenda, clima, noticias, placar, destaque). "O que temos para hoje?", "bom dia" ou "novidades" → briefing_noticias. Placar ou resultado de jogo → primeiro buscar_placar com o nome do time (instantâneo, já mostra a ficha no painel); só se ele não achar, busque na web e use mostrar_placar com a ficha completa que encontrar: cores dos uniformes, quem fez cada gol e o minuto, cartões amarelos e vermelhos, faltas e outras estatísticas, e a posição de cada time na tabela depois do jogo. Na fala, diga quem marcou e como os times ficaram na tabela. Três ou mais números comparáveis ou uma evolução no tempo → mostrar_grafico. Um único dado-chave → mostrar_destaque. Para fatos atuais (placares, tabela, cotações, clima, resultados) use a busca na web antes, quando disponível. Nunca invente placar, estatística ou número: se não encontrar, diga que não achou.
 SKILLS:
 1. Tradução (português, inglês, espanhol): quando pedirem para traduzir, ou perguntarem como se diz algo em outro idioma, chame mostrar_traducao com o texto completo traduzido de forma natural. Na sua resposta falada diga só uma frase curta em português (ex.: "Aqui está em inglês."); o app lê a tradução em voz alta no idioma certo.
 2. PDF: o usuário anexa PDFs pelo clipe. Use pdf_info para ver tamanhos e orientação das páginas, pdf_ler_texto para ler o conteúdo, pdf_padronizar para deixar todas as páginas no mesmo tamanho (A4 por padrão), pdf_girar, pdf_excluir_paginas e pdf_reordenar para alterar. Páginas fora do padrão são um problema recorrente do usuário: quando um PDF tiver formatos misturados, ofereça padronizar. Depois de alterar, diga que ele pode baixar pelo botão Baixar PDF no painel. Se não houver PDF aberto, peça para anexar pelo clipe.
-3. Pesquisa avançada: para QUALQUER pedido de informação, explicação, comparação, recomendação, dados ou "pesquise", chame pesquisa_avancada antes de responder. Depois resuma o resultado em até 3 frases e diga que o relatório completo está no painel. Não use para conversa casual, agenda, tradução ou PDF.
-5. Tutor de estudos: quando o usuário pedir ajuda com estudos, faculdade, escola, concurso, um trabalho, prova ou atividade: pergunte a matéria, o tema e o prazo se faltar; explique passo a passo, de forma didática; use pesquisa_avancada para conteúdo; use plano_de_estudo para mostrar o plano ou roteiro em etapas no painel (com salvar_na_agenda=true se ele pedir para lembrar ou agendar); e ofereça salvar os prazos na agenda. Se ele anexar um PDF da atividade, leia com pdf_ler_texto antes de ajudar.
+3. Pesquisa avançada: SÓ chame pesquisa_avancada quando o usuário disser o comando "pesquisa avançada" na mensagem (ex.: "pesquisa avançada sobre energia solar"). Ela demora alguns minutos. Em qualquer outro pedido de informação, mesmo "pesquise" ou "procure", responda direto e rápido, usando a busca na web quando for algo atual, e mostre no painel com os cartões. Se a pergunta pedir um estudo longo, você pode sugerir: "se quiser um relatório completo, diga pesquisa avançada". Para placar ou resultado de jogo use buscar_placar, que é instantâneo.
+5. Tutor de estudos: quando o usuário pedir ajuda com estudos, faculdade, escola, concurso, um trabalho, prova ou atividade: pergunte a matéria, o tema e o prazo se faltar; explique passo a passo, de forma didática; explique com seu conhecimento e a busca na web (pesquisa_avancada só se ele disser "pesquisa avançada"); use plano_de_estudo para mostrar o plano ou roteiro em etapas no painel (com salvar_na_agenda=true se ele pedir para lembrar ou agendar); e ofereça salvar os prazos na agenda. Se ele anexar um PDF da atividade, leia com pdf_ler_texto antes de ajudar.
 4. Briefing de notícias: quando pedirem notícias, novidades ou "o que está acontecendo", chame briefing_noticias (busca os assuntos de interesse do usuário: ${topics().map(t=>t.nome).join("; ")}). Depois diga só uma frase curta, porque o briefing já é falado.
 A pesquisa e o briefing usam a web ao vivo quando o app está aberto no Claude para desktop; senão usam seu conhecimento e apontam o que conferir.
 ${context()}`;
@@ -2385,18 +2386,46 @@ function mesmoTime(nosso, t={}){
   return melhor;
 }
 const espnCache = {};
+const diaEspn = k => { const d=new Date(Date.now()-k*864e5); return `${d.getFullYear()}${String(d.getMonth()+1).padStart(2,"0")}${String(d.getDate()).padStart(2,"0")}`; };
+async function placaresEspn(ligas, dias, ms=12000){
+  const pedidos=[]; for(const l of ligas) for(const d of dias) pedidos.push({l,d});
+  return Promise.all(pedidos.map(async ({l,d})=>{
+    const url=`https://site.api.espn.com/apis/site/v2/sports/soccer/${l}/scoreboard?dates=${d}`;
+    if(espnCache[url] && Date.now()-espnCache[url].em<120000) return espnCache[url].j;
+    try{ const j=JSON.parse(await httpTexto(url, ms)); j._liga=l; espnCache[url]={j, em:Date.now()}; return j; }catch{ return null; }
+  }));
+}
+// "qual foi o placar do Al-Nassr?": acha o jogo direto no placar da ESPN, sem passar pela IA
+const PEDE_PLACAR = /\b(placar|resultado|quanto (foi|ficou|t[aá]|est[aá])|como (foi|ficou|t[aá]|est[aá]) o jogo|ganhou|perdeu|venceu|empatou|fez gol|marcou|jogo d[oa])\b/i;
+const LIGAS_RAPIDAS = ["all","bra.1","bra.2","conmebol.libertadores","bra.copa_do_brazil","afc.champions","ksa.1"];
+async function acharJogoEspn(texto){
+  const q=nomeTime(texto); if(!q) return null;
+  const extra=ESPN_LIGAS.filter(([re])=>re.test(texto)).map(([,l])=>l);
+  const respostas=await placaresEspn([...new Set([...extra, ...LIGAS_RAPIDAS])], [0,1,2].map(diaEspn), 8000);
+  const naPergunta = t => [t?.displayName, t?.shortDisplayName, t?.name].some(n=>{ const b=nomeTime(n); return b.length>=4 && (` ${q} `).includes(` ${b} `); });
+  let achado=null;
+  for(const j of respostas) for(const ev of (j?.events||[])){
+    const c=ev.competitions?.[0], cs=c?.competitors||[]; if(cs.length!==2) continue;
+    const st=ev.status?.type||{}; if(st.state==="pre") continue;
+    const n=cs.filter(x=>naPergunta(x.team)).length; if(!n) continue;
+    const t=new Date(ev.date).getTime()||0, nota=n*1e13+t;
+    if(!achado || nota>achado.nota) achado={nota, ev, c, cs, liga:j._liga, nomeLiga:j._liga!=="all" ? (j.leagues?.[0]?.name||"") : ""};
+  }
+  if(!achado) return null;
+  const {ev, cs, liga, nomeLiga}=achado, casa=cs.find(x=>x.homeAway==="home")||cs[0], fora=cs.find(x=>x!==casa);
+  const time = x => ({nome:x.team?.shortDisplayName||x.team?.displayName||"", sigla:String(x.team?.abbreviation||"").slice(0,3), gols:num(x.score)});
+  const d=new Date(ev.date), st=ev.status?.type||{};
+  return {tipo:"placar", competicao:nomeLiga||"Futebol", data:isNaN(d)?"":d.toLocaleDateString("pt-BR"), status:st.completed?"encerrado":/half/i.test(st.name||"")?"intervalo":"ao vivo",
+    mandante:time(casa), visitante:time(fora), _liga:liga};
+}
 async function fichaEspn(p){
   const gm=num(p.mandante.gols), gv=num(p.visitante.gols);
   const ligas=[...new Set([...ESPN_LIGAS.filter(([re])=>re.test(p.competicao||"")).slice(0,2).map(([,l])=>l), "all"])];
-  const dias=[0,1,2].map(k=>{ const d=new Date(Date.now()-k*864e5); return `${d.getFullYear()}${String(d.getMonth()+1).padStart(2,"0")}${String(d.getDate()).padStart(2,"0")}`; });
+  if(p._liga) ligas.unshift(p._liga);
+  const dias=[0,1,2].map(diaEspn);
   const m=/(\d{1,2})\/(\d{1,2})(?:\/(\d{2,4}))?/.exec(String(p.data||p.competicao||""));
   if(m){ const y=m[3]?(m[3].length===2?"20"+m[3]:m[3]):String(new Date().getFullYear()); const d=`${y}${m[2].padStart(2,"0")}${m[1].padStart(2,"0")}`; if(!dias.includes(d)) dias.unshift(d); }
-  const pedidos=[]; for(const l of ligas) for(const d of dias) pedidos.push({l,d});
-  const respostas = await Promise.all(pedidos.map(async ({l,d})=>{
-    const url=`https://site.api.espn.com/apis/site/v2/sports/soccer/${l}/scoreboard?dates=${d}`;
-    if(espnCache[url] && Date.now()-espnCache[url].em<120000) return espnCache[url].j;
-    try{ const j=JSON.parse(await httpTexto(url, 12000)); espnCache[url]={j, em:Date.now()}; return j; }catch{ return null; }
-  }));
+  const respostas = await placaresEspn([...new Set(ligas)], dias);
   let achado=null, nota=-1;
   for(const j of respostas) for(const ev of (j?.events||[])){
     const c=ev.competitions?.[0], cs=c?.competitors||[]; if(cs.length!==2) continue;
@@ -2456,7 +2485,10 @@ function mesclarPlacar(p, r){
   const st = Array.isArray(r.estatisticas) ? r.estatisticas.filter(x=>x&&x.nome&&x.mandante!=null&&x.visitante!=null&&String(x.mandante).trim()!==""&&String(x.visitante).trim()!=="") : [];
   if(st.length){
     const base = r.oficial ? st : (o.estatisticas||[]), extra = r.oficial ? (o.estatisticas||[]) : st;
-    const tem=new Set(base.map(x=>String(x.nome).toLowerCase())); o.estatisticas=[...base, ...extra.filter(x=>!tem.has(String(x.nome).toLowerCase()))].slice(0,8);
+    // "Faltas cometidas" e "Faltas" são a mesma estatística: fica só a primeira
+    const chave=x=>nomeTime(x?.nome), igual=(a,b)=>a&&b&&(a===b||a.startsWith(b+" ")||b.startsWith(a+" "));
+    const lista=[]; for(const x of [...base, ...extra]){ const k=chave(x); if(k && !lista.some(y=>igual(chave(y),k))) lista.push(x); }
+    o.estatisticas=lista.slice(0,8);
   }
   if(!o.classificacao && r.classificacao && typeof r.classificacao==="object") o.classificacao = r.classificacao;
   if(r.oficial){
@@ -2516,12 +2548,12 @@ function falaPlacar(p){
 function renderPlacar(h){
   const m=h.mandante||{}, v=h.visitante||{}, gm=num(m.gols), gv=num(v.gols), enc=!String(h.status||"").toLowerCase().includes("agend");
   const c1=hexOk(m.cor_primaria,"#43d9ff"), c2=hexOk(v.cor_primaria,"#9a6bff");
-  const stats=(h.estatisticas||[]).slice(0,8);
+  const stats=(h.estatisticas||[]).filter(st=>String(st?.nome||"").trim()).slice(0,8);
   // time que marcou sem autor encontrado: avisa em vez de deixar o lado vazio
   const semAutor=["mandante","visitante"].map(l=>{ const falta=(l==="mandante"?gm:gv)-(h.gols||[]).filter(g=>g.time===l).length; return enc&&falta>0?`<li class="${l==="visitante"?"v":"m"} faint">⚽ ${falta} ${falta>1?"gols":"gol"} · autor não encontrado</li>`:""; }).join("");
   return `<div class="eyebrow">${esc(h.competicao||"Futebol")}${h.data?` · ${esc(h.data)}`:""}</div>
     <div class="score"><div class="team">${crest(m)}<b>${esc(m.nome||"Mandante")}</b></div>
-      <div class="sc"><div class="nums">${enc?`<span class="${gm>gv?"win":""}" data-count="${gm}">0</span><i>×</i><span class="${gv>gm?"win":""}" data-count="${gv}">0</span>`:`<i>×</i>`}</div>${statusTag(h.status)}</div>
+      <div class="sc"><div class="nums">${enc?`<span class="${gm>gv?"win":""}" data-count="${gm}">${gm}</span><i>×</i><span class="${gv>gm?"win":""}" data-count="${gv}">${gv}</span>`:`<i>×</i>`}</div>${statusTag(h.status)}</div>
       <div class="team">${crest(v)}<b>${esc(v.nome||"Visitante")}</b></div></div>
     ${(h.gols||[]).length||semAutor?`<ul class="goals">${(h.gols||[]).slice(0,12).map((g,i)=>`<li class="${g.time==="visitante"?"v":"m"}" style="animation-delay:${.5+i*.08}s">⚽ ${esc(minutoTxt(g.minuto))} ${esc(g.jogador||"")}${/p[eê]n/i.test(g.tipo||"")?" (pên.)":/contra/i.test(g.tipo||"")?" (contra)":""}</li>`).join("")}${semAutor}</ul>`:""}
     ${(h.cartoes||[]).length?`<ul class="goals cards">${h.cartoes.slice(0,12).map((c,i)=>`<li class="${c.time==="visitante"?"v":"m"}" style="animation-delay:${.6+i*.06}s"><i class="${/verm/i.test(c.cor||"")?"verm":""}"></i>${esc(minutoTxt(c.minuto))} ${esc(c.jogador||"")}</li>`).join("")}</ul>`:""}
@@ -3111,6 +3143,7 @@ function renderGasto(){
 
 const RESEARCH_STEPS = ["Decompondo a pergunta","Levantando dados e fontes","Cruzando informações","Verificando consistência","Escrevendo o relatório"];
 let researchTimer=null;
+const PEDE_PESQUISA = /pesquisa\s+avan[çc]ada/i;
 async function research(pergunta, signal){
   highlight={tipo:"pesquisa", titulo:pergunta, run:true, etapa:0}; tab="destaque"; renderCard();
   $("#state").textContent="Pesquisando…";
@@ -3149,13 +3182,19 @@ function renderHighlight(h){
   if(h.tipo==="pesquisa"){
     if(h.run) return `<div class="eyebrow">Pesquisa avançada</div><h3>${esc(h.titulo)}</h3><ul class="su-steps">${RESEARCH_STEPS.map((s,i)=>`<li class="${i<h.etapa?"ok":i===h.etapa?"run":""}">${s}</li>`).join("")}</ul>`;
     const conf={alta:"var(--green)", "média":"var(--amber)", media:"var(--amber)", baixa:"var(--red)"}[h.confianca?.toLowerCase()]||"var(--fg-dim)";
-    return `<div class="eyebrow">Pesquisa avançada${h.web?` · <span style="color:var(--green)">web ao vivo</span>`:""}${h.confianca?` · <span style="color:${conf}">confiança ${esc(h.confianca)}</span>`:""}</div><h3>${esc(h.titulo)}</h3><p class="sub" style="color:var(--fg)">${esc(h.resumo)}</p>
-      ${h.pontos?.length?`<ul class="rows">${h.pontos.map(p=>`<li><span class="time">›</span><span class="t">${esc(p)}</span><span></span></li>`).join("")}</ul>`:""}
-      ${(h.secoes||[]).map(s=>`<details class="sec"><summary>${esc(s.titulo)}</summary><p class="sub">${esc(s.texto)}</p></details>`).join("")}
-      ${h.fontes?.length?`<details class="sec"><summary>Onde conferir</summary><p class="sub">${h.fontes.map(esc).join(" · ")}</p></details>`:""}
+    return `<div class="eyebrow">Pesquisa avançada${h.web?` · <span style="color:var(--green)">web ao vivo</span>`:""}${h.confianca?` · <span style="color:${conf}">confiança ${esc(h.confianca)}</span>`:""}</div><h3>${esc(h.titulo)}</h3><p class="sub" style="color:var(--fg)">${textoComLinks(h.resumo)}</p>
+      ${h.pontos?.length?`<ul class="rows">${h.pontos.map(p=>`<li><span class="time">›</span><span class="t">${textoComLinks(p)}</span><span></span></li>`).join("")}</ul>`:""}
+      ${(h.secoes||[]).map(s=>`<details class="sec"><summary>${esc(s.titulo)}</summary><p class="sub">${textoComLinks(s.texto)}</p></details>`).join("")}
+      ${h.fontes?.length?`<details class="sec"><summary>Onde conferir</summary><p class="sub">${h.fontes.map(textoComLinks).join(" · ")}</p></details>`:""}
       ${h.verificar?.length?`<p class="note" style="margin-top:10px">Conferir em fonte atualizada: ${h.verificar.map(esc).join("; ")}</p>`:""}`;
   }
   return `<div class="eyebrow">${esc(h.categoria||"Destaque")}</div><h3>${esc(h.titulo)}</h3>${h.valor?`<div class="big">${esc(h.valor)}</div>`:""}${h.legenda?`<p class="sub">${esc(h.legenda)}</p>`:""}${h.itens?.length?`<ul class="rows">${h.itens.map(i=>`<li><span class="time">›</span><span class="t">${esc(i)}</span><span></span></li>`).join("")}</ul>`:""}`;
+}
+// texto da pesquisa com links em markdown [nome](https://...) vira link clicável; URL solta vira "link"
+function textoComLinks(t){
+  return esc(t).replace(/\[([^\]]{1,120})\]\((https:\/\/[^\s)]+)\)/g, (_, nome, url)=>`<a class="lnk" data-act="abrir-noticia" data-url="${url}" role="link" tabindex="0">${nome}</a>`)
+    .replace(/(^|[\s(])(https:\/\/[^\s<)]+)/g, (_, pre, url)=>`${pre}<a class="lnk" data-act="abrir-noticia" data-url="${url}" role="link" tabindex="0">link</a>`)
+    .replace(/\s+·\s+(?=<a class="lnk")/g, " · ");
 }
 function renderPdfCard(){
   if(!pdf) return `<div class="eyebrow">Documento PDF</div><h3>Nenhum PDF aberto</h3><p class="sub">Anexe um PDF para eu ler, resumir, girar, excluir ou reordenar páginas e padronizar todas no mesmo tamanho.</p><div class="acts"><button class="btn-line" data-act="anexar" type="button">Escolher PDF</button></div>`;
@@ -3221,6 +3260,16 @@ const tools = [
    execute(i){ const slides=(Array.isArray(i.cartoes)?i.cartoes:[]).slice(0,8).map(limparCartao); if(!slides.length) throw new Error("Nenhum cartão.");
      highlight={tipo:"apresentacao", titulo:String(i.titulo||slides[0].titulo||"Apresentação"), slides, i:0}; store.set("hl",highlight); tab="destaque"; renderCard(); renderTicker(); storyPlay();
      return {ok:true, cartoes:slides.length, nota:"os cartões já estão passando na tela; na fala, não repita tudo, comente o principal"}; }},
+  {name:"buscar_placar", description:"Acha em 1 ou 2 segundos o jogo mais recente (até 3 dias) ou ao vivo de um time de futebol e mostra o placar com gols, cartões e estatísticas no painel. Use SEMPRE primeiro para placar ou resultado de jogo.", inputSchema:{type:"object",properties:{time:{type:"string",description:"nome do time, ex.: Al-Nassr, Sport, Flamengo"},competicao:{type:"string"}},required:["time"]},
+   async execute(i){
+     const p=await acharJogoEspn(`${i.time||""} ${i.competicao||""}`);
+     if(!p) return {encontrado:false, nota:"não achei esse jogo no placar rápido; busque na web e use mostrar_placar"};
+     const titulo=`${p.mandante.nome} ${p.mandante.gols} × ${p.visitante.gols} ${p.visitante.nome}`;
+     const mostra=x=>{ highlight=Object.assign({}, x, {tipo:"placar", titulo, fichaEm:Date.now()}); store.set("hl",highlight); tab="destaque"; renderCard(); renderTicker(); };
+     mostra(p); let atual=highlight;
+     const o=await detalharPlacar(p, {timeout:12000, onParcial:x=>{ if(highlight===atual){ mostra(x); atual=highlight; } }});
+     if(highlight===atual) mostra(o);
+     return {encontrado:true, competicao:o.competicao, data:o.data, status:o.status, mandante:o.mandante.nome, gols_mandante:num(o.mandante.gols), visitante:o.visitante.nome, gols_visitante:num(o.visitante.gols), gols:o.gols||[], cartoes:o.cartoes||[], classificacao:o.classificacao||null, nota:"o painel já mostra a ficha; na fala diga o placar e quem marcou em 1 ou 2 frases"}; }},
   {name:"mostrar_placar", description:"Mostra no painel um placar de jogo animado, com escudos nas cores dos times, gols e estatísticas da partida. Use para qualquer resultado ou jogo em andamento. Só use dados encontrados na busca; não invente estatísticas.", inputSchema:{type:"object",properties:{
       competicao:{type:"string"}, data:{type:"string"}, status:{type:"string",enum:["encerrado","ao vivo","intervalo","agendado"]},
       mandante:{type:"object",properties:{nome:{type:"string"},sigla:{type:"string",description:"3 letras"},gols:{type:"number"},cor_primaria:{type:"string",description:"cor do uniforme em hex, ex.: #d40000"},cor_secundaria:{type:"string"}},required:["nome"]},
@@ -3261,8 +3310,12 @@ const tools = [
    execute(i){ highlight={categoria:String(i.categoria||"Destaque").slice(0,30), titulo:String(i.titulo).slice(0,90), valor:i.valor?String(i.valor).slice(0,16):"", legenda:i.legenda?String(i.legenda).slice(0,200):"", itens:Array.isArray(i.itens)?i.itens.slice(0,6).map(s=>String(s).slice(0,80)):[]}; store.set("hl",highlight); tab="destaque"; renderCard(); renderTicker(); return {ok:true}; }},
   {name:"mostrar_traducao", description:"Mostra uma tradução no painel e a lê em voz alta no idioma de destino.", inputSchema:{type:"object",properties:{de:{type:"string",enum:["pt","en","es"]},para:{type:"string",enum:["pt","en","es"]},original:{type:"string"},traducao:{type:"string"},observacao:{type:"string",description:"nota curta opcional: formalidade, expressão, pronúncia"}},required:["para","original","traducao"]},
    execute(i){ const para=LANG[i.para]?i.para:"en", de=LANG[i.de]?i.de:"pt"; highlight={tipo:"traducao", de, para, titulo:`Tradução ${LANG[de].tag} → ${LANG[para].tag}`, original:String(i.original).slice(0,1500), traducao:String(i.traducao).slice(0,1500), observacao:i.observacao?String(i.observacao).slice(0,200):""}; store.set("hl",highlight); pendingSpeak={text:highlight.traducao, lang:para}; tab="destaque"; renderCard(); renderTicker(); return {ok:true, nota:"a tradução será lida em voz alta pelo app"}; }},
-  {name:"pesquisa_avancada", description:"Pesquisa aprofundada sobre o pedido do usuário; mostra um relatório completo no painel e devolve o resumo.", inputSchema:{type:"object",properties:{pergunta:{type:"string",description:"o pedido do usuário, completo e específico"}},required:["pergunta"]},
-   execute(i,ctx){ return research(String(i.pergunta).slice(0,600), ctx?.signal); }},
+  {name:"pesquisa_avancada", description:"Pesquisa aprofundada e demorada (minutos), com relatório completo no painel. Use SOMENTE quando o usuário disser o comando \"pesquisa avançada\".", inputSchema:{type:"object",properties:{pergunta:{type:"string",description:"o pedido do usuário, completo e específico"}},required:["pergunta"]},
+   execute(i,ctx){
+     // só roda com o comando "pesquisa avançada" do próprio usuário; senão a IA responde direto
+     const ultima=[...history].reverse().find(m=>m.role==="user")?.content||"";
+     if(!PEDE_PESQUISA.test(ultima)){ diario("pesquisa avançada: bloqueada (o usuário não pediu)"); return {ok:false, nota:"o usuário não disse \"pesquisa avançada\": responda direto agora, em até 3 frases, usando a busca na web se precisar e os cartões do painel"}; }
+     return research(String(i.pergunta).slice(0,600), ctx?.signal); }},
   {name:"briefing_noticias", description:"Briefing do dia em apresentação animada: resumo do dia, clima, agenda e as notícias de hoje dos assuntos de interesse, lido em voz alta cartão por cartão. Use para 'o que temos para hoje', 'bom dia', 'novidades', 'notícias'.",
    execute(){ pendingBriefing=true; return {ok:true, nota:"o briefing vai começar logo depois da sua resposta; responda só 'Buscando suas notícias.'"}; }},
   {name:"pdf_info", description:"Mostra as páginas do PDF aberto: total, formatos (tamanho e orientação) e alterações feitas.",
@@ -3281,6 +3334,28 @@ const tools = [
 
 let busy=null;
 let aoResponder = null; // painel do botão flutuante esperando a resposta
+// pergunta de placar: responde em 1 ou 2 segundos com o placar da ESPN; se não achar o jogo, segue para a IA
+async function placarRapido(userText, ctl){
+  let p=null;
+  try{ p = await Promise.race([acharJogoEspn(userText), sleep(6000).then(()=>null)]); }catch(e){ diario(`placar rápido: ${e?.message||e}`); }
+  if(ctl!==busy || !p) { if(!p) diario("placar rápido: jogo não encontrado, segue para a IA"); return false; }
+  const titulo=`${p.mandante.nome} ${p.mandante.gols} × ${p.visitante.gols} ${p.visitante.nome}`;
+  const mostra = x => { highlight=Object.assign({}, x, {tipo:"placar", titulo, fichaEm:Date.now()}); store.set("hl",highlight); tab="destaque"; renderCard(); renderTicker(); };
+  mostra(p);
+  let atual=highlight;
+  const o = await detalharPlacar(p, {timeout:12000, onParcial:x=>{ if(highlight===atual){ mostra(x); atual=highlight; } }}).catch(()=>p);
+  if(ctl!==busy) return true;
+  if(highlight===atual) mostra(o);
+  const m=o.mandante, v=o.visitante, gm=num(m.gols), gv=num(v.gols), vivo=/vivo|interv/i.test(o.status||"");
+  const frase = vivo ? `${o.status==="intervalo"?"No intervalo":"Ao vivo"}: ${m.nome} ${gm} a ${gv} ${v.nome}.`
+    : gm===gv ? `${m.nome} e ${v.nome} empataram em ${gm} a ${gv}.` : gm>gv ? `O ${m.nome} venceu o ${v.nome} por ${gm} a ${gv}.` : `O ${v.nome} venceu o ${m.nome} por ${gv} a ${gm}.`;
+  const texto = [frase, falaPlacar(o)].filter(Boolean).join(" ");
+  history.push({role:"assistant",content:texto}); saveHist();
+  caption(esc(texto)); if (tab==="historico") renderCard();
+  diario(`placar rápido: ${titulo}`);
+  try{ await speak(texto); }finally{ if (ctl===busy){ busy=null; if (mode!=="listening") setMode("idle"); } }
+  return true;
+}
 async function ask(userText, {greeting=false}={}){
   if (busy) busy.abort();
   storyStop();
@@ -3290,6 +3365,8 @@ async function ask(userText, {greeting=false}={}){
   if (!greeting){ history.push({role:"user",content:userText}); saveHist(); caption(`<span class="you">${esc(userText)}</span>`); }
   setMode("thinking");
   if (tab==="historico") renderCard();
+  if (!greeting && PEDE_PLACAR.test(userText) && await placarRapido(userText, ctl)) return;
+  if (ctl!==busy) return;
   if (!sample){ return offline(userText, greeting); }
   const turns = greeting
     ? [{role:"user", content: rules()+"\n\nO usuário acabou de abrir o app. Cumprimente pelo período do dia e faça um briefing de no máximo 3 frases sobre a agenda de hoje (o que vem a seguir)"+(tarefasAtrasadas().length?`, avisando as tarefas atrasadas (diga exatamente: ${falaAtrasos()})`:"")+" e termine perguntando se pode ajudar com alguma coisa. Use apresentar com 2 cartões: um numeros com o resumo do dia (compromissos, próximo horário) e um agenda."}]
