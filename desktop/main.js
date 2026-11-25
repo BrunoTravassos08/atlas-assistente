@@ -6,6 +6,7 @@ const path = require("node:path");
 const fs = require("node:fs");
 const os = require("node:os");
 const { spawn, spawnSync } = require("node:child_process");
+const codex = require("./codex");   // ChatGPT pela assinatura (Codex CLI oficial), jeito do HUBIA
 
 const NOME = "Atlas";
 const EM_BANDEJA = process.argv.includes("--bandeja");
@@ -286,7 +287,7 @@ function iniciarMotor(){
     else if (m.t === "fim") enviar("voz-fim", m);
     else if (m.t === "palavra") enviar("escuta-palavra", m);
     else if (m.t === "log") enviar("desk-log", m.msg);
-    if (m.id != null && pendentes.has(m.id) && ["info", "carregada"].includes(m.t)){ pendentes.get(m.id)(m); pendentes.delete(m.id); }
+    if (m.id != null && pendentes.has(m.id) && ["info", "carregada", "texto"].includes(m.t)){ pendentes.get(m.id)(m); pendentes.delete(m.id); }
     if (m.t === "kws-ok" || m.t === "kws-erro"){ const f = pendentes.get("kws"); pendentes.delete("kws"); f?.(m); }
   });
   motor.on("exit", c => { motor = null; erroMotor = `o motor de voz parou (código ${c})`; enviar("desk-log", erroMotor); enviar("voz-fim", { id: -1, erro: erroMotor }); });
@@ -359,6 +360,8 @@ function ponte(){
   h("kws-iniciar", async () => { const r = await perguntarMotor({ t: "kws-iniciar" }, "kws"); if (r.erro) throw new Error(r.erro); return {}; });
   ipcMain.on("kws-audio", (e, amostras) => motor?.postMessage({ t: "kws-audio", amostras }));
   ipcMain.on("kws-parar", () => motor?.postMessage({ t: "kws-parar" }));
+  // fala → texto sem internet (Whisper tiny), para quem usa o ChatGPT pela assinatura e não tem chave
+  h("stt-local", async ({ amostras }) => { const r = await perguntarMotor({ t: "transcrever", amostras }); if (r.erro) throw new Error(r.erro); return { texto: r.texto || "" }; });
   // lembretes
   h("lembretes-agendar", ({ notifications }) => { const ids = new Set((notifications || []).map(n => n.id)); cfg.lembretes = (cfg.lembretes || []).filter(l => !ids.has(l.id)).concat(notifications || []); salvar(); return {}; });
   h("lembretes-cancelar", ({ notifications }) => { const ids = new Set((notifications || []).map(n => n.id)); cfg.lembretes = (cfg.lembretes || []).filter(l => !ids.has(l.id)); salvar(); return {}; });
@@ -376,6 +379,15 @@ function ponte(){
     return { atalhoOk };
   });
   h("desk-atualizar", () => { if (atualizacao?.pronta){ sair = true; require("electron-updater").autoUpdater.quitAndInstall(true, true); } return {}; });
+  // ChatGPT pela assinatura: instalar o Codex, entrar com a conta, conversar
+  h("codex-status", () => codex.status());
+  h("codex-instalar", () => codex.instalar(p => enviar("desk-evento", { ev: "codex", ...p })));
+  h("codex-login", () => codex.login());
+  h("codex-login-cancelar", () => codex.cancelarLogin());
+  h("codex-abrir-login", ({ url }) => { if (!/^https:\/\/auth\.openai\.com\//.test(String(url))) throw new Error("link inválido"); return shell.openExternal(String(url)); });
+  h("codex-sair", () => codex.sair());
+  h("codex-chat", a => codex.chat(a, ev => enviar("codex-evento", { id: a.id, ...ev })));
+  h("codex-cancelar", a => codex.cancelar(a));
   h("desk-tela-cheia", () => { win?.setFullScreen(!win.isFullScreen()); return { cheia: win?.isFullScreen() }; });
 }
 
@@ -400,6 +412,7 @@ function verificarAtualizacao(){
 app.on("second-instance", mostrar);
 app.whenReady().then(() => {
   liberarCors();
+  codex.iniciar({ dados: app.getPath("userData"), fetchFn: (...a) => net.fetch(...a) });
   ponte();
   iniciarMotor();
   criarJanela();
