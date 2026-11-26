@@ -5,7 +5,7 @@ const { app, BrowserWindow, Tray, Menu, globalShortcut, ipcMain, shell, session,
 const path = require("node:path");
 const fs = require("node:fs");
 const os = require("node:os");
-const { spawn, spawnSync } = require("node:child_process");
+const { spawn } = require("node:child_process");
 const codex = require("./codex");   // ChatGPT pela assinatura (Codex CLI oficial), jeito do HUBIA
 
 const NOME = "Atlas";
@@ -298,37 +298,70 @@ const perguntarMotor = (msg, chave) => new Promise(res => {
   pendentes.set(id, res); motor.postMessage(Object.assign({ id }, msg));
   setTimeout(() => { if (pendentes.has(id)){ pendentes.delete(id); res({ erro: "o motor de voz não respondeu" }); } }, 30000);
 });
+// Baixa a voz do release tts-models do sherpa-onnx e instala em userData/vozes/<id>.
+// Avisa a página a cada passo (voz-progresso) e, se algo falhar, manda o motivo em português.
+const avisarVoz = d => enviar("voz-progresso", Object.assign({ ativo: true }, d));
+function extrairPacote(arq, voz, destino){
+  return new Promise((res, rej) => {
+    let p;
+    try { p = utilityProcess.fork(path.join(__dirname, "extrair.js"), [], { serviceName: "Atlas instalar voz", stdio: "ignore" }); }
+    catch (e){ return rej(new Error("não consegui abrir o instalador da voz (" + (e?.message || e) + ")")); }
+    let fim = false;
+    const acabar = (erro) => { if (fim) return; fim = true; clearTimeout(t); try { p.kill(); } catch {} erro ? rej(new Error(erro)) : res(); };
+    const t = setTimeout(() => acabar("a instalação da voz demorou demais"), 5 * 60e3);
+    p.on("message", m => acabar(m?.erro || null));
+    p.on("exit", c => acabar(`o instalador da voz parou (código ${c})`));
+    p.postMessage({ arq, voz, destino });
+  });
+}
 async function baixarVoz(id){
   const v = VOZES.find(x => x[0] === id);
   if (!v || id === "faber") throw new Error("voz desconhecida");
   if (baixando) throw new Error("já existe um download em andamento");
   baixando = true;
-  const tmp = fs.mkdtempSync(path.join(os.tmpdir(), "atlas-voz-"));
+  let tmp = null, erro = null;
+  const ctl = new AbortController();
+  let parado = null;
+  const vigiar = () => { clearTimeout(parado); parado = setTimeout(() => ctl.abort(), 45e3); };   // 45 s sem chegar nada = travou
   try {
-    const r = await net.fetch(`https://github.com/k2-fsa/sherpa-onnx/releases/download/tts-models/vits-piper-${v[2]}.tar.bz2`);
-    if (!r.ok) throw new Error("HTTP " + r.status);
+    avisarVoz({ id, fase: "baixando", pct: 0, mb: 0 });
+    fs.mkdirSync(PASTA_VOZES, { recursive: true });
+    tmp = fs.mkdtempSync(path.join(os.tmpdir(), "atlas-voz-"));
+    vigiar();
+    let r;
+    try { r = await net.fetch(`https://github.com/k2-fsa/sherpa-onnx/releases/download/tts-models/vits-piper-${v[2]}.tar.bz2`, { signal: ctl.signal, cache: "no-store" }); }
+    catch (e){ throw new Error(ctl.signal.aborted ? "o GitHub não respondeu. Confira a internet e tente de novo" : `sem conexão com o GitHub (${e?.message || e})`); }
+    if (!r.ok) throw new Error(`o GitHub recusou o download (HTTP ${r.status})`);
     const total = +r.headers.get("content-length") || 0, arq = path.join(tmp, "voz.tar.bz2"), out = fs.createWriteStream(arq);
+    const totalMb = total ? Math.round(total / 1048576) : 0;
     let lidos = 0, ultimo = -1;
-    for await (const parte of r.body){
-      out.write(Buffer.from(parte)); lidos += parte.length;
-      const pct = total ? Math.floor(lidos * 100 / total) : -1, mb = Math.round(lidos / 1048576);
-      if (pct !== ultimo){ ultimo = pct; enviar("voz-progresso", { id, pct, mb, ativo: true }); }
-    }
+    try {
+      for await (const parte of r.body){
+        vigiar();
+        if (!out.write(Buffer.from(parte))) await new Promise(res => out.once("drain", res));
+        lidos += parte.length;
+        const pct = total ? Math.min(99, Math.floor(lidos * 100 / total)) : -1, mb = Math.round(lidos / 1048576);
+        if (pct !== ultimo || (pct < 0 && mb !== ultimo)){ ultimo = pct < 0 ? mb : pct; avisarVoz({ id, fase: "baixando", pct, mb, totalMb }); }
+      }
+    } catch (e){ throw new Error(ctl.signal.aborted ? "o download travou (a internet caiu?). Tente de novo" : `o download parou no meio (${e?.message || e})`); }
+    finally { clearTimeout(parado); }
     await new Promise((res, rej) => out.end(e => e ? rej(e) : res()));
-    const tar = process.platform === "win32" ? path.join(process.env.SystemRoot || "C:\\Windows", "System32", "tar.exe") : "tar";
-    const t = spawnSync(tar, ["-xjf", arq, "-C", tmp], { windowsHide: true });
-    if (t.status !== 0) throw new Error("não consegui descompactar a voz");
-    const d = path.join(tmp, `vits-piper-${v[2]}`), destino = path.join(PASTA_VOZES, id);
-    if (!fs.existsSync(path.join(d, `${v[2]}.onnx`))) throw new Error("arquivo da voz incompleto");
-    fs.rmSync(destino, { recursive: true, force: true }); fs.mkdirSync(destino, { recursive: true });
-    fs.copyFileSync(path.join(d, `${v[2]}.onnx`), path.join(destino, "model.onnx"));
-    fs.copyFileSync(path.join(d, "tokens.txt"), path.join(destino, "tokens.txt"));
-    for (const lic of ["MODEL_CARD", "README.md"]) if (fs.existsSync(path.join(d, lic))){ fs.copyFileSync(path.join(d, lic), path.join(destino, "LICENCA.txt")); break; }
+    if (total && lidos < total) throw new Error("o download parou no meio. Tente de novo");
+    avisarVoz({ id, fase: "instalando", pct: 100, mb: Math.round(lidos / 1048576), totalMb });
+    motor?.postMessage({ t: "descarregar", voz: id });
+    await extrairPacote(arq, v[2], path.join(PASTA_VOZES, id));
+    if (!vozInstalada(id)) throw new Error("a voz não ficou instalada");
     return { id };
+  } catch (e){
+    erro = String(e?.message || e);
+    if (/EACCES|EPERM|ENOSPC/.test(erro)) erro = /ENOSPC/.test(erro) ? "falta espaço no disco para a voz (precisa de uns 150 MB livres)" : "o Windows não deixou gravar a voz na pasta do Atlas";
+    enviar("desk-log", `voz neural: falhou ao baixar ${id}: ${erro}`);
+    throw new Error(erro);
   } finally {
+    clearTimeout(parado);
     baixando = false;
-    fs.rmSync(tmp, { recursive: true, force: true });
-    enviar("voz-progresso", { id, pct: 100, ativo: false });
+    if (tmp) try { fs.rmSync(tmp, { recursive: true, force: true }); } catch {}
+    enviar("voz-progresso", { id, ativo: false, erro });
   }
 }
 

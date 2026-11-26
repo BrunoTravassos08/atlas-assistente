@@ -13,6 +13,7 @@
   },
   "dependencies": {
     "electron-updater": "6.8.11",
+    "seek-bzip": "2.0.0",
     "sherpa-onnx-node": "1.13.8"
   },
   "overrides": {
@@ -39,6 +40,7 @@
       "main.js",
       "motor.js",
       "codex.js",
+      "extrair.js",
       "preload.js",
       "icone.png",
       "app/**/*",

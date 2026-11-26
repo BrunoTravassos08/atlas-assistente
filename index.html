@@ -1266,10 +1266,18 @@ if (ESCUTA){
   setInterval(()=>{ if (!escutaLigada && podeEscutar()) escutaNome(); }, 4000);
 }
 let piperInfo = null, piperBaixa = null;
+// "Baixando… 37% (24 de 64 MB)" / "Instalando a voz…"
+function textoBaixa(d){
+  if (d?.fase==="instalando") return "Instalando a voz… (alguns segundos)";
+  if (!d || d.pct==null || d.pct===0 && !d.mb) return "Baixando… (conectando)";
+  return d.pct>=0 ? `Baixando… ${d.pct}%${d.totalMb?` (${d.mb} de ${d.totalMb} MB)`:""}` : `Baixando… ${d.mb} MB`;
+}
 const motorVoz = () => cfg?.vozMotor || (VOZ ? "piper" : "aparelho");
 async function atualizarPiper(){ if(!VOZ) return null; try{ piperInfo = await VOZ.info(); }catch(e){ piperInfo = null; } if(ajOpen && !$("#ajCard").contains(document.activeElement)) renderAjustes(); return piperInfo; }
 if (VOZ){
-  VOZ.addListener("progresso", d=>{ piperBaixa = d; const el=$("#piperPct"); if(el) el.textContent = d.pct>=0 ? `Baixando… ${d.pct}%` : `Baixando… ${d.mb} MB`; });
+  VOZ.addListener("progresso", d=>{
+    if (d.ativo===false){ piperBaixa = d.erro ? {id:d.id, erro:d.erro} : null; return; }
+    piperBaixa = d; const el=$("#piperPct"); if(el) el.textContent = textoBaixa(d); });
   setTimeout(atualizarPiper, 1500); setTimeout(atualizarPiper, 8000);
 }
 let appsMusica = null;
@@ -1832,8 +1840,9 @@ function ajustesPiper(){
   const vs = piperInfo?.vozes || [{id:"faber", nome:"Faber", instalada:true, embutida:true, licenca:"CC0"}];
   const atual = cfg.vozPiper || "faber", sel = vs.find(v=>v.id===atual) || vs[0];
   const baixando = piperInfo?.baixando || piperBaixa?.ativo;
+  const erroBaixa = !baixando && piperBaixa?.erro && piperBaixa.id===sel?.id ? piperBaixa.erro : "";
   return `<div class="row"><label class="lbl" for="sVozP" style="margin:0">Voz</label><select class="inp" id="sVozP" style="width:auto">${vs.map(v=>`<option value="${esc(v.id)}" ${v.id===atual?"selected":""}>${esc(v.nome)} · ${esc(VOZES_PIPER_DESC[v.id]||"")}${v.instalada?"":" (baixar)"}</option>`).join("")}</select></div>
-    ${sel && !sel.instalada ? `<div class="row"><span class="sub" id="piperPct">${baixando?"Baixando…":`A voz ${esc(sel.nome)} ainda não está no aparelho (cerca de 65 MB).`}</span><button class="btn-line" data-act="piper-baixar" type="button" ${baixando?"disabled":""}>Baixar voz</button></div>`
+    ${sel && !sel.instalada ? `<div class="row"><span class="sub" id="piperPct" ${erroBaixa?'style="color:var(--amber)"':""}>${baixando?esc(textoBaixa(piperBaixa)):erroBaixa?`Não consegui baixar a voz ${esc(sel.nome)}: ${esc(String(erroBaixa).slice(0,160))}`:`A voz ${esc(sel.nome)} ainda não está no aparelho (cerca de 65 MB).`}</span><button class="btn-line" data-act="piper-baixar" type="button" ${baixando?"disabled":""}>${erroBaixa?"Tentar de novo":"Baixar voz"}</button></div>`
       : (sel && !sel.embutida ? `<div class="row"><span class="sub">Voz baixada no aparelho</span><button class="btn-line" data-act="piper-remover" type="button">Apagar</button></div>` : "")}
     <p class="note" style="margin:0">Voz neural que roda no próprio ${APARELHO}, sem internet e sem gastar cota.${sel?.licenca && !/CC0/.test(sel.licenca)?` Licença da voz ${esc(sel.nome)}: ${esc(sel.licenca)}.`:""}${piperInfo?.erro?` <span style="color:var(--amber)">Não consegui iniciar a voz neural (${esc(String(piperInfo.erro).slice(0,90))}); usando a do aparelho.</span>`:""}</p>`;
 }
@@ -1981,8 +1990,8 @@ function cliqueCartao(e){
   if(act==="desfazer" && pdfUndo.length){ const u=pdfUndo.pop(); Object.assign(pdf,{bytes:u.bytes,pages:u.pages,ops:u.ops}); renderCard(); renderThumbs(); }
   if(act==="baixar") pdfDownload();
   if(act==="briefing") runBriefing();
-  if(act==="piper-baixar" && VOZ){ const id=cfg.vozPiper||"faber"; piperBaixa={id, pct:0, ativo:true}; e.target.disabled=true; const el=$("#piperPct"); if(el) el.textContent="Baixando… 0%";
-    VOZ.baixar({id}).then(()=>{ piperBaixa=null; caption(`Voz baixada. Toque em Testar voz para ouvir.`); diario(`voz neural: ${id} baixada`); return VOZ.carregar({voz:id}); }).catch(err=>{ piperBaixa=null; caption(`<em>${esc(err?.message||"Não consegui baixar a voz. Confira a internet.")}</em>`); }).finally(atualizarPiper); }
+  if(act==="piper-baixar" && VOZ){ const id=cfg.vozPiper||"faber"; piperBaixa={id, pct:0, ativo:true}; const bt=e.target.closest("button"); if(bt) bt.disabled=true; const el=$("#piperPct"); if(el){ el.style.color=""; el.textContent=textoBaixa(piperBaixa); }
+    VOZ.baixar({id}).then(()=>{ piperBaixa=null; caption(`Voz baixada. Toque em Testar voz para ouvir.`); diario(`voz neural: ${id} baixada`); return VOZ.carregar({voz:id}); }).catch(err=>{ const msg=err?.message||"Confira a internet e tente de novo."; piperBaixa={id, erro:msg}; caption(`<em>${esc(`Não consegui baixar a voz: ${msg}`)}</em>`); diario(`voz neural: download de ${id} falhou (${msg})`); }).finally(()=>atualizarPiper().then(()=>{ if(ajOpen) renderAjustes(); })); }
   if(act==="tela-cheia") DESKTOP?.config.telaCheia();
   if(act==="atualizar-agora") DESKTOP?.config.atualizarAgora();
   if(act==="piper-remover" && VOZ){ const id=cfg.vozPiper; if(id && id!=="faber"){ VOZ.remover({id}).catch(()=>{}).finally(()=>{ cfg.vozPiper="faber"; store.set("cfg",cfg); atualizarPiper(); }); } }
@@ -4635,15 +4644,65 @@ function connectAI(){
 }
 
 /* ---------- voz do Gemini: toca o áudio PCM com Web Audio ---------- */
+// separa a primeira frase (para começar a falar rápido) do resto; textos curtos vão inteiros
+function dividirFala(t){
+  t = t.trim();
+  if (t.length < 160) return [t, ""];
+  const re = /[.!?…;:](?=\s)|\n/g; let m, corte = -1;
+  while ((m = re.exec(t))){ if (m.index >= 25){ corte = m.index+1; break; } if (m.index > 220) break; }
+  if (corte < 0 || corte > 220){ const v = t.lastIndexOf(",", 160); corte = v >= 40 ? v+1 : -1; }
+  if (corte < 0) return [t, ""];
+  const resto = t.slice(corte).trim();
+  return resto.length < 20 ? [t, ""] : [t.slice(0, corte).trim(), resto];
+}
 let audioCtx = null, fonteVoz = null, vozGeminiPausaAte = 0, piperPausaAte = 0, vozCloudPausaAte = 0;
+// O Gemini às vezes termina o áudio com um estouro de chiado (ruído) depois de um silêncio.
+// limparPCM acha esse rabo de ruído e corta, tira o silêncio sobrando e faz fade de entrada e saída
+// (sem o fade, o corte seco no fim também estala). Devolve quantas amostras tocar.
+function limparPCM(ch, rate){
+  const J = Math.max(1, Math.round(rate*0.02)), nj = Math.floor(ch.length/J);
+  if (nj < 5) return ch.length;
+  const rms = new Float32Array(nj), zcr = new Float32Array(nj);
+  let pico = 0;
+  for (let j=0;j<nj;j++){
+    let e=0, z=0, a=ch[j*J];
+    for (let i=j*J;i<(j+1)*J;i++){ const v=ch[i]; e+=v*v; if ((v>=0)!==(a>=0)) z++; a=v; }
+    rms[j]=Math.sqrt(e/J); zcr[j]=z/J; if (rms[j]>pico) pico=rms[j];
+  }
+  const quieto = j => rms[j] < Math.max(0.004, pico*0.04);
+  let fim = nj;   // em janelas
+  for (let volta=0; volta<3; volta++){
+    let L = fim-1; while (L>=0 && quieto(L)) L--;
+    if (L < 0) break;
+    // começo do último trecho com som (aceita respiros de até 100 ms dentro dele)
+    let S = L, gap = 0;
+    for (let j=L-1;j>=0;j--){ if (quieto(j)){ if (++gap > 5) break; } else { gap=0; S=j; } }
+    let sil = 0; for (let j=S-1;j>=0 && quieto(j);j--) sil++;
+    let zm = 0; for (let j=S;j<=L;j++) zm += zcr[j]; zm /= (L-S+1);
+    const durS = (L-S+1)*0.02;
+    // ruído: veio depois de >=200 ms de silêncio, é curto e "chiado" (cruza o zero o tempo todo)
+    if (S>0 && sil>=10 && durS<=2.5 && zm>0.3) { fim = S - sil + 5; continue; }
+    fim = Math.min(nj, L+8);   // mantém 140 ms depois da última fala
+    break;
+  }
+  const n = Math.min(ch.length, fim*J);
+  const fi = Math.min(n, Math.round(rate*0.01)), fo = Math.min(n, Math.round(rate*0.05));
+  for (let i=0;i<fi;i++) ch[i] *= i/fi;
+  for (let i=0;i<fo;i++) ch[n-1-i] *= i/fo;
+  return n;
+}
 async function tocarPCM(b64, mime){
   audioCtx = audioCtx || new (window.AudioContext||window.webkitAudioContext)();
   if (audioCtx.state==="suspended") await audioCtx.resume().catch(()=>{});
   let bin = atob(b64), rate = +((mime.match(/rate=(\d+)/)||[])[1]||24000);
   if (bin.startsWith("RIFF")){ const k = bin.indexOf("data"); if (k>0) bin = bin.slice(k+8); }
-  const n = bin.length>>1;
-  const buf = audioCtx.createBuffer(1, n, rate), ch = buf.getChannelData(0);
-  for (let i=0;i<n;i++){ let v = bin.charCodeAt(2*i) | (bin.charCodeAt(2*i+1)<<8); if (v>=32768) v-=65536; ch[i] = v/32768; }
+  const total = bin.length>>1;
+  if (total < 2) return;
+  const pcm = new Float32Array(total);
+  for (let i=0;i<total;i++){ let v = bin.charCodeAt(2*i) | (bin.charCodeAt(2*i+1)<<8); if (v>=32768) v-=65536; pcm[i] = v/32768; }
+  const n = Math.max(1, limparPCM(pcm, rate));
+  const buf = audioCtx.createBuffer(1, n, rate);
+  buf.copyToChannel(pcm.subarray(0, n), 0);
   const src = audioCtx.createBufferSource(); src.buffer = buf; src.connect(audioCtx.destination); fonteVoz = src;
   await new Promise(r=>{ src.onended = r; src.start(); });
   if (fonteVoz===src) fonteVoz = null;
@@ -4791,10 +4850,25 @@ async function setupNativeVoice(){
     };
     const falarNativo = (text, language) => TTS.speak({text:String(text), lang:LANGS[language]||language, rate:cfg?.vozVelocidade||1.0, pitch:1.0, volume:1.0, voice:indiceVoz(language), category:"playback"});
     let falaGen = 0;
+    // O Gemini só devolve o áudio depois de gerar a fala inteira, e uma resposta longa demora muitos segundos.
+    // Por isso a primeira frase vai num pedido curto (chega rápido e já começa a tocar) e o resto vai junto,
+    // em paralelo, num segundo pedido. Se o segundo falhar (cota), o resto sai na voz do aparelho.
     const falarGemini = async (text, g) => {
-      const a = await AI.falar(cfg.keys.gemini, cfg.gemAuth||"header", text, cfg.vozGemini||"Charon");
+      const voz = cfg.vozGemini||"Charon", key = cfg.keys.gemini, auth = cfg.gemAuth||"header";
+      const [primeira, resto] = dividirFala(String(text));
+      const pResto = resto ? AI.falar(key, auth, resto, voz).catch(e=>({erro:e})) : null;
+      const a = await AI.falar(key, auth, primeira, voz);
       if (g!==falaGen) return;   // cancelado enquanto o áudio chegava
       await tocarPCM(a.b64, a.mime);
+      if (!pResto || g!==falaGen) return;
+      const b = await pResto;
+      if (g!==falaGen) return;
+      if (b.erro){
+        if (b.erro?.code==="rate_limited" || b.erro?.status===429) vozGeminiPausaAte = Date.now()+60e3;
+        diario(`voz do Gemini: resto da fala falhou (${b.erro?.code||""} ${b.erro?.message||""}); usando a voz do aparelho`);
+        return falarNativo(resto, "pt-BR");
+      }
+      await tocarPCM(b.b64, b.mime);
     };
     // Google Cloud Text-to-Speech (vozes Chirp 3 HD), com a chave do próprio usuário
     const falarCloud = async (text, g) => {
