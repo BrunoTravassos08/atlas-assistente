@@ -1266,10 +1266,18 @@ if (ESCUTA){
   setInterval(()=>{ if (!escutaLigada && podeEscutar()) escutaNome(); }, 4000);
 }
 let piperInfo = null, piperBaixa = null;
+// "Baixando… 37% (24 de 64 MB)" / "Instalando a voz…"
+function textoBaixa(d){
+  if (d?.fase==="instalando") return "Instalando a voz… (alguns segundos)";
+  if (!d || d.pct==null || d.pct===0 && !d.mb) return "Baixando… (conectando)";
+  return d.pct>=0 ? `Baixando… ${d.pct}%${d.totalMb?` (${d.mb} de ${d.totalMb} MB)`:""}` : `Baixando… ${d.mb} MB`;
+}
 const motorVoz = () => cfg?.vozMotor || (VOZ ? "piper" : "aparelho");
 async function atualizarPiper(){ if(!VOZ) return null; try{ piperInfo = await VOZ.info(); }catch(e){ piperInfo = null; } if(ajOpen && !$("#ajCard").contains(document.activeElement)) renderAjustes(); return piperInfo; }
 if (VOZ){
-  VOZ.addListener("progresso", d=>{ piperBaixa = d; const el=$("#piperPct"); if(el) el.textContent = d.pct>=0 ? `Baixando… ${d.pct}%` : `Baixando… ${d.mb} MB`; });
+  VOZ.addListener("progresso", d=>{
+    if (d.ativo===false){ piperBaixa = d.erro ? {id:d.id, erro:d.erro} : null; return; }
+    piperBaixa = d; const el=$("#piperPct"); if(el) el.textContent = textoBaixa(d); });
   setTimeout(atualizarPiper, 1500); setTimeout(atualizarPiper, 8000);
 }
 let appsMusica = null;
@@ -1832,8 +1840,9 @@ function ajustesPiper(){
   const vs = piperInfo?.vozes || [{id:"faber", nome:"Faber", instalada:true, embutida:true, licenca:"CC0"}];
   const atual = cfg.vozPiper || "faber", sel = vs.find(v=>v.id===atual) || vs[0];
   const baixando = piperInfo?.baixando || piperBaixa?.ativo;
+  const erroBaixa = !baixando && piperBaixa?.erro && piperBaixa.id===sel?.id ? piperBaixa.erro : "";
   return `<div class="row"><label class="lbl" for="sVozP" style="margin:0">Voz</label><select class="inp" id="sVozP" style="width:auto">${vs.map(v=>`<option value="${esc(v.id)}" ${v.id===atual?"selected":""}>${esc(v.nome)} · ${esc(VOZES_PIPER_DESC[v.id]||"")}${v.instalada?"":" (baixar)"}</option>`).join("")}</select></div>
-    ${sel && !sel.instalada ? `<div class="row"><span class="sub" id="piperPct">${baixando?"Baixando…":`A voz ${esc(sel.nome)} ainda não está no aparelho (cerca de 65 MB).`}</span><button class="btn-line" data-act="piper-baixar" type="button" ${baixando?"disabled":""}>Baixar voz</button></div>`
+    ${sel && !sel.instalada ? `<div class="row"><span class="sub" id="piperPct" ${erroBaixa?'style="color:var(--amber)"':""}>${baixando?esc(textoBaixa(piperBaixa)):erroBaixa?`Não consegui baixar a voz ${esc(sel.nome)}: ${esc(String(erroBaixa).slice(0,160))}`:`A voz ${esc(sel.nome)} ainda não está no aparelho (cerca de 65 MB).`}</span><button class="btn-line" data-act="piper-baixar" type="button" ${baixando?"disabled":""}>${erroBaixa?"Tentar de novo":"Baixar voz"}</button></div>`
       : (sel && !sel.embutida ? `<div class="row"><span class="sub">Voz baixada no aparelho</span><button class="btn-line" data-act="piper-remover" type="button">Apagar</button></div>` : "")}
     <p class="note" style="margin:0">Voz neural que roda no próprio ${APARELHO}, sem internet e sem gastar cota.${sel?.licenca && !/CC0/.test(sel.licenca)?` Licença da voz ${esc(sel.nome)}: ${esc(sel.licenca)}.`:""}${piperInfo?.erro?` <span style="color:var(--amber)">Não consegui iniciar a voz neural (${esc(String(piperInfo.erro).slice(0,90))}); usando a do aparelho.</span>`:""}</p>`;
 }
@@ -1981,8 +1990,8 @@ function cliqueCartao(e){
   if(act==="desfazer" && pdfUndo.length){ const u=pdfUndo.pop(); Object.assign(pdf,{bytes:u.bytes,pages:u.pages,ops:u.ops}); renderCard(); renderThumbs(); }
   if(act==="baixar") pdfDownload();
   if(act==="briefing") runBriefing();
-  if(act==="piper-baixar" && VOZ){ const id=cfg.vozPiper||"faber"; piperBaixa={id, pct:0, ativo:true}; e.target.disabled=true; const el=$("#piperPct"); if(el) el.textContent="Baixando… 0%";
-    VOZ.baixar({id}).then(()=>{ piperBaixa=null; caption(`Voz baixada. Toque em Testar voz para ouvir.`); diario(`voz neural: ${id} baixada`); return VOZ.carregar({voz:id}); }).catch(err=>{ piperBaixa=null; caption(`<em>${esc(err?.message||"Não consegui baixar a voz. Confira a internet.")}</em>`); }).finally(atualizarPiper); }
+  if(act==="piper-baixar" && VOZ){ const id=cfg.vozPiper||"faber"; piperBaixa={id, pct:0, ativo:true}; const bt=e.target.closest("button"); if(bt) bt.disabled=true; const el=$("#piperPct"); if(el){ el.style.color=""; el.textContent=textoBaixa(piperBaixa); }
+    VOZ.baixar({id}).then(()=>{ piperBaixa=null; caption(`Voz baixada. Toque em Testar voz para ouvir.`); diario(`voz neural: ${id} baixada`); return VOZ.carregar({voz:id}); }).catch(err=>{ const msg=err?.message||"Confira a internet e tente de novo."; piperBaixa={id, erro:msg}; caption(`<em>${esc(`Não consegui baixar a voz: ${msg}`)}</em>`); diario(`voz neural: download de ${id} falhou (${msg})`); }).finally(()=>atualizarPiper().then(()=>{ if(ajOpen) renderAjustes(); })); }
   if(act==="tela-cheia") DESKTOP?.config.telaCheia();
   if(act==="atualizar-agora") DESKTOP?.config.atualizarAgora();
   if(act==="piper-remover" && VOZ){ const id=cfg.vozPiper; if(id && id!=="faber"){ VOZ.remover({id}).catch(()=>{}).finally(()=>{ cfg.vozPiper="faber"; store.set("cfg",cfg); atualizarPiper(); }); } }
