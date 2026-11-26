@@ -1822,7 +1822,14 @@ function setMode(m){ if(m!==mode) bgDirty=performance.now()+1500; mode=m; $("#st
 const esc = s => String(s??"").replace(/[&<>"]/g, c=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;"}[c]));
 const VOZES_PIPER_DESC = {faber:"tom médio, já instalada", cadu:"grave", jeff:"tom médio", dii:"aguda, alta qualidade", miro:"bem grave, alta qualidade"};
 const VOZES_CLOUD = [["Charon","Charon · masculina, calma (estilo Jarvis)"],["Orus","Orus · masculina, firme"],["Fenrir","Fenrir · masculina, animada"],["Puck","Puck · masculina, leve"],["Kore","Kore · feminina, firme"],["Aoede","Aoede · feminina, leve"],["Leda","Leda · feminina, jovem"],["Zephyr","Zephyr · feminina, clara"]];
-let vozCloudErro = "";
+let vozCloudErro = "", vozAviso = "", vozAvisoEm = 0;
+// avisa (uma vez) quando o Atlas troca de voz sozinho, e diz até quando
+function avisarTrocaVoz(t){
+  if (t===vozAviso && Date.now()-vozAvisoEm < 30*60e3) return;
+  vozAviso = t; vozAvisoEm = Date.now();
+  const c = $("#caption"); if (c) c.insertAdjacentHTML("beforeend", `<br><small style="color:var(--amber)">${esc(t)}</small>`);
+  if (ajOpen) renderAjustes();
+}
 function ajustesCloud(){
   const link = (u, t) => `<a data-act="abrir-noticia" data-url="${u}" role="link" tabindex="0">${t}</a>`;
   const tem = !!cfg.keys?.cloudTts;
@@ -1842,7 +1849,7 @@ function ajustesPiper(){
   const baixando = piperInfo?.baixando || piperBaixa?.ativo;
   const erroBaixa = !baixando && piperBaixa?.erro && piperBaixa.id===sel?.id ? piperBaixa.erro : "";
   return `<div class="row"><label class="lbl" for="sVozP" style="margin:0">Voz</label><select class="inp" id="sVozP" style="width:auto">${vs.map(v=>`<option value="${esc(v.id)}" ${v.id===atual?"selected":""}>${esc(v.nome)} · ${esc(VOZES_PIPER_DESC[v.id]||"")}${v.instalada?"":" (baixar)"}</option>`).join("")}</select></div>
-    ${sel && !sel.instalada ? `<div class="row"><span class="sub" id="piperPct" ${erroBaixa?'style="color:var(--amber)"':""}>${baixando?esc(textoBaixa(piperBaixa)):erroBaixa?`Não consegui baixar a voz ${esc(sel.nome)}: ${esc(String(erroBaixa).slice(0,160))}`:`A voz ${esc(sel.nome)} ainda não está no aparelho (cerca de 65 MB).`}</span><button class="btn-line" data-act="piper-baixar" type="button" ${baixando?"disabled":""}>${erroBaixa?"Tentar de novo":"Baixar voz"}</button></div>`
+    ${sel && !sel.instalada ? `<div class="row"><span class="sub" id="piperPct" ${erroBaixa?'style="color:var(--amber)"':""}>${baixando?esc(textoBaixa(piperBaixa)):erroBaixa?`Não consegui baixar a voz ${esc(sel.nome)}: ${esc(String(erroBaixa).slice(0,160))}`:`A voz ${esc(sel.nome)} ainda não está no ${APARELHO} (cerca de 65 MB). Até baixar, o ${esc(cfg.name)} fala com a Faber.`}</span><button class="btn-line" data-act="piper-baixar" type="button" ${baixando?"disabled":""}>${erroBaixa?"Tentar de novo":"Baixar voz"}</button></div>`
       : (sel && !sel.embutida ? `<div class="row"><span class="sub">Voz baixada no aparelho</span><button class="btn-line" data-act="piper-remover" type="button">Apagar</button></div>` : "")}
     <p class="note" style="margin:0">Voz neural que roda no próprio ${APARELHO}, sem internet e sem gastar cota.${sel?.licenca && !/CC0/.test(sel.licenca)?` Licença da voz ${esc(sel.nome)}: ${esc(sel.licenca)}.`:""}${piperInfo?.erro?` <span style="color:var(--amber)">Não consegui iniciar a voz neural (${esc(String(piperInfo.erro).slice(0,90))}); usando a do aparelho.</span>`:""}</p>`;
 }
@@ -1930,7 +1937,7 @@ function renderAjustes(){
           : motorVoz()==="cloud" ? ajustesCloud()
           : motorVoz()==="gemini"
           ? `<div class="row"><label class="lbl" for="sVozG" style="margin:0">Voz</label><select class="inp" id="sVozG" style="width:auto">${VOZES_GEMINI.map(([id,n])=>`<option value="${id}" ${(cfg.vozGemini||"Charon")===id?"selected":""}>${esc(n)}</option>`).join("")}</select></div>
-             <p class="note" style="margin:0">A voz do Gemini usa a cota grátis do Google (1 pedido por fala). Quando a cota acabar, o ${esc(cfg.name)} volta sozinho para a voz do aparelho.</p>`
+             <p class="note" style="margin:0">A voz do Gemini usa a cota grátis do Google (1 pedido por fala, e o Google limita os pedidos por minuto e por dia). Ela leva alguns segundos para começar, porque o Google gera a fala inteira antes de mandar. Quando a cota acaba, o ${esc(cfg.name)} usa ${VOZ?"a voz neural offline":"a voz do aparelho"} até a cota voltar.${Date.now()<vozGeminiPausaAte && vozAviso?` <span style="color:var(--amber)">${esc(vozAviso)}</span>`:""}</p>`
           : `<div class="row"><label class="lbl" for="sVozN" style="margin:0">Voz</label><select class="inp" id="sVozN" style="width:auto"><option value="">Automática (a mais natural)</option>${vozesPT.map((v,k)=>`<option value="${esc(v.voiceURI)}" ${cfg.vozNativa===v.voiceURI?"selected":""}>${esc(nomeVoz(v,k))}</option>`).join("")}</select></div>
              ${DESKTOP ? (vozesPT.length ? "" : `<p class="note" style="margin:0">O Windows não tem voz em português instalada. Para instalar: Configurações do Windows › Hora e idioma › Fala › Adicionar vozes › Português (Brasil). Depois volte aqui. Enquanto isso, prefira a voz neural offline.</p>`) : vozesPT.length<3?`<p class="note" style="margin:0">Poucas vozes em português neste aparelho. Para vozes mais naturais: Configurações do Android › Gerenciamento geral (ou Sistema) › Idioma › Saída de texto para fala › Mecanismo preferido: <b>Serviços de fala do Google</b> › engrenagem › Instalar dados de voz › Português (Brasil). Depois volte aqui.</p>`:""}`}
         <div class="row"><label class="lbl" for="sVel" style="margin:0">Velocidade</label><select class="inp" id="sVel" style="width:auto">${[[0.85,"Mais devagar"],[1,"Normal"],[1.15,"Mais rápida"]].map(([v,n])=>`<option value="${v}" ${(cfg.vozVelocidade||1)==v?"selected":""}>${n}</option>`).join("")}</select></div>
@@ -4644,19 +4651,22 @@ function connectAI(){
 }
 
 /* ---------- voz do Gemini: toca o áudio PCM com Web Audio ---------- */
-// separa a primeira frase (para começar a falar rápido) do resto; textos curtos vão inteiros
-function dividirFala(t){
-  t = t.trim();
-  if (t.length < 160) return [t, ""];
-  const re = /[.!?…;:](?=\s)|\n/g; let m, corte = -1;
-  while ((m = re.exec(t))){ if (m.index >= 25){ corte = m.index+1; break; } if (m.index > 220) break; }
-  if (corte < 0 || corte > 220){ const v = t.lastIndexOf(",", 160); corte = v >= 40 ? v+1 : -1; }
-  if (corte < 0) return [t, ""];
-  const resto = t.slice(corte).trim();
-  return resto.length < 20 ? [t, ""] : [t.slice(0, corte).trim(), resto];
+// WAV: lê só o pedaço "data" (pelo tamanho dele) e a taxa do "fmt ". Antes o app lia até o fim do arquivo,
+// e metadados depois do áudio viravam um chiado alto no fim da fala.
+function lerWav(bin, rate){
+  const u32 = i => (bin.charCodeAt(i) | bin.charCodeAt(i+1)<<8 | bin.charCodeAt(i+2)<<16 | bin.charCodeAt(i+3)<<24) >>> 0;
+  let i = 12;
+  while (i + 8 <= bin.length){
+    const id = bin.slice(i, i+4), tam = u32(i+4);
+    if (id === "fmt ") rate = u32(i+12) || rate;
+    if (id === "data") return {bin: bin.slice(i+8, Math.min(bin.length, i+8+tam)), rate};
+    i += 8 + tam + (tam & 1);
+  }
+  const k = bin.indexOf("data");
+  return {bin: k > 0 ? bin.slice(k+8) : "", rate};
 }
 let audioCtx = null, fonteVoz = null, vozGeminiPausaAte = 0, piperPausaAte = 0, vozCloudPausaAte = 0;
-// O Gemini às vezes termina o áudio com um estouro de chiado (ruído) depois de um silêncio.
+// O Gemini às vezes termina o áudio com um estouro de chiado (ruído): depois de um silêncio ou colado na fala.
 // limparPCM acha esse rabo de ruído e corta, tira o silêncio sobrando e faz fade de entrada e saída
 // (sem o fade, o corte seco no fim também estala). Devolve quantas amostras tocar.
 function limparPCM(ch, rate){
@@ -4670,6 +4680,9 @@ function limparPCM(ch, rate){
     rms[j]=Math.sqrt(e/J); zcr[j]=z/J; if (rms[j]>pico) pico=rms[j];
   }
   const quieto = j => rms[j] < Math.max(0.004, pico*0.04);
+  // volume típico da fala (mediana das janelas com som), para saber se um chiado no fim é "alto"
+  const comSom = Array.from(rms).filter((v,j)=>!quieto(j)).sort((x,y)=>x-y);
+  const tipico = comSom.length ? comSom[comSom.length>>1] : pico;
   let fim = nj;   // em janelas
   for (let volta=0; volta<3; volta++){
     let L = fim-1; while (L>=0 && quieto(L)) L--;
@@ -4682,7 +4695,15 @@ function limparPCM(ch, rate){
     const durS = (L-S+1)*0.02;
     // ruído: veio depois de >=200 ms de silêncio, é curto e "chiado" (cruza o zero o tempo todo)
     if (S>0 && sil>=10 && durS<=2.5 && zm>0.3) { fim = S - sil + 5; continue; }
-    fim = Math.min(nj, L+8);   // mantém 140 ms depois da última fala
+    // estouro colado na fala: a voz some (cai quase a zero) e, nos últimos 50–200 ms, vem um chiado alto
+    let q = -1;
+    for (let j=L-1;j>=Math.max(0,L-10);j--) if (rms[j] < Math.max(0.002, pico*0.02)){ q=j; break; }
+    if (q > 0){
+      let zt=0, mt=0; for (let j=q+1;j<=L;j++){ zt+=zcr[j]; if (rms[j]>mt) mt=rms[j]; }
+      zt /= (L-q);
+      if (zt>0.3 && mt >= 0.5*tipico){ fim = q+1; continue; }
+    }
+    fim = Math.min(fim, L+8);   // mantém até 140 ms depois da última fala (sem passar do corte do chiado)
     break;
   }
   const n = Math.min(ch.length, fim*J);
@@ -4695,7 +4716,7 @@ async function tocarPCM(b64, mime){
   audioCtx = audioCtx || new (window.AudioContext||window.webkitAudioContext)();
   if (audioCtx.state==="suspended") await audioCtx.resume().catch(()=>{});
   let bin = atob(b64), rate = +((mime.match(/rate=(\d+)/)||[])[1]||24000);
-  if (bin.startsWith("RIFF")){ const k = bin.indexOf("data"); if (k>0) bin = bin.slice(k+8); }
+  if (bin.startsWith("RIFF")) ({bin, rate} = lerWav(bin, rate));
   const total = bin.length>>1;
   if (total < 2) return;
   const pcm = new Float32Array(total);
@@ -4850,25 +4871,10 @@ async function setupNativeVoice(){
     };
     const falarNativo = (text, language) => TTS.speak({text:String(text), lang:LANGS[language]||language, rate:cfg?.vozVelocidade||1.0, pitch:1.0, volume:1.0, voice:indiceVoz(language), category:"playback"});
     let falaGen = 0;
-    // O Gemini só devolve o áudio depois de gerar a fala inteira, e uma resposta longa demora muitos segundos.
-    // Por isso a primeira frase vai num pedido curto (chega rápido e já começa a tocar) e o resto vai junto,
-    // em paralelo, num segundo pedido. Se o segundo falhar (cota), o resto sai na voz do aparelho.
     const falarGemini = async (text, g) => {
-      const voz = cfg.vozGemini||"Charon", key = cfg.keys.gemini, auth = cfg.gemAuth||"header";
-      const [primeira, resto] = dividirFala(String(text));
-      const pResto = resto ? AI.falar(key, auth, resto, voz).catch(e=>({erro:e})) : null;
-      const a = await AI.falar(key, auth, primeira, voz);
+      const a = await AI.falar(cfg.keys.gemini, cfg.gemAuth||"header", text, cfg.vozGemini||"Charon");
       if (g!==falaGen) return;   // cancelado enquanto o áudio chegava
       await tocarPCM(a.b64, a.mime);
-      if (!pResto || g!==falaGen) return;
-      const b = await pResto;
-      if (g!==falaGen) return;
-      if (b.erro){
-        if (b.erro?.code==="rate_limited" || b.erro?.status===429) vozGeminiPausaAte = Date.now()+60e3;
-        diario(`voz do Gemini: resto da fala falhou (${b.erro?.code||""} ${b.erro?.message||""}); usando a voz do aparelho`);
-        return falarNativo(resto, "pt-BR");
-      }
-      await tocarPCM(b.b64, b.mime);
     };
     // Google Cloud Text-to-Speech (vozes Chirp 3 HD), com a chave do próprio usuário
     const falarCloud = async (text, g) => {
@@ -4894,18 +4900,20 @@ async function setupNativeVoice(){
             }
           }
           if (g!==falaGen) return;
-          if (VOZ && (motorVoz()==="piper" || motorVoz()==="cloud") && language==="pt-BR" && Date.now()>piperPausaAte){
-            try { await VOZ.falar({texto:String(text), voz:cfg.vozPiper||"faber", velocidade:cfg?.vozVelocidade||1}); return; }
-            catch(e){ if (g!==falaGen) return; piperPausaAte = Date.now()+5*60e3; diario(`voz neural falhou (${e?.message||e}); usando a voz do aparelho`); }
-          }
-          if (g!==falaGen) return;
           if (motorVoz()==="gemini" && cfg.keys?.gemini && Date.now()>vozGeminiPausaAte){
             try { return await falarGemini(text, g); }
             catch(e){
               if (e?.code==="cancelled") return;
               vozGeminiPausaAte = Date.now() + (e?.porDia ? 6*3600e3 : e?.code==="rate_limited" ? 60e3 : 10*60e3);
-              diario(`voz do Gemini falhou (${e?.code||""} ${e?.detalhe||e?.message||""}); usando a voz do aparelho`);
+              diario(`voz do Gemini falhou (${e?.code||""} ${e?.detalhe||e?.message||""}); usando outra voz até ${new Date(vozGeminiPausaAte).toLocaleTimeString("pt-BR",{hour:"2-digit",minute:"2-digit"})}`);
+              const ate = new Date(vozGeminiPausaAte).toLocaleTimeString("pt-BR",{hour:"2-digit",minute:"2-digit"});
+              avisarTrocaVoz(`${e?.porDia ? "A cota grátis de hoje da voz do Gemini acabou" : e?.code==="rate_limited" ? "A voz do Gemini atingiu o limite de pedidos por minuto" : "A voz do Gemini não respondeu"}. Até ${ate} vou falar com ${VOZ?"a voz neural offline":"a voz do "+APARELHO}.`);
             }
+          }
+          if (g!==falaGen) return;
+          if (VOZ && (motorVoz()==="piper" || motorVoz()==="cloud" || motorVoz()==="gemini") && language==="pt-BR" && Date.now()>piperPausaAte){
+            try { await VOZ.falar({texto:String(text), voz:cfg.vozPiper||"faber", velocidade:cfg?.vozVelocidade||1}); return; }
+            catch(e){ if (g!==falaGen) return; piperPausaAte = Date.now()+5*60e3; diario(`voz neural falhou (${e?.message||e}); usando a voz do aparelho`); avisarTrocaVoz(`A voz neural deu erro (${String(e?.message||e).slice(0,80)}). Por 5 minutos vou usar a voz do ${APARELHO}.`); }
           }
           if (g!==falaGen) return;
           await falarNativo(text, language);

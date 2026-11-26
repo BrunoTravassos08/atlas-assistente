@@ -276,7 +276,7 @@ const VOZES = [
 ];
 const PASTA_VOZES = path.join(app.getPath("userData"), "vozes");
 const vozInstalada = id => { try { return id === "faber" || fs.statSync(path.join(PASTA_VOZES, id, "model.onnx")).size > 1e6; } catch { return false; } };
-let baixando = false, erroMotor = null;
+let baixando = false, erroMotor = null, reinicios = [];
 function iniciarMotor(){
   try {
     motor = utilityProcess.fork(path.join(__dirname, "motor.js"), [], { serviceName: "Atlas voz", stdio: "ignore" });
@@ -290,7 +290,12 @@ function iniciarMotor(){
     if (m.id != null && pendentes.has(m.id) && ["info", "carregada", "texto"].includes(m.t)){ pendentes.get(m.id)(m); pendentes.delete(m.id); }
     if (m.t === "kws-ok" || m.t === "kws-erro"){ const f = pendentes.get("kws"); pendentes.delete("kws"); f?.(m); }
   });
-  motor.on("exit", c => { motor = null; erroMotor = `o motor de voz parou (código ${c})`; enviar("desk-log", erroMotor); enviar("voz-fim", { id: -1, erro: erroMotor }); });
+  motor.on("exit", c => {
+    motor = null; erroMotor = `o motor de voz parou (código ${c})`; enviar("desk-log", erroMotor); enviar("voz-fim", { id: -1, erro: erroMotor });
+    // religa sozinho (antes ficava desligado até fechar o Atlas, e toda fala caía na voz do Windows)
+    const agora = Date.now(); reinicios = reinicios.filter(t => agora - t < 10 * 60e3);
+    if (reinicios.length < 3){ reinicios.push(agora); setTimeout(() => { if (!motor){ erroMotor = null; iniciarMotor(); enviar("desk-log", "motor de voz religado"); } }, 2000); }
+  });
 }
 const perguntarMotor = (msg, chave) => new Promise(res => {
   if (!motor) return res({ erro: erroMotor || "motor de voz desligado" });
